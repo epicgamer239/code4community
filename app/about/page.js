@@ -1,170 +1,122 @@
 "use client";
 import { useLayoutEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import DashboardTopBar from "../../components/DashboardTopBar";
 import Footer from "../../components/Footer";
+
+// Hero background: team collaboration (Unsplash, free to use)
+const HERO_IMAGE =
+  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1600&q=80";
+
+const team = [
+  { name: "Shail Shah", role: "President & Head Developer", image: "/shail.jpg" },
+  { name: "Pranav Natarajan", role: "Co-President & Head of Outreach", image: "/pranav.jpg" },
+  { name: "Aryan Kothari", role: "Vice President & Developer", image: "/aryan.jpg" },
+];
 
 export default function AboutUs() {
   useLayoutEffect(() => {
     document.title = "Code4Community | About Us";
   }, []);
-  
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <DashboardTopBar 
-        title="Code4Community" 
-        showNavLinks={true}
-      />
+      <DashboardTopBar title="Code4Community" showNavLinks={true} />
 
-      {/* Hero Section */}
-      <div className="bg-[#0066CC] text-white py-16 md:py-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
-            About Us
+      {/* Hero: full-width with blurred background image, extends to top bar */}
+      <div className="relative text-white py-20 md:py-28 px-6 md:px-12 lg:px-16 overflow-hidden -mt-6">
+        <div className="absolute inset-0">
+          <Image
+            src={HERO_IMAGE}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="100vw"
+            priority
+          />
+          <div className="absolute inset-0 bg-slate-800/75" aria-hidden />
+        </div>
+        <div className="relative z-10 max-w-2xl">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+            Built for the{" "}
+            <span className="relative inline-block">
+              community.
+              <span className="absolute bottom-1 left-0 w-full h-1 bg-amber-400 rounded-full" aria-hidden />
+            </span>
           </h1>
-          <p className="text-base md:text-lg leading-relaxed max-w-3xl mx-auto text-white">
-            Code4Community is a team that builds software tools for organizations and the community. 
-            We deliver practical apps and grow our skills through real development work.
+          <p className="text-lg md:text-xl text-white/90 mb-2">
+            Code4Community comes straight from the source.
+          </p>
+          <p className="text-base text-white/80">
+            Practical tools you can trust.
           </p>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 py-16 px-6">
-        <div className="max-w-4xl mx-auto space-y-12">
-
-          {/* Who We Are */}
-          <section>
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
-              About Code4Community
-            </h2>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-4">
-              This website is created and run by the <strong className="text-foreground">Code4Community</strong> team. 
-              The people who build and maintain this site are our core team and contributors. 
-              All tools and content here are produced by us to help organizations and the community.
-            </p>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-              Code4Community was started to build software that organizations and teams could actually use. 
-              We build tools like grade calculators, seating charts, and yearbook formatting that support productivity and collaboration. 
-              For who we are and how to reach us, see <a href="/contact" className="text-primary hover:underline">Contact</a>.
-            </p>
-          </section>
-
-          {/* What We Do */}
-          <section>
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
-              What We Do
-            </h2>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-4">
-              We are an IT-focused team building free, useful tools for organizations and users 
-              through software development, design, and teamwork.
-            </p>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-              Everything on this site is built by us. For official contact and accountability, see our <a href="/contact" className="text-primary hover:underline">Contact</a> page.
-            </p>
-          </section>
-
-          {/* Our Approach */}
-          <section>
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
-              Our Approach
-            </h2>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-4">
-              We learn by doing. We design and code real applications, work with users and teams, and maintain the site, 
-              which gives us experience in software development while providing the community with practical, free tools.
-            </p>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-              We create custom applications designed to help users work more efficiently—for example, yearbook
-              caption formatters that save time, grade calculators, and seating charts. More tools are on the way to support productivity and collaboration.
-            </p>
-          </section>
-          
-          {/* Meet the Team Section */}
-          <section>
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-8 text-center">
-              Meet the Team
-            </h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              {/* Team Member 1 */}
-              <div className="flex flex-col items-center text-center">
-                <div className="w-32 h-32 rounded-full bg-muted mb-4 flex items-center justify-center overflow-hidden">
-                  <Image
-                    src="/shail.jpg"
-                    alt="Shail Shah"
-                    width={128}
-                    height={128}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">
-                  Shail Shah
-                </h3>
-                <p className="text-sm text-muted-foreground mb-2">
-                  President & Head Developer
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-                Possess over 5 years of experience in the software industry. Experienced programmer, software architect with leadership skills and entrepreneurial drive started Code4Community in 2023.
-                </p>
-              </div>
-
-              {/* Team Member 2 */}
-              <div className="flex flex-col items-center text-center">
-                <div className="w-32 h-32 rounded-full bg-muted mb-4 flex items-center justify-center overflow-hidden">
-                  <Image
-                    src="/pranav.jpg"
-                    alt="Pranav Natarajan"
-                    width={128}
-                    height={128}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">
-                  Pranav Natarajan
-                </h3>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Co-President & Head of Outreach
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-                Possess over 3 years of experience in the product engineering industry. He collaborates with clients, plans and executes technical efforts aimed at software development, mediating between various departments, involving them in work, and coordinating activities.
-                </p>
-              </div>
-
-              {/* Team Member 3 */}
-              <div className="flex flex-col items-center text-center">
-                <div className="w-32 h-32 rounded-full bg-muted mb-4 flex items-center justify-center overflow-hidden">
-                  <Image
-                    src="/aryan.jpg"
-                    alt="Aryan Kothari"
-                    width={128}
-                    height={128}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">
-                  Aryan Kothari
-                </h3>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Vice President & Developer
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-                Possess over 2 years of experience in the software industry. As a vice president and developer, he works on the development of software solutions contracted by a company. 
-                </p>
+      {/* Content: image left + narrative + Contact button right, contained width */}
+      <div className="bg-background py-16 md:py-20 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-5 gap-10 md:gap-12 items-start">
+            <div className="md:col-span-2">
+              <div className="aspect-[4/3] relative rounded-lg overflow-hidden bg-muted shadow-md border border-border">
+                <Image
+                  src="/shail.jpg"
+                  alt="Code4Community team"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 40vw"
+                />
               </div>
             </div>
-          </section>
+            <div className="md:col-span-3">
+              <h2 className="text-2xl font-bold text-foreground mb-4">About Code4Community</h2>
+              <div className="text-muted-foreground leading-relaxed space-y-4">
+                <p>
+                  Code4Community was started to build software that organizations and teams could actually use. We build tools like grade calculators, seating charts, and yearbook formatting that support productivity and collaboration.
+                </p>
+                <p>
+                  Our goal is to help organizations and the community through technology—building the tools and software they need to work better. We focus on practical, free solutions that make a real difference for teams and users. This site is created and run by our core team; everything you see here is built by us.
+                </p>
+              </div>
+              <Link
+                href="/contact"
+                className="inline-block mt-6 px-6 py-3 bg-background border-2 border-foreground text-foreground font-medium rounded-lg hover:bg-foreground hover:text-background transition-colors"
+              >
+                Contact Us
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          {/* Contact Section */}
-          <section>
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
-              Get in Touch
-            </h2>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-              Have questions, suggestions, or feedback? We'd love to hear from you. 
-              Visit our <a href="/contact" className="text-primary hover:underline">Contact</a> page 
-              to reach out.
-            </p>
-          </section>
-
+      {/* Team section: centered title + row of headshots, name, title only */}
+      <div className="bg-background border-t border-border py-16 md:py-20 px-6">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-12 font-serif">
+            Code4Community Team
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-10 md:gap-12">
+            {team.map((member) => (
+              <div key={member.name} className="flex flex-col items-center text-center">
+                <div className="w-40 h-40 rounded-lg overflow-hidden bg-muted border border-border shadow-sm mb-4 flex-shrink-0">
+                  <Image
+                    src={member.image}
+                    alt={member.name}
+                    width={160}
+                    height={160}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-1 font-serif">
+                  {member.name}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {member.role}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
