@@ -1,1 +1,1 @@
-This is the platform used by the Code4Community Club of Broad Run High School to deploy web apps to be used by staff and students.
+This is the Code4Community platform for deploying web apps used by organizations and the community.

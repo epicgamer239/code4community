@@ -21,7 +21,7 @@ const inter = Inter({
 
 export const metadata = {
   title: "Code4Community",
-  description: "At Code4Community, our mission is to help the community around us through computer science. We make tools that make the lives of teachers, volunteers, and others easier.",
+  description: "At Code4Community, our mission is to help the community through technology. We build tools that make the lives of teams, volunteers, and organizations easier.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://code4community.net'),
   alternates: {
     canonical: '/',

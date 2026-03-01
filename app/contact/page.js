@@ -37,12 +37,11 @@ export default function Contact() {
               Official Contact
             </h2>
             <p className="text-muted-foreground mb-4">
-              <strong className="text-foreground">Shail Shah, Aryan Kothari, and Pranav Natarajan</strong> are students at Broad Run High School 
-              and the executive board of the Code4Community club. They run this site and are the point of contact for any inquiries 
-              about our tools, the club, or this project.
+              <strong className="text-foreground">Shail Shah, Aryan Kothari, and Pranav Natarajan</strong> lead Code4Community 
+              and run this site. They are the point of contact for any inquiries about our tools or this project.
             </p>
             <p className="text-muted-foreground mb-6">
-              You can reach them at the email below.
+              You can reach us at the email below.
             </p>
             <div className="bg-background border border-border rounded-lg p-8">
               <div className="space-y-6">

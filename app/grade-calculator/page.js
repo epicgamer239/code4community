@@ -56,8 +56,8 @@ export default function GradeCalculator() {
     
     // Common navigation items to filter out
     const navigationItems = ['Home', 'Synergy', 'Mail', 'Calendar', 'Attendance', 'Class Schedule', 
-                            'Course History', 'Grade Book', 'MTSS', 'School Information', 
-                            'Student Info', 'Test History', 'Documents', 'Totals'];
+                            'Course History', 'Grade Book', 'MTSS', 'Organization Information',
+                            'User Info', 'Test History', 'Documents', 'Totals'];
 
     // Find course name and overall grade (appears early in the text)
     for (let i = 0; i < lines.length; i++) {

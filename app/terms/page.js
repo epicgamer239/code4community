@@ -33,7 +33,7 @@ export default function TermsOfService() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">2. Description of Service</h2>
               <p className="text-muted-foreground leading-relaxed">
-                Code4Community is a web platform operated by the Code4Community Club of Broad Run High School. The Service provides educational tools including a Grade Calculator and Yearbook Formatting tool. All tools are available for use without requiring user accounts or authentication.
+                Code4Community is a web platform operated by Code4Community. The Service provides tools including a Grade Calculator and Yearbook Formatting tool. All tools are available for use without requiring user accounts or authentication.
               </p>
             </section>
 
@@ -60,7 +60,7 @@ export default function TermsOfService() {
                   <li>Interfere with or disrupt the Service or servers</li>
                   <li>Attempt to gain unauthorized access to any part of the Service</li>
                   <li>Use the Service for any commercial purpose without permission</li>
-                  <li>Engage in any behavior that disrupts the educational environment</li>
+                  <li>Engage in any behavior that disrupts the service or other users</li>
                   <li>Use automated tools to abuse or overload the Service</li>
                 </ul>
               </div>
@@ -70,13 +70,13 @@ export default function TermsOfService() {
               <h2 className="text-2xl font-semibold text-foreground mb-4">5. Tool Usage</h2>
               <div className="text-muted-foreground leading-relaxed space-y-3">
                 <p>
-                  The Service provides educational tools for use by students, teachers, and staff. When using these tools:
+                  The Service provides tools for use by individuals and organizations. When using these tools:
                 </p>
                 <ul className="list-disc pl-6 space-y-2">
                   <li>All data processing occurs locally in your browser</li>
                   <li>No data is transmitted to our servers or stored by us</li>
                   <li>You are responsible for the accuracy of any data you input</li>
-                  <li>Tools are provided &quot;as is&quot; for educational purposes</li>
+                  <li>Tools are provided &quot;as is&quot; for general use</li>
                   <li>Results should be verified independently when used for official purposes</li>
                 </ul>
               </div>
@@ -134,7 +134,7 @@ export default function TermsOfService() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">13. Contact Information</h2>
               <p className="text-muted-foreground leading-relaxed">
-                If you have any questions about these Terms of Service, please contact us at brhsc4c@gmail.com.
+                If you have any questions about these Terms of Service, please contact us via our <a href="/contact" className="text-primary hover:underline">Contact</a> page.
               </p>
             </section>
           </div>

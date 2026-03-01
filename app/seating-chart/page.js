@@ -392,7 +392,7 @@ export default function SeatingChart() {
     const allSlots = slotsPerFurniture.flatMap(({ id, seats }) => Array(seats).fill(id));
 
     if (allStudentIds.length > allSlots.length) {
-      alert(`Not enough seats for all students. You have ${allStudentIds.length} students but only ${allSlots.length} seat(s). Add more tables or remove some students.`);
+      alert(`Not enough seats for all participants. You have ${allStudentIds.length} participants but only ${allSlots.length} seat(s). Add more tables or remove some participants.`);
       return;
     }
 
@@ -808,7 +808,7 @@ export default function SeatingChart() {
                 onClick={() => setActiveTab("students")}
                 className={`flex-1 py-3 text-sm font-medium ${activeTab === "students" ? "text-primary border-b-2 border-primary bg-background" : "text-muted-foreground hover:text-foreground"}`}
               >
-                Students
+                Participants
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-3">
@@ -929,7 +929,7 @@ export default function SeatingChart() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
-              Manage students
+              Manage participants
             </button>
             <button
               type="button"
@@ -1024,9 +1024,9 @@ export default function SeatingChart() {
                 <svg className="w-5 h-5 text-neutral-600 dark:text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
-                <h2 id="students-sheet-title" className="text-xl font-semibold text-neutral-900 dark:text-white">Students</h2>
+                <h2 id="students-sheet-title" className="text-xl font-semibold text-neutral-900 dark:text-white">Participants</h2>
               </div>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Enter student names on separate lines.</p>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Enter names on separate lines.</p>
             </div>
             <div className="flex-1 min-h-0 px-6 pb-4 overflow-auto">
               <textarea
@@ -1035,7 +1035,7 @@ export default function SeatingChart() {
                 placeholder={"e.g. John Smith\nJane Doe"}
                 rows={8}
                 className="w-full rounded-lg border border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 px-4 py-3 text-base placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y min-h-[180px] mt-4"
-                aria-label="Student names, one per line"
+                aria-label="Names, one per line"
               />
             </div>
             <div className="flex-shrink-0 px-6 py-4 bg-neutral-50 dark:bg-neutral-800/50 border-t border-neutral-200 dark:border-neutral-700 flex justify-end gap-3">
@@ -1136,7 +1136,7 @@ export default function SeatingChart() {
                     {newRestrictionType === "cannot_sit_together" && (
                       <>
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs text-neutral-500 dark:text-neutral-400">Student 1</label>
+                          <label className="text-xs text-neutral-500 dark:text-neutral-400">Participant 1</label>
                           <select
                             value={newRestrictionStudent1}
                             onChange={(e) => setNewRestrictionStudent1(e.target.value)}
@@ -1149,7 +1149,7 @@ export default function SeatingChart() {
                           </select>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs text-neutral-500 dark:text-neutral-400">Student 2</label>
+                          <label className="text-xs text-neutral-500 dark:text-neutral-400">Participant 2</label>
                           <select
                             value={newRestrictionStudent2}
                             onChange={(e) => setNewRestrictionStudent2(e.target.value)}

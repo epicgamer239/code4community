@@ -178,7 +178,7 @@ export default function YearbookFormatting() {
     setError(null);
     
     if (!pastedText.trim()) {
-      setError("Please paste the student names first");
+      setError("Please paste the names first");
       return;
     }
 
@@ -186,7 +186,7 @@ export default function YearbookFormatting() {
       const students = parseNames(pastedText);
       
       if (students.length === 0) {
-        setError("No valid student data found. Please check the format.");
+        setError("No valid name data found. Please check the format.");
         return;
       }
 
@@ -242,7 +242,7 @@ export default function YearbookFormatting() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Paste student names (one per line, format: FirstName, LastName, Grade: XX):
+                    Paste names (one per line, format: FirstName, LastName, Grade: XX):
                   </label>
                   <textarea
                     value={pastedText}
@@ -261,7 +261,7 @@ Grade: 12`}
                     className="w-full h-64 px-4 py-2 text-sm text-foreground bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none font-mono"
                   />
                   <p className="text-xs text-muted-foreground mt-2">
-                    Format: First name on one line, last name on next line, then &quot;Grade: XX&quot; on the next line. Separate students with blank lines.
+                    Format: First name on one line, last name on next line, then &quot;Grade: XX&quot; on the next line. Separate entries with blank lines.
                   </p>
                 </div>
 

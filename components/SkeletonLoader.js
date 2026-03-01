@@ -94,7 +94,7 @@ export function AppCardSkeleton() {
 export function RequestCardSkeleton() {
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 space-y-4">
-      {/* Student Info Header */}
+      {/* User Info Header */}
       <div className="flex items-center space-x-4">
         <div className="relative">
           <SkeletonLoader variant="avatar" width="3rem" height="3rem" className="rounded-full" />

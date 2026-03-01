@@ -22,7 +22,6 @@ export default function Home() {
 
   // Partner logos - add more as needed
   const partners = [
-    { name: "Loudoun County Public Schools", logo: "/lcps.png", alt: "Loudoun County Public Schools Logo" },
     { name: "S2Alliance", logo: "/s2alliance_inc_logo.jpeg", alt: "S2Alliance Logo" },
   ];
 
@@ -187,11 +186,11 @@ export default function Home() {
         {/* Centered Content */}
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
-            Student-Built Tools for Our School
+            Tools That Help Your Organization
           </h1>
           <p className="text-base md:text-lg leading-relaxed max-w-3xl mx-auto text-white">
-            Code4Community builds free software tools for students and teachers—grade calculators, 
-            seating charts, yearbook formatting, and more. We learn by building and the school benefits from what we make.
+            Code4Community builds software tools for teams and organizations—grade calculators, 
+            seating charts, yearbook formatting, and more. We help the community through technology.
           </p>
         </div>
       </div>
@@ -203,13 +202,13 @@ export default function Home() {
             What is Code4Community?
           </h2>
           <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-4">
-            Code4Community is a student-led team that designs and builds web tools for our school community. 
-            We create apps that support teaching and learning, so students get useful tools and we get real 
-            experience in software development, design, and teamwork.
+            Code4Community is a team that designs and builds web tools for organizations and the community. 
+            We create apps that support productivity and collaboration, so teams get useful tools and we deliver 
+            real value through software development, design, and teamwork.
           </p>
           <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
             All our tools are free to use and built with privacy in mind. 
-            To learn who we are and how we’re connected to the school, visit <a href="/about" className="text-primary hover:underline">About Us</a>. 
+            To learn who we are, visit <a href="/about" className="text-primary hover:underline">About Us</a>. 
             For questions or feedback, see our <a href="/contact" className="text-primary hover:underline">Contact</a> page.
           </p>
         </div>
@@ -222,8 +221,8 @@ export default function Home() {
             Our Mission
           </h2>
           <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-            To support our school with practical software tools while learning real-world development by building 
-            things that students and teachers actually use.
+            To support organizations and the community with practical software tools, building 
+            things that teams and users actually use.
           </p>
         </div>
       </div>

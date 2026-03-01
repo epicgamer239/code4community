@@ -23,8 +23,8 @@ export default function AboutUs() {
             About Us
           </h1>
           <p className="text-base md:text-lg leading-relaxed max-w-3xl mx-auto text-white">
-            Code4Community is a student-led club at Broad Run High School. We build free software tools 
-            for students and teachers and learn real development skills along the way.
+            Code4Community is a team that builds software tools for organizations and the community. 
+            We deliver practical apps and grow our skills through real development work.
           </p>
         </div>
       </div>
@@ -33,51 +33,49 @@ export default function AboutUs() {
       <div className="flex-1 py-16 px-6">
         <div className="max-w-4xl mx-auto space-y-12">
 
-          {/* School & Club Connection */}
-          <section>
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
-              About Us & School Connection
-            </h2>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-4">
-              This website is created and run by the <strong className="text-foreground">Code4Community club at Broad Run High School</strong> (Loudoun County Public Schools). 
-              We are a student-led club: the people who build and maintain this site are club members and the executive board. 
-              All tools and content here are produced by our club as part of our activities at Broad Run.
-            </p>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-              Code4Community was started by students who wanted to build software that the school could actually use. 
-              We build tools like grade calculators, seating charts, and yearbook formatting that support teaching and learning. 
-              For who runs the club and how to reach us, see <a href="/contact" className="text-primary hover:underline">Contact</a>.
-            </p>
-          </section>
-
           {/* Who We Are */}
           <section>
             <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
-              Who We Are
+              About Code4Community
             </h2>
             <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-4">
-              We are a student-led organization at Broad Run High School, building free, useful tools for students and staff 
-              while learning software development, design, and teamwork.
+              This website is created and run by the <strong className="text-foreground">Code4Community</strong> team. 
+              The people who build and maintain this site are our core team and contributors. 
+              All tools and content here are produced by us to help organizations and the community.
             </p>
             <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-              Everything on this site is built by us as a club project. For official contact and accountability, see our <a href="/contact" className="text-primary hover:underline">Contact</a> page.
+              Code4Community was started to build software that organizations and teams could actually use. 
+              We build tools like grade calculators, seating charts, and yearbook formatting that support productivity and collaboration. 
+              For who we are and how to reach us, see <a href="/contact" className="text-primary hover:underline">Contact</a>.
             </p>
           </section>
 
-          {/* Educational Purpose */}
+          {/* What We Do */}
           <section>
             <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
-              Educational Purpose
+              What We Do
             </h2>
             <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-4">
-              This project aligns with our academic and career goals: we learn by doing. We design and code real 
-              applications, work with users (students and teachers), and maintain the site, which gives us experience 
-              in software development while providing the school with practical, free tools.
+              We are an IT-focused team building free, useful tools for organizations and users 
+              through software development, design, and teamwork.
             </p>
             <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-              We provide a lot of educational value for our users by creating custom and tailor made applications
-              designed to help students learn and become more productive in learning with tools such as yearbook
-              caption formatters that can save students a lot of time. Additionally, more tools are on the way such as content practices like activities to help retain and practice subject matter taught in classrooms.
+              Everything on this site is built by us. For official contact and accountability, see our <a href="/contact" className="text-primary hover:underline">Contact</a> page.
+            </p>
+          </section>
+
+          {/* Our Approach */}
+          <section>
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
+              Our Approach
+            </h2>
+            <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-4">
+              We learn by doing. We design and code real applications, work with users and teams, and maintain the site, 
+              which gives us experience in software development while providing the community with practical, free tools.
+            </p>
+            <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+              We create custom applications designed to help users work more efficiently—for example, yearbook
+              caption formatters that save time, grade calculators, and seating charts. More tools are on the way to support productivity and collaboration.
             </p>
           </section>
           

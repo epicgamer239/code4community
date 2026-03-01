@@ -8,7 +8,7 @@ export default function SitemapPage() {
     { path: '/services', title: 'Services', description: 'Our available services and tools' },
     { path: '/contact', title: 'Contact', description: 'Get in touch with us' },
     { path: '/grade-calculator', title: 'Grade Calculator', description: 'Calculate your grades' },
-    { path: '/yearbook-formatting', title: 'Yearbook Formatting', description: 'Format student names for yearbook captions' },
+    { path: '/yearbook-formatting', title: 'Yearbook Formatting', description: 'Format names for yearbook captions' },
     { path: '/privacy', title: 'Privacy Policy', description: 'Privacy policy' },
     { path: '/terms', title: 'Terms of Service', description: 'Terms of service' },
   ];

@@ -34,7 +34,7 @@ export default function Welcome() {
     },
     { 
       name: "Yearbook Formatting", 
-      description: "Format student names for yearbook captions", 
+      description: "Format names for yearbook captions", 
       isActive: true,
       onClick: handleYearbookFormattingClick
     },

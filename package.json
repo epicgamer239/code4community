@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NODE_ENV=development next dev",
-    "dev:prod": "NODE_ENV=production next dev",
+    "dev": "env -u MallocStackLogging -u MallocScribble -u MallocPreScribble -u MallocGuardEdges NODE_ENV=development next dev",
+    "dev:prod": "env -u MallocStackLogging -u MallocScribble -u MallocPreScribble -u MallocGuardEdges NODE_ENV=production next dev",
     "build": "next build",
     "build:dev": "NODE_ENV=development next build",
     "start": "next start",
@@ -21,7 +21,6 @@
     "@eslint/eslintrc": "^3",
     "@types/react": "19.1.13",
     "autoprefixer": "^10.4.14",
-    "baseline-browser-mapping": "^2.9.17",
     "eslint": "^9",
     "eslint-config-next": "^16.1.4",
     "firebase-tools": "^15.4.0",

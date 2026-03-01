@@ -38,13 +38,13 @@ export default function Services() {
     },
     { 
       name: "Yearbook Formatting", 
-      description: "Format student names for yearbook captions", 
+      description: "Format names for yearbook captions", 
       isActive: true,
       onClick: handleYearbookFormattingClick
     },
     { 
       name: "Seating Chart", 
-      description: "Create seating charts and assign students to tables", 
+      description: "Create seating charts and assign participants to tables", 
       isActive: true,
       onClick: handleSeatingChartClick
     },
@@ -89,7 +89,7 @@ export default function Services() {
           <div className="absolute left-1/2 transform -translate-x-1/2 text-center">
             <h3 className="text-2xl font-bold text-foreground mb-1">Our Services</h3>
             <p className="text-muted-foreground text-sm">
-              {searchQuery ? `Found ${filteredApps.length} service${filteredApps.length !== 1 ? 's' : ''}` : "Student-built tools that support teaching and learning—choose a service to get started"}
+              {searchQuery ? `Found ${filteredApps.length} service${filteredApps.length !== 1 ? 's' : ''}` : "Tools that support teams and productivity—choose a service to get started"}
             </p>
             <div id="search-description" className="sr-only">
               Search through available services by name or description

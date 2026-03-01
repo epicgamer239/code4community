@@ -26,7 +26,7 @@ export default function PrivacyPolicy() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">1. Introduction</h2>
               <p className="text-muted-foreground leading-relaxed">
-                Code4Community (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting your privacy. This Privacy Policy explains our practices regarding the web platform operated by the Code4Community Club of Broad Run High School.
+                Code4Community (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting your privacy. This Privacy Policy explains our practices regarding the Code4Community web platform.
               </p>
             </section>
 
@@ -123,7 +123,7 @@ export default function PrivacyPolicy() {
                   Since we do not collect personal information, there is no personal data to access, correct, or delete. You have full control over any data stored locally in your browser, which you can clear at any time through your browser settings.
                 </p>
                 <p>
-                  If you have any questions or concerns, please contact us at brhsc4c@gmail.com.
+                  If you have any questions or concerns, please contact us via our <a href="/contact" className="text-primary hover:underline">Contact</a> page.
                 </p>
               </div>
             </section>
@@ -138,7 +138,7 @@ export default function PrivacyPolicy() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">9. Children&apos;s Privacy</h2>
               <p className="text-muted-foreground leading-relaxed">
-                Our Service is designed for educational use by students, teachers, and staff of Broad Run High School. Since we do not collect any personal information, we do not collect information from children or any users. All tools operate without requiring any personal data.
+                Our Service is designed for general use by individuals and organizations. Since we do not collect any personal information, we do not collect information from children or any users. All tools operate without requiring any personal data.
               </p>
             </section>
 
@@ -156,9 +156,7 @@ export default function PrivacyPolicy() {
               </p>
               <div className="mt-4 p-4 bg-muted/50 rounded-lg">
                 <p className="text-muted-foreground">
-                  <strong>Email:</strong> brhsc4c@gmail.com<br />
-                  <strong>Organization:</strong> Code4Community Club, Broad Run High School<br />
-                  <strong>Address:</strong> Broad Run High School, Ashburn, VA
+                  For contact details, please visit our <a href="/contact" className="text-primary hover:underline">Contact</a> page.
                 </p>
               </div>
             </section>
