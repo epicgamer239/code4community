@@ -4,17 +4,17 @@ import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import DashboardTopBar from "../../components/DashboardTopBar";
 
-/** Centered rectangle (not full-width). Fixed height so all slides are the same size. */
+/** Centered rectangle (not full-width). Expands to fit content; no internal scrolling. */
 function SlideContent({ leftText, rightContent, className = "" }) {
   return (
-    <div className={`w-full max-w-4xl mx-auto flex flex-col bg-white border-2 border-black rounded-lg overflow-hidden shadow-sm h-[380px] ${className}`}>
-      <div className="flex flex-1 min-h-0 flex-col md:flex-row">
-        <div className="flex-1 p-8 md:p-10 flex items-center bg-white min-w-0 overflow-auto">
+    <div className={`w-full max-w-4xl mx-auto flex flex-col bg-white border-2 border-black rounded-lg overflow-hidden shadow-sm min-h-[280px] ${className}`}>
+      <div className="flex flex-col md:flex-row">
+        <div className="flex-1 p-8 md:p-10 flex items-center bg-white min-w-0">
           <p className="text-[1.35rem] md:text-[1.5rem] leading-snug text-black font-normal">
             {leftText}
           </p>
         </div>
-        <div className="flex-1 flex items-center justify-center p-6 md:p-8 bg-[#ffdbdb] border-l border-[#f7b8b8] min-w-0 overflow-auto">
+        <div className="flex-1 flex items-center justify-center p-6 md:p-8 bg-[#ffdbdb] border-l border-[#f7b8b8] min-w-0">
           {rightContent}
         </div>
       </div>
@@ -92,6 +92,8 @@ const SLIDE_LOCK_MS = 1000; // Can't go to next slide or scroll past until anima
 
 const SNAP_HOLD_MS = 400; // After snapping to section, keep forcing scroll position to fight momentum
 
+const MOBILE_BREAKPOINT = 768;
+
 export default function Services() {
   const scrollSectionRef = useRef(null);
   const sectionWasBelowRef = useRef(false);
@@ -99,6 +101,7 @@ export default function Services() {
   const slideIndexRef = useRef(0);
   const snapHoldUntilRef = useRef(0);
   const [slideIndex, setSlideIndex] = useState(0);
+  const [isDesktop, setIsDesktop] = useState(true);
 
   useLayoutEffect(() => {
     slideIndexRef.current = slideIndex;
@@ -108,8 +111,17 @@ export default function Services() {
     document.title = "Code4Community | Services";
   }, []);
 
-  // Run on every scroll, no rAF delay. Catch fast overshoot and hold position to fight momentum.
   useEffect(() => {
+    const m = window.matchMedia(`(min-width: ${MOBILE_BREAKPOINT}px)`);
+    setIsDesktop(m.matches);
+    const f = () => setIsDesktop(m.matches);
+    m.addEventListener("change", f);
+    return () => m.removeEventListener("change", f);
+  }, []);
+
+  // Run on every scroll (desktop only). Catch fast overshoot and hold position to fight momentum.
+  useEffect(() => {
+    if (!isDesktop) return;
     const section = scrollSectionRef.current;
     if (!section) return;
 
@@ -154,10 +166,11 @@ export default function Services() {
 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [isDesktop]);
 
-  // In section: wheel only changes slides (or allows past on slide 0/2). Lock 1s after each change so fast scroll can't skip.
+  // In section: wheel + touch (desktop only). Change slides or allow past on slide 0/2.
   useEffect(() => {
+    if (!isDesktop) return;
     const section = scrollSectionRef.current;
     if (!section) return;
 
@@ -209,8 +222,46 @@ export default function Services() {
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false });
-    return () => window.removeEventListener("wheel", handleWheel);
-  }, [slideIndex]);
+
+    // Touch support for mobile: swipe up/down to change slides
+    let touchStartY = 0;
+    const minSwipe = 50;
+
+    const handleTouchStart = (e) => {
+      touchStartY = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e) => {
+      const section = scrollSectionRef.current;
+      if (!section) return;
+      const rect = section.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const inView = rect.top <= vh * 0.15 && rect.bottom >= vh * 0.85;
+      if (!inView) return;
+
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaY = touchStartY - touchEndY;
+      const now = Date.now();
+      if (now < lockedUntilRef.current) return;
+
+      if (deltaY > minSwipe && slideIndexRef.current < 2) {
+        setSlideIndex((i) => i + 1);
+        lockedUntilRef.current = now + SLIDE_LOCK_MS;
+      } else if (deltaY < -minSwipe && slideIndexRef.current > 0) {
+        setSlideIndex((i) => i - 1);
+        lockedUntilRef.current = now + SLIDE_LOCK_MS;
+      }
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [slideIndex, isDesktop]);
 
   return (
     <div className="min-h-screen w-full bg-white flex flex-col overflow-x-hidden">
@@ -261,16 +312,46 @@ export default function Services() {
         </div>
       </main>
 
-      {/* Title fixed; only the content box below slides up from the bottom */}
-      <section ref={scrollSectionRef} className="relative h-screen w-full bg-white flex flex-col">
-        <h2 className="text-[2rem] md:text-[2.5rem] lg:text-[2.75rem] font-bold text-black text-center pt-8 pb-6 shrink-0 px-4">
+      {/* Mobile: simple vertical stack of all three slides, no transitions (only render when not desktop so we never show desktop slide section after) */}
+      {!isDesktop && (
+        <section className="w-full bg-white px-4 pb-8">
+          <h2 className="text-[2rem] font-bold text-black text-center pt-8 pb-6 px-4">
+            Whatever your organization needs...
+          </h2>
+          <div className="space-y-6 max-w-4xl mx-auto">
+            <SlideContent
+              leftText="from a rough idea or a spreadsheet that's outgrown itself"
+              rightContent={<Slide1Graphic />}
+            />
+            <SlideContent
+              leftText="to custom dashboards, tools, and systems built for how you work."
+              rightContent={<WhatWeDeliverPanel />}
+            />
+            <SlideContent
+              leftText="We build it right, ship it, and stand behind it—so you can think bigger."
+              rightContent={
+                <div className="w-full max-w-md flex flex-col gap-3">
+                  <div className="h-12 bg-blue-100 rounded-lg border border-blue-200 flex items-center px-4 text-blue-800 font-medium">Scope</div>
+                  <div className="h-12 bg-blue-100 rounded-lg border border-blue-200 flex items-center px-4 text-blue-800 font-medium">Build</div>
+                  <div className="h-12 bg-blue-100 rounded-lg border border-blue-200 flex items-center px-4 text-blue-800 font-medium">{"Ship & support"}</div>
+                </div>
+              }
+            />
+          </div>
+        </section>
+      )}
+
+      {/* Desktop: single-slide view with wheel/touch transitions and scroll lock (only render when desktop) */}
+      {isDesktop && (
+      <section ref={scrollSectionRef} className="relative w-full bg-white flex flex-col h-screen">
+        <h2 className="text-[2.5rem] lg:text-[2.75rem] font-bold text-black text-center pt-8 pb-6 shrink-0 px-4">
           Whatever your organization needs...
         </h2>
-        <div className="flex-1 min-h-0 overflow-hidden relative px-6 md:px-10 pb-8 flex flex-col items-center justify-center">
+        <div className="flex-1 min-h-0 overflow-hidden relative px-6 lg:px-10 pb-8 flex flex-col items-center justify-center">
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="absolute inset-0 w-full flex items-center justify-center px-6 md:px-10 pb-8 transition-transform duration-[1000ms] ease-out pt-0"
+              className="absolute inset-0 w-full flex items-center justify-center px-6 lg:px-10 pb-8 transition-transform duration-[1000ms] ease-out pt-0"
               style={{
                 zIndex: i,
                 transform: slideIndex >= i ? "translateY(0)" : "translateY(100%)",
@@ -304,6 +385,7 @@ export default function Services() {
           ))}
         </div>
       </section>
+      )}
 
       {/* After scrolling through the 3 slides, you land here */}
       <section className="bg-[#f5f5f5] px-6 py-16 md:py-24">
