@@ -4,17 +4,17 @@ import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import DashboardTopBar from "../../components/DashboardTopBar";
 
-/** Centered rectangle (not full-width). Expands to fit content; no internal scrolling. */
-function SlideContent({ leftText, rightContent, className = "" }) {
+/** Centered rectangle (not full-width). When fixedHeight, same size for all slides (desktop); otherwise expands to content (mobile). No internal scrolling. */
+function SlideContent({ leftText, rightContent, className = "", fixedHeight = false }) {
   return (
-    <div className={`w-full max-w-4xl mx-auto flex flex-col bg-white border-2 border-black rounded-lg overflow-hidden shadow-sm min-h-[280px] ${className}`}>
-      <div className="flex flex-col md:flex-row">
-        <div className="flex-1 p-8 md:p-10 flex items-center bg-white min-w-0">
+    <div className={`w-full max-w-4xl mx-auto flex flex-col bg-white border-2 border-black rounded-lg overflow-hidden shadow-sm min-h-[280px] ${fixedHeight ? "h-[400px]" : ""} ${className}`}>
+      <div className={`flex flex-col md:flex-row ${fixedHeight ? "flex-1 min-h-0" : ""}`}>
+        <div className={`flex-1 p-8 md:p-10 flex items-center bg-white min-w-0 ${fixedHeight ? "min-h-0" : ""}`}>
           <p className="text-[1.35rem] md:text-[1.5rem] leading-snug text-black font-normal">
             {leftText}
           </p>
         </div>
-        <div className="flex-1 flex items-center justify-center p-6 md:p-8 bg-[#ffdbdb] border-l border-[#f7b8b8] min-w-0">
+        <div className={`flex-1 flex items-center justify-center p-6 md:p-8 bg-[#ffdbdb] border-l border-[#f7b8b8] min-w-0 ${fixedHeight ? "min-h-0" : ""}`}>
           {rightContent}
         </div>
       </div>
@@ -359,18 +359,21 @@ export default function Services() {
             >
               {i === 0 && (
                 <SlideContent
+                  fixedHeight
                   leftText="from a rough idea or a spreadsheet that’s outgrown itself"
                   rightContent={<Slide1Graphic />}
                 />
               )}
               {i === 1 && (
                 <SlideContent
+                  fixedHeight
                   leftText="to custom dashboards, tools, and systems built for how you work."
                   rightContent={<WhatWeDeliverPanel />}
                 />
               )}
               {i === 2 && (
                 <SlideContent
+                  fixedHeight
                   leftText="We build it right, ship it, and stand behind it—so you can think bigger."
                   rightContent={
                     <div className="w-full max-w-md flex flex-col gap-3">
