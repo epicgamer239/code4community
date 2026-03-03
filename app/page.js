@@ -1,13 +1,21 @@
 "use client";
 import { useLayoutEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import DashboardTopBar from "../components/DashboardTopBar";
 import Footer from "../components/Footer";
+
+// Partner logos: add / replace with your partner images in public/
+const partners = [
+  { name: "S2Alliance", logo: "/s2alliance_inc_logo.jpeg", alt: "S2Alliance" },
+  { name: "LCPS", logo: "/lcps.png", alt: "Loudoun County Public Schools" },
+  { name: "Beaverbots", logo: "/beaverbots.png", alt: "Beaverbots Team Robots" },
+];
 
 // Icons for "what we help you build" grid
 const buildItems = [
   { label: "Web apps", icon: "globe" },
-  { label: "Tools & calculators", icon: "calc" },
+  { label: "Reporting & dashboards", icon: "calc" },
   { label: "Dashboards", icon: "chart" },
   { label: "APIs & integrations", icon: "plug" },
   { label: "Automation", icon: "bolt" },
@@ -44,11 +52,11 @@ export default function Home() {
             <span className="inline-block w-0.5 h-8 md:h-10 ml-0.5 bg-foreground animate-pulse align-middle" aria-hidden />
           </h1>
           <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg">
-            Free, intuitive tools to scale workflows—from grade calculators and seating charts to yearbook formatting and more.
+            From donor management and volunteer platforms to program dashboards and custom integrations—built for nonprofits and organizations that need to scale.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link
-              href="/services"
+              href="/signup"
               className="inline-flex items-center gap-2 px-6 py-3 bg-foreground text-background font-medium rounded-lg hover:opacity-90 transition-opacity"
             >
               Start for free
@@ -81,11 +89,73 @@ export default function Home() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-6 text-center">
-              Web apps, tools, dashboards, APIs, automation—whatever your team needs.
+              Donor systems, volunteer platforms, program dashboards, custom integrations—whatever your organization needs.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Trusted By / Partners */}
+      <section className="border-t border-border bg-background py-16 md:py-20 px-6">
+        <p className="text-center text-sm font-medium uppercase tracking-wider text-muted-foreground mb-10">
+          Trusted partners of over 50 organizations
+        </p>
+        <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-12 md:gap-16 items-center justify-items-center">
+          {partners.map((partner) => (
+            <div
+              key={partner.name}
+              className="flex items-center justify-center w-full aspect-[2/1] max-h-28 md:max-h-32"
+            >
+              <Image
+                src={partner.logo}
+                alt={partner.alt}
+                width={280}
+                height={140}
+                className="object-contain w-full h-full"
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Our Work - live demos; replace image areas with screenshots later if desired */}
+      <section className="border-t border-border bg-muted/20 py-16 md:py-20 px-6">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-10">
+            Our Work
+          </h2>
+          <p className="text-center text-sm text-muted-foreground mb-8 max-w-xl mx-auto">
+            Tools we build for nonprofits and organizations—donor management, volunteer sign-up, and program reporting.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { title: "Donor dashboard", desc: "Track giving, campaigns, and donor activity in one place.", href: "/demo/donor-dashboard", image: "/donor dashboard.png" },
+              { title: "Volunteer portal", desc: "Opportunity listings, sign-up, and shift management.", href: "/demo/volunteer-portal", image: "/volunteer portal.png" },
+              { title: "Program reporting", desc: "Outcomes, KPIs, and grant deliverables at a glance.", href: "/demo/reporting", image: "/program reporting.png" },
+            ].map((item, i) => (
+              <Link
+                key={i}
+                href={item.href}
+                className="group rounded-xl border border-border bg-background overflow-hidden shadow-sm hover:shadow-md transition-shadow block"
+              >
+                <div className="aspect-video bg-muted/50 border-b border-border relative overflow-hidden">
+                  <Image
+                    src={item.image}
+                    alt={item.title}
+                    fill
+                    className="object-cover object-top"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold text-foreground text-sm">{item.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{item.desc}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <Footer />
     </div>

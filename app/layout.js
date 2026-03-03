@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { AuthProvider } from "@/context/AuthContext";
 
 // Security headers are configured in next.config.mjs
 
@@ -21,18 +22,18 @@ const inter = Inter({
 
 export const metadata = {
   title: "Code4Community",
-  description: "At Code4Community, our mission is to help the community through technology. We build tools that make the lives of teams, volunteers, and organizations easier.",
+  description: "At Code4Community, we build donor management systems, volunteer platforms, program dashboards, and custom software for nonprofits and organizations.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://code4community.net'),
   alternates: {
     canonical: '/',
   },
   icons: {
     icon: [
-      { url: '/spartan.png', sizes: '32x32', type: 'image/png' },
-      { url: '/spartan.png', sizes: '16x16', type: 'image/png' },
+      { url: '/c4c.png', sizes: '32x32', type: 'image/png' },
+      { url: '/c4c.png', sizes: '16x16', type: 'image/png' },
     ],
     apple: [
-      { url: '/spartan.png', sizes: '180x180', type: 'image/png' },
+      { url: '/c4c.png', sizes: '180x180', type: 'image/png' },
     ],
   },
 };
@@ -52,7 +53,9 @@ export default function RootLayout({ children }) {
         className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ErrorBoundary>
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </ErrorBoundary>
       </body>
     </html>

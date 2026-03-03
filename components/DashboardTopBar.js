@@ -1,11 +1,40 @@
 "use client";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { auth, signOut } from "@/firebase";
 
 export default function DashboardTopBar({ title = "Code4Community", onNavigation, showNavLinks = true }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user, loading } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSignOut = async () => {
+    setDropdownOpen(false);
+    try {
+      await signOut(auth);
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      console.error("Sign out error:", err);
+    }
+  };
+
+  const displayName = user?.displayName || user?.email?.split("@")[0] || "Account";
 
   const navLinks = [
     { label: "HOME", path: "/" },
@@ -16,13 +45,13 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
 
   return (
     <>
-      <header className={`bg-background border-b border-border px-6 py-4 relative z-40 ${pathname === '/' ? 'mb-0' : 'mb-6'}`}>
+      <header className={`bg-background border-b border-border px-6 py-4 relative z-40 ${pathname === '/' || pathname === '/services' ? 'mb-0' : 'mb-6'}`}>
         <div className="container mx-auto">
           <div className="flex items-center justify-between">
             {/* Logo and Title on Left */}
             <div className="flex items-center space-x-3">
               <Image
-                src="/spartan.png"
+                src="/c4c.png"
                 alt="Code4Community Logo"
                 width={40}
                 height={40}
@@ -41,10 +70,10 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
                 </p>
               </div>
             </div>
-            
-            {/* Navigation Links on Right */}
+
+            {/* Navigation Links + CTAs or User Menu on Right */}
             {showNavLinks && (
-              <nav className="flex items-center space-x-6">
+              <nav className="flex items-center space-x-4 md:space-x-6">
                 {navLinks.map((link) => {
                   const isActive = pathname === link.path;
                   return (
@@ -61,15 +90,57 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
                     </button>
                   );
                 })}
-                {/* Lock Icon for Contact */}
-                <svg 
-                  className="w-4 h-4 text-muted-foreground" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+                <div className="flex items-center ml-2 pl-4 border-l border-border">
+                  {!loading && user ? (
+                    <div className="relative" ref={dropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setDropdownOpen((o) => !o)}
+                        className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded px-2 py-1.5"
+                        aria-expanded={dropdownOpen}
+                        aria-haspopup="true"
+                      >
+                        <span className="max-w-[120px] truncate md:max-w-[180px]">
+                          {displayName}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {dropdownOpen && (
+                        <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-background py-1 shadow-lg z-50">
+                          <button
+                            type="button"
+                            onClick={handleSignOut}
+                            className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted focus:outline-none focus:bg-muted"
+                          >
+                            Sign out
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href="/login"
+                        className="text-sm font-medium text-foreground hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded px-3 py-1.5"
+                      >
+                        Log in
+                      </Link>
+                      <Link
+                        href="/signup"
+                        className="text-sm font-medium bg-foreground text-background hover:opacity-90 transition-opacity rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                      >
+                        Get started
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </nav>
             )}
           </div>

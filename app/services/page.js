@@ -1,187 +1,326 @@
 "use client";
-import { useRouter } from "next/navigation";
-import { useState, useMemo, useCallback, useLayoutEffect } from "react";
+
+import { useLayoutEffect, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import DashboardTopBar from "../../components/DashboardTopBar";
-import Footer from "../../components/Footer";
+
+/** Centered rectangle (not full-width). Fixed height so all slides are the same size. */
+function SlideContent({ leftText, rightContent, className = "" }) {
+  return (
+    <div className={`w-full max-w-4xl mx-auto flex flex-col bg-white border-2 border-black rounded-lg overflow-hidden shadow-sm h-[380px] ${className}`}>
+      <div className="flex flex-1 min-h-0 flex-col md:flex-row">
+        <div className="flex-1 p-8 md:p-10 flex items-center bg-white min-w-0 overflow-auto">
+          <p className="text-[1.35rem] md:text-[1.5rem] leading-snug text-black font-normal">
+            {leftText}
+          </p>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-6 md:p-8 bg-[#ffdbdb] border-l border-[#f7b8b8] min-w-0 overflow-auto">
+          {rightContent}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Slide1Graphic() {
+  return (
+    <div className="w-full max-w-md space-y-3">
+      <div className="flex items-end gap-1 h-16">
+        {[40, 65, 45, 80, 55, 70, 50].map((h, i) => (
+          <div key={i} className="flex-1 bg-blue-300 rounded-t min-h-[20%]" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+      <div className="bg-white rounded-lg border border-blue-200 p-3 shadow-sm">
+        <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+          <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+          <span className="font-medium text-black">your-project</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-700 truncate">your-org.org/custom-dashboard</span>
+          <span className="ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500 text-white">Live</span>
+        </div>
+      </div>
+      <div className="h-8 bg-blue-800 rounded flex items-center pl-2 gap-1">
+        <span className="w-2 h-2 rounded-full bg-blue-400" />
+        <span className="w-2 h-2 rounded-full bg-blue-400" />
+        <span className="w-2 h-2 rounded-full bg-blue-400" />
+      </div>
+      <div className="h-12 bg-blue-200 rounded border border-blue-300" />
+    </div>
+  );
+}
+
+/** What we deliver: custom software types with delivered/ready badges */
+function WhatWeDeliverPanel() {
+  const items = [
+    { name: "Donor & CRM systems", status: "Delivered", type: "Custom web app", icon: "heart" },
+    { name: "Volunteer portals", status: "Delivered", type: "Custom web app", icon: "users" },
+    { name: "Program dashboards", status: "Delivered", type: "Reporting", icon: "chart" },
+    { name: "Integrations & APIs", status: "Ready", type: "Custom", icon: "plug" },
+  ];
+  return (
+    <div className="w-full max-w-md">
+      <div className="flex items-center justify-between gap-4 mb-5">
+        <h3 className="text-lg font-bold text-black">What we deliver</h3>
+        <span className="text-sm text-[#6b7280] flex items-center gap-1.5 shrink-0">
+          <span className="text-green-600" aria-hidden>✓</span>
+          Built for your organization
+        </span>
+      </div>
+      <div className="divide-y divide-[#e5e7eb]">
+        {items.map((s) => (
+          <div key={s.name} className="py-3 first:pt-0 flex items-center gap-3">
+            {s.icon === "heart" && <svg className="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>}
+            {s.icon === "users" && <svg className="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>}
+            {s.icon === "chart" && <svg className="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
+            {s.icon === "plug" && <svg className="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V4a1 1 0 011-1h3a1 1 0 001-1V4z" /></svg>}
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-black text-base">{s.name}</p>
+              <p className="text-sm text-[#6b7280]">{s.type}</p>
+            </div>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-100 text-green-800 text-sm font-medium shrink-0">
+              <span aria-hidden>✓</span> {s.status}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const SLIDE_LOCK_MS = 1000; // Can't go to next slide or scroll past until animation (1s) is done
+
+const SNAP_HOLD_MS = 400; // After snapping to section, keep forcing scroll position to fight momentum
 
 export default function Services() {
-  const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
-  
+  const scrollSectionRef = useRef(null);
+  const sectionWasBelowRef = useRef(false);
+  const lockedUntilRef = useRef(0);
+  const slideIndexRef = useRef(0);
+  const snapHoldUntilRef = useRef(0);
+  const [slideIndex, setSlideIndex] = useState(0);
+
+  useLayoutEffect(() => {
+    slideIndexRef.current = slideIndex;
+  }, [slideIndex]);
+
   useLayoutEffect(() => {
     document.title = "Code4Community | Services";
   }, []);
 
-  const handleMathLabClick = useCallback(() => {
-    // Math Lab removed - no longer available
+  // Run on every scroll, no rAF delay. Catch fast overshoot and hold position to fight momentum.
+  useEffect(() => {
+    const section = scrollSectionRef.current;
+    if (!section) return;
+
+    const onScroll = () => {
+      const rect = section.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const targetTop = section.offsetTop;
+      const now = Date.now();
+
+      if (rect.top >= vh) sectionWasBelowRef.current = true;
+
+      // After a snap we keep forcing scroll position for a short time so momentum doesn't blow past
+      if (now < snapHoldUntilRef.current) {
+        if (Math.abs((window.scrollY ?? window.pageYOffset) - targetTop) > 3) {
+          window.scrollTo({ top: targetTop, behavior: "auto" });
+        }
+        return;
+      }
+
+      // Coming up from below: section is in viewport or we already blew past it → snap and hold
+      if (sectionWasBelowRef.current && (rect.bottom < 0 || (rect.bottom > 0 && rect.top < vh))) {
+        sectionWasBelowRef.current = false;
+        setSlideIndex(2);
+        lockedUntilRef.current = now + SLIDE_LOCK_MS;
+        snapHoldUntilRef.current = now + SNAP_HOLD_MS;
+        window.scrollTo({ top: targetTop, behavior: "auto" });
+        return;
+      }
+
+      const inView = rect.top <= vh * 0.15 && rect.bottom >= vh * 0.85;
+      if (!inView) return;
+
+      const current = slideIndexRef.current;
+      const scrollY = window.scrollY ?? window.pageYOffset;
+
+      if (current === 0 && scrollY < targetTop) return;
+      if (current === 2 && scrollY > targetTop) return;
+      if (Math.abs(scrollY - targetTop) <= 2) return;
+
+      window.scrollTo({ top: targetTop, behavior: "auto" });
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const handleGradeCalculatorClick = useCallback(() => {
-    router.push('/grade-calculator');
-  }, [router]);
+  // In section: wheel only changes slides (or allows past on slide 0/2). Lock 1s after each change so fast scroll can't skip.
+  useEffect(() => {
+    const section = scrollSectionRef.current;
+    if (!section) return;
 
-  const handleYearbookFormattingClick = useCallback(() => {
-    router.push('/yearbook-formatting');
-  }, [router]);
+    const handleWheel = (e) => {
+      const rect = section.getBoundingClientRect();
+      const vh = window.innerHeight;
+      // Only activate slide logic when the section is mostly on screen (the thing you're on)
+      const inView = rect.top <= vh * 0.15 && rect.bottom >= vh * 0.85;
+      const now = Date.now();
+      const locked = now < lockedUntilRef.current;
 
-  const handleSeatingChartClick = useCallback(() => {
-    router.push('/seating-chart');
-  }, [router]);
+      if (rect.top >= vh) sectionWasBelowRef.current = true;
 
-  // Apps data - memoized for performance
-  const allApps = useMemo(() => [
-    { 
-      name: "Grade Calculator", 
-      description: "Calculate your grades", 
-      isActive: true,
-      onClick: handleGradeCalculatorClick
-    },
-    { 
-      name: "Yearbook Formatting", 
-      description: "Format names for yearbook captions", 
-      isActive: true,
-      onClick: handleYearbookFormattingClick
-    },
-    { 
-      name: "Seating Chart", 
-      description: "Create seating charts and assign participants to tables", 
-      isActive: true,
-      onClick: handleSeatingChartClick
-    },
-    { name: "Coming Soon", description: "More features coming soon", isActive: false },
-    { name: "Coming Soon", description: "More features coming soon", isActive: false },
-    { name: "Coming Soon", description: "More features coming soon", isActive: false },
-    { name: "Coming Soon", description: "More features coming soon", isActive: false },
-    { name: "Coming Soon", description: "More features coming soon", isActive: false }
-  ], [handleGradeCalculatorClick, handleYearbookFormattingClick, handleSeatingChartClick]);
+      // Scrolling up from below: stop at the section so they can't skip past it
+      if (e.deltaY < 0 && sectionWasBelowRef.current && rect.bottom > 0 && rect.top < vh) {
+        e.preventDefault();
+        sectionWasBelowRef.current = false;
+        setSlideIndex(2);
+        lockedUntilRef.current = now + SLIDE_LOCK_MS;
+        window.scrollTo({ top: section.offsetTop, behavior: "smooth" });
+        return;
+      }
 
-  // Filter apps based on search query - memoized for performance
-  const filteredApps = useMemo(() => 
-    allApps.filter(app => 
-      app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.description.toLowerCase().includes(searchQuery.toLowerCase())
-    ), [allApps, searchQuery]
-  );
+      if (inView && sectionWasBelowRef.current) {
+        sectionWasBelowRef.current = false;
+        setSlideIndex(2);
+        lockedUntilRef.current = now + SLIDE_LOCK_MS;
+      }
+      if (!inView) return;
 
+      if (locked) {
+        e.preventDefault();
+        return;
+      }
 
+      if (e.deltaY > 0) {
+        if (slideIndex < 2) {
+          e.preventDefault();
+          setSlideIndex((i) => i + 1);
+          lockedUntilRef.current = now + SLIDE_LOCK_MS;
+        }
+      } else {
+        if (slideIndex > 0) {
+          e.preventDefault();
+          setSlideIndex((i) => i - 1);
+          lockedUntilRef.current = now + SLIDE_LOCK_MS;
+        }
+      }
+    };
+
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [slideIndex]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Use the reusable DashboardTopBar component */}
-      <DashboardTopBar 
-        title="Code4Community" 
-        showNavLinks={true}
-      />
+    <div className="min-h-screen w-full bg-white flex flex-col overflow-x-hidden">
+      <div className="bg-background">
+        <DashboardTopBar title="Code4Community" showNavLinks={true} />
+      </div>
 
-      {/* Header with Welcome and Available Apps */}
-      <div className="px-6 py-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground mb-1">
-              Services
-            </h2>
-            <p className="text-muted-foreground">
-              Explore our available services
-            </p>
+      {/* Subtle geometric pattern on the right */}
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden>
+        <div className="absolute right-0 top-0 bottom-0 w-[55%] max-w-[800px] opacity-90">
+          <svg className="absolute inset-0 w-full h-full text-[#f0f0f0]" viewBox="0 0 400 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="280" y="80" width="64" height="48" rx="4" fill="currentColor" />
+            <rect x="320" y="200" width="56" height="56" rx="4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <rect x="260" y="320" width="72" height="40" rx="4" fill="currentColor" />
+            <rect x="300" y="420" width="48" height="64" rx="4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <rect x="340" y="520" width="60" height="44" rx="4" fill="currentColor" />
+            <rect x="240" y="140" width="48" height="48" rx="4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <rect x="360" y="280" width="40" height="56" rx="4" fill="currentColor" />
+            <rect x="270" y="480" width="56" height="32" rx="4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+          </svg>
+        </div>
+      </div>
+
+      <main className="flex-1 flex items-center justify-center px-6 py-20 md:py-28">
+        <div className="max-w-2xl mx-auto text-center">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-black leading-tight mb-6">
+            Custom software for any organization
+          </h1>
+          <p className="text-lg text-[#4a4a4a] max-w-xl mx-auto mb-10 leading-relaxed">
+            We build software that fits how you work—dashboards, donor systems, volunteer tools, and full-scale platforms. From idea to launch, we can make grand things happen. <strong className="font-semibold text-[#333]">So you can focus on your mission.</strong>
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg bg-black text-white font-medium hover:bg-[#222] transition-colors"
+            >
+              Get Started for Free
+              <span aria-hidden>&gt;</span>
+            </Link>
+            <Link
+              href="/contact"
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg bg-white text-black font-medium border border-black hover:bg-gray-50 transition-colors"
+            >
+              Talk to an Expert
+              <span aria-hidden>&gt;</span>
+            </Link>
           </div>
-          
-          {/* Centered Available Apps Title */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 text-center">
-            <h3 className="text-2xl font-bold text-foreground mb-1">Our Services</h3>
-            <p className="text-muted-foreground text-sm">
-              {searchQuery ? `Found ${filteredApps.length} service${filteredApps.length !== 1 ? 's' : ''}` : "Tools that support teams and productivity—choose a service to get started"}
-            </p>
-            <div id="search-description" className="sr-only">
-              Search through available services by name or description
-            </div>
-          </div>
-          
-          {/* Search Bar */}
-          <div className="w-72">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search services..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full py-2.5 pl-10 pr-10 text-sm text-foreground bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all duration-200 placeholder:text-muted-foreground"
-                aria-label="Search services"
-                aria-describedby="search-description"
-              />
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded"
-                  aria-label="Clear search"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+        </div>
+      </main>
+
+      {/* Title fixed; only the content box below slides up from the bottom */}
+      <section ref={scrollSectionRef} className="relative h-screen w-full bg-white flex flex-col">
+        <h2 className="text-[2rem] md:text-[2.5rem] lg:text-[2.75rem] font-bold text-black text-center pt-8 pb-6 shrink-0 px-4">
+          Whatever your organization needs...
+        </h2>
+        <div className="flex-1 min-h-0 overflow-hidden relative px-6 md:px-10 pb-8 flex flex-col items-center justify-center">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="absolute inset-0 w-full flex items-center justify-center px-6 md:px-10 pb-8 transition-transform duration-[1000ms] ease-out pt-0"
+              style={{
+                zIndex: i,
+                transform: slideIndex >= i ? "translateY(0)" : "translateY(100%)",
+              }}
+            >
+              {i === 0 && (
+                <SlideContent
+                  leftText="from a rough idea or a spreadsheet that’s outgrown itself"
+                  rightContent={<Slide1Graphic />}
+                />
+              )}
+              {i === 1 && (
+                <SlideContent
+                  leftText="to custom dashboards, tools, and systems built for how you work."
+                  rightContent={<WhatWeDeliverPanel />}
+                />
+              )}
+              {i === 2 && (
+                <SlideContent
+                  leftText="We build it right, ship it, and stand behind it—so you can think bigger."
+                  rightContent={
+                    <div className="w-full max-w-md flex flex-col gap-3">
+                      <div className="h-12 bg-blue-100 rounded-lg border border-blue-200 flex items-center px-4 text-blue-800 font-medium">Scope</div>
+                      <div className="h-12 bg-blue-100 rounded-lg border border-blue-200 flex items-center px-4 text-blue-800 font-medium">Build</div>
+                      <div className="h-12 bg-blue-100 rounded-lg border border-blue-200 flex items-center px-4 text-blue-800 font-medium">{"Ship & support"}</div>
+                    </div>
+                  }
+                />
               )}
             </div>
-          </div>
+          ))}
         </div>
-      </div>
+      </section>
 
-      {/* Main Content */}
-      <div className="flex-1 px-6 py-4">
-        <div className="max-w-7xl mx-auto">
-
-          {/* Apps Grid */}
-          <div className="mb-8">
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredApps.map((app, index) => (
-                <div 
-                  key={index} 
-                  className={`group card-elevated relative h-[180px] flex flex-col items-center justify-center rounded-xl transition-all duration-300 hover:transform hover:scale-105 hover:shadow-lg ${
-                    app.isActive 
-                      ? 'opacity-100' 
-                      : 'opacity-70 hover:opacity-90'
-                  }`}
-                  onClick={app.onClick}
-                >
-                  <div className={`absolute inset-0 rounded-xl transition-all duration-300 ${
-                    app.isActive 
-                      ? 'bg-gradient-to-br from-primary/10 to-primary/5 group-hover:from-primary/15 group-hover:to-primary/10' 
-                      : 'bg-gradient-to-br from-muted/30 to-muted/10 group-hover:from-muted/40 group-hover:to-muted/20'
-                  }`}></div>
-                  <div className="relative z-10 text-center px-4">
-                    <div className={`text-xl font-bold mb-2 transition-colors duration-300 ${
-                      app.isActive 
-                        ? 'text-foreground group-hover:text-primary' 
-                        : 'text-foreground group-hover:text-primary'
-                    }`}>{app.name}</div>
-                    <div className="text-sm text-muted-foreground leading-relaxed">{app.description}</div>
-                  </div>
-                  <div className={`absolute top-3 right-3 w-2 h-2 rounded-full transition-opacity duration-300 ${
-                    app.isActive 
-                      ? 'bg-primary opacity-60 group-hover:opacity-100' 
-                      : 'bg-muted-foreground opacity-40 group-hover:opacity-60'
-                  }`}></div>
-                </div>
-              ))}
+      {/* After scrolling through the 3 slides, you land here */}
+      <section className="bg-[#f5f5f5] px-6 py-16 md:py-24">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="h-1 flex">
+              <div className="flex-1 bg-indigo-500" aria-hidden />
+              <div className="flex-1 bg-[#ffdbdb]" aria-hidden />
             </div>
-
-            {/* No results message */}
-            {searchQuery && filteredApps.length === 0 && (
-              <div className="text-center py-12">
-                <div className="text-muted-foreground text-lg mb-2">No services found</div>
-                <div className="text-sm text-muted-foreground">Try searching with different keywords</div>
-              </div>
-            )}
+            <div className="p-10 md:p-14 text-center">
+              <p className="text-xl md:text-2xl text-black font-normal leading-snug">
+                Code4Community&apos;s custom software is built to power your organization from idea to impact.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-      
-      {/* Footer */}
-      <Footer />
+      </section>
     </div>
   );
 }

@@ -59,13 +59,13 @@ export default function AboutUs() {
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-5 gap-10 md:gap-12 items-start">
             <div className="md:col-span-2">
-              <div className="aspect-[4/3] relative rounded-lg overflow-hidden bg-muted shadow-md border border-border">
+              <div className="aspect-square max-w-xs relative rounded-lg overflow-hidden bg-muted shadow-md border border-border flex items-center justify-center p-6">
                 <Image
-                  src="/shail.jpg"
-                  alt="Code4Community team"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 40vw"
+                  src="/c4c.png"
+                  alt="Code4Community logo"
+                  width={200}
+                  height={200}
+                  className="object-contain w-full h-full"
                 />
               </div>
             </div>
@@ -73,7 +73,7 @@ export default function AboutUs() {
               <h2 className="text-2xl font-bold text-foreground mb-4">About Code4Community</h2>
               <div className="text-muted-foreground leading-relaxed space-y-4">
                 <p>
-                  Code4Community was started to build software that organizations and teams could actually use. We build tools like grade calculators, seating charts, and yearbook formatting that support productivity and collaboration.
+                  Code4Community was started to build software that organizations and teams could actually use. We build donor management systems, volunteer coordination platforms, program dashboards, intake systems, and custom integrations that nonprofits and organizations rely on.
                 </p>
                 <p>
                   Our goal is to help organizations and the community through technology—building the tools and software they need to work better. We focus on practical, free solutions that make a real difference for teams and users. This site is created and run by our core team; everything you see here is built by us.
