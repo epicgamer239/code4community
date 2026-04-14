@@ -58,10 +58,12 @@ const merriweatherStyle = { fontFamily: "'Merriweather', Georgia, serif" };
 const aboutBlurbDescriptionStyle = {
   margin: 0,
   padding: 0,
+  paddingBottom: "10px",
   fontSize: "16px",
   fontWeight: 400,
   letterSpacing: "-0.2px",
   lineHeight: 1.6,
+  color: "#292627",
   WebkitFontSmoothing: "antialiased",
 };
 
@@ -148,34 +150,30 @@ export default function AboutUs() {
         </div>
       </div>
 
-      {/* About blurb — DeltaMath-like container sizing and spacing */}
-      <div className="bg-background px-6 py-10 md:px-0 md:py-0">
+      {/* About blurb — DeltaMath pixel replica sizing/spacing */}
+      <div className="bg-background">
         <div
-          className={`${lato.className} mx-auto box-border flex w-full max-w-[1200px] flex-col items-center justify-evenly gap-8 md:flex-row md:px-[80px] md:py-[50px]`}
+          className={`${lato.className} mx-auto my-[50px] box-border flex w-full max-w-[1200px] flex-row items-center justify-evenly px-[80px] py-[50px] max-[991.98px]:flex-col max-[991.98px]:px-[60px] max-[767.98px]:px-10 max-[375.98px]:px-5`}
         >
-          <div className="relative aspect-video w-full max-w-[482px] shrink-0 overflow-hidden bg-muted">
-            <Image
-              src="/c4c%20about%20us.png"
-              alt="Code4Community at Broad Run High School — school spirit on the fence"
-              fill
-              className="object-cover object-center"
-              sizes="482px"
-            />
+          <div className="w-1/2 max-[991.98px]:w-[70%] max-[767.98px]:w-[80%] max-[575.98px]:w-full">
+            <div className="relative w-full overflow-hidden" style={{ aspectRatio: "482 / 316" }}>
+              <Image
+                src="/c4c%20about%20us.png"
+                alt="Code4Community at Broad Run High School — school spirit on the fence"
+                fill
+                className="object-cover object-center"
+                sizes="(max-width: 575px) 100vw, (max-width: 767px) 80vw, (max-width: 991px) 70vw, 50vw"
+              />
+            </div>
           </div>
-          <div className="w-full max-w-[17em] text-left md:max-w-[40em]">
+          <div className="flex w-1/2 flex-col items-start justify-center px-5 py-5 pl-[50px] max-[991.98px]:w-[70%] max-[991.98px]:px-0 max-[991.98px]:pt-[50px] max-[991.98px]:text-center max-[767.98px]:w-[80%] max-[575.98px]:w-full">
             <div>
-              <p
-                className="mb-[1.6em] text-[#212121] dark:text-neutral-200"
-                style={aboutBlurbDescriptionStyle}
-              >
+              <p className="text-[16px]" style={aboutBlurbDescriptionStyle}>
                 Shail Shah created Code4Community in 2023 when he wrote a simple program on calculating
                 grades with new assignments. Positive student response prompted him to kick into gear and
                 create content for the rest of the school year.
               </p>
-              <p
-                className="text-[#212121] dark:text-neutral-200"
-                style={aboutBlurbDescriptionStyle}
-              >
+              <p className="text-[16px]" style={aboutBlurbDescriptionStyle}>
                 Code4Community was started as a club at Broad Run High School to build software that
                 teachers and organizations at our school could use. After building hundreds of
                 applications and having great success, we decided to expand to helping create services to
@@ -184,13 +182,14 @@ export default function AboutUs() {
                 on practical, free solutions that make a real difference for teams and users.
               </p>
             </div>
-            <Link
-              href="/contact"
-              className="mt-5 inline-flex h-9 min-w-[120px] items-center justify-center border border-[#999] bg-transparent px-4 text-sm font-normal text-[#212121] transition-colors hover:bg-foreground hover:text-background"
-              style={{ letterSpacing: "-0.2px" }}
-            >
-              Contact Us
-            </Link>
+            <div className="w-full">
+              <Link
+                href="/contact"
+                className="mt-5 inline-flex items-center justify-center rounded-[4px] border border-[#303d4e] px-10 py-2 text-[16px] font-[550] tracking-[-1px] text-[#303d4e] no-underline transition-colors hover:bg-[#303d4e] hover:text-white"
+              >
+                Contact Us
+              </Link>
+            </div>
           </div>
         </div>
       </div>
