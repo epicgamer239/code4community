@@ -31,12 +31,11 @@ export default function TutorDashboard() {
 
   useEffect(() => {
     if (user && firestore) {
-      const q = query(
-        collection(firestore, 'sessions'),
-        where('status', 'in', ['PENDING', 'ACCEPTED', 'IN_PROGRESS'])
-      );
+      // Query all sessions and filter client-side to avoid index requirement
+      const q = query(collection(firestore, 'sessions'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const sessionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Fetched sessions:', sessionsData.length);
         setSessions(sessionsData);
         
         // Check if there's an active IN_PROGRESS session for this tutor
@@ -192,6 +191,9 @@ export default function TutorDashboard() {
 
   const availableSessions = sessions.filter(s => s.status === 'PENDING' || s.status === 'ACCEPTED');
   const mySessions = sessions.filter(s => s.tutorId === user?.uid && (s.status === 'ACCEPTED' || s.status === 'COMPLETED' || s.status === 'IN_PROGRESS'));
+  
+  console.log('Available sessions:', availableSessions.length);
+  console.log('My sessions:', mySessions.length);
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
