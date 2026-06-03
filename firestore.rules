@@ -412,7 +412,26 @@
       }
 
       function isValidWritingCenterSessionType(t) {
-        return t in ['IN_PERSON', 'ASYNC'];
+        return t in ['IN_PERSON', 'ASYNC', 'MINI_LESSON'];
+      }
+
+      function isAdminMiniLessonCreate() {
+        return isAnyAdmin() &&
+          request.resource.data.sessionType == 'MINI_LESSON' &&
+          request.resource.data.status == 'COMPLETED' &&
+          request.resource.data.studentId == 'wc-mini-lesson' &&
+          request.resource.data.studentName is string &&
+          request.resource.data.studentName.size() > 0 &&
+          request.resource.data.studentEmail is string &&
+          request.resource.data.subject is string &&
+          request.resource.data.subject.size() > 0 &&
+          request.resource.data.notes is string &&
+          request.resource.data.tutorId is string &&
+          request.resource.data.tutorId.size() > 0 &&
+          request.resource.data.tutorName is string &&
+          request.resource.data.tutorName.size() > 0 &&
+          isWritingCenterTimestamp(request.resource.data.createdAt) &&
+          isWritingCenterTimestamp(request.resource.data.updatedAt);
       }
 
       function isValidWritingCenterStatus(s) {
@@ -435,7 +454,8 @@
                         isAnyAdmin()
                       );
 
-        allow create: if isAuthenticated() &&
+        allow create: if isAdminMiniLessonCreate() ||
+                        (isAuthenticated() &&
                         request.resource.data.keys().hasAll([
                           'studentId', 'studentName', 'studentEmail', 'subject', 'notes',
                           'sessionType', 'status', 'createdAt', 'updatedAt'
@@ -450,7 +470,7 @@
                         isValidWritingCenterSessionType(request.resource.data.sessionType) &&
                         request.resource.data.status == 'PENDING' &&
                         isWritingCenterTimestamp(request.resource.data.createdAt) &&
-                        isWritingCenterTimestamp(request.resource.data.updatedAt);
+                        isWritingCenterTimestamp(request.resource.data.updatedAt));
 
         allow update: if isAuthenticated() && (
                           (resource.data.studentId == request.auth.uid &&

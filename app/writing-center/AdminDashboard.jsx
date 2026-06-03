@@ -3,9 +3,28 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/utils/AuthContext";
 import { firestore } from "@/firebase";
-import { collection, onSnapshot, updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  updateDoc,
+  doc,
+  addDoc,
+  serverTimestamp,
+  Timestamp,
+} from "firebase/firestore";
+import {
+  MINI_LESSON_STUDENT_EMAIL,
+  MINI_LESSON_STUDENT_ID,
+  MINI_LESSON_STUDENT_NAME,
+  miniLessonDateToDate,
+  isMiniLessonSession,
+} from "@/lib/writingCenterMiniLesson";
 import { isAsyncFormSession } from "@/lib/writingCenterForm";
 import { SessionRequestList } from "./SessionRequestList";
+import StudentDashboard from "./StudentDashboard";
+import TutorDashboard from "./TutorDashboard";
+import { WritingCenterPreviewBanner } from "./WritingCenterPreviewBanner";
+import { SessionReportLink } from "./SessionReportLink";
 
 function getUserDisplayName(user) {
   return (
@@ -29,6 +48,12 @@ export default function AdminDashboard() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedTutorFilter, setSelectedTutorFilter] = useState('ALL');
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [showMiniLessonModal, setShowMiniLessonModal] = useState(false);
+  const [miniLessonTitle, setMiniLessonTitle] = useState('');
+  const [miniLessonDate, setMiniLessonDate] = useState('');
+  const [miniLessonTutorId, setMiniLessonTutorId] = useState('');
+  const [miniLessonError, setMiniLessonError] = useState('');
+  const [miniLessonSaving, setMiniLessonSaving] = useState(false);
 
   const filteredUsers = useMemo(() => {
     const q = userSearchQuery.trim().toLowerCase();
@@ -111,6 +136,68 @@ export default function AdminDashboard() {
     setShowAssignModal(true);
   };
 
+  const openMiniLessonModal = () => {
+    setMiniLessonTitle('');
+    setMiniLessonDate(new Date().toISOString().slice(0, 10));
+    setMiniLessonTutorId('');
+    setMiniLessonError('');
+    setShowMiniLessonModal(true);
+  };
+
+  const handleAssignMiniLesson = async (e) => {
+    e.preventDefault();
+    if (!firestore || miniLessonSaving) return;
+
+    const title = miniLessonTitle.trim();
+    if (!title) {
+      setMiniLessonError('Enter a mini lesson title.');
+      return;
+    }
+    if (!miniLessonDate) {
+      setMiniLessonError('Select a date.');
+      return;
+    }
+    if (!miniLessonTutorId) {
+      setMiniLessonError('Select a tutor.');
+      return;
+    }
+
+    const tutorUser = users.find((u) => u.id === miniLessonTutorId);
+    if (!tutorUser) {
+      setMiniLessonError('Tutor not found.');
+      return;
+    }
+
+    setMiniLessonSaving(true);
+    setMiniLessonError('');
+
+    try {
+      const lessonDate = miniLessonDateToDate(miniLessonDate);
+      await addDoc(collection(firestore, 'sessions'), {
+        studentId: MINI_LESSON_STUDENT_ID,
+        studentName: MINI_LESSON_STUDENT_NAME,
+        studentEmail: MINI_LESSON_STUDENT_EMAIL,
+        subject: title.slice(0, 200),
+        notes: '',
+        sessionType: 'MINI_LESSON',
+        status: 'COMPLETED',
+        source: 'admin_mini_lesson',
+        tutorId: miniLessonTutorId,
+        tutorName: getUserDisplayName(tutorUser) || tutorUser.email,
+        tutorEmail: tutorUser.email || '',
+        createdAt: Timestamp.fromDate(lessonDate),
+        updatedAt: serverTimestamp(),
+        sessionEndTime: lessonDate.toISOString(),
+      });
+      setShowMiniLessonModal(false);
+    } catch (err) {
+      console.error('Failed to assign mini lesson:', err);
+      setMiniLessonError(err.message || 'Failed to save mini lesson.');
+    } finally {
+      setMiniLessonSaving(false);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'PENDING': return 'bg-yellow-100 text-yellow-800';
@@ -160,6 +247,25 @@ export default function AdminDashboard() {
               User Management
             </button>
           </nav>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Simulate view
+            </span>
+            <button
+              type="button"
+              onClick={() => setActiveTab("preview-student")}
+              className={tabClass("preview-student")}
+            >
+              Student
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("preview-tutor")}
+              className={tabClass("preview-tutor")}
+            >
+              Tutor
+            </button>
+          </div>
         </div>
 
         {activeTab === "sessions" && (
@@ -185,6 +291,7 @@ export default function AdminDashboard() {
               <option value="ALL">All Types</option>
               <option value="IN_PERSON">In-Person</option>
               <option value="ASYNC">Async</option>
+              <option value="MINI_LESSON">Mini lesson</option>
             </select>
           </div>
         )}
@@ -242,26 +349,7 @@ export default function AdminDashboard() {
                       View in Google Forms
                     </a>
                   )}
-                  {session.asyncFileUrl && (
-                    <a
-                      href={session.asyncFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      {session.asyncFileName || "Open submitted file"}
-                    </a>
-                  )}
-                  {session.proofFileUrl && (
-                    <a
-                      href={session.proofFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      {session.proofFileName || "Proof file"}
-                    </a>
-                  )}
+                  <SessionReportLink session={session} />
                   {session.duration != null && (
                     <p>
                       <span className="font-medium text-gray-700">Duration:</span>{" "}
@@ -274,22 +362,47 @@ export default function AdminDashboard() {
             />
           </div>
         </div>
+      ) : activeTab === "preview-student" ? (
+        <div className="w-full">
+          <WritingCenterPreviewBanner
+            role="student"
+            onBack={() => setActiveTab("sessions")}
+          />
+          <StudentDashboard preview />
+        </div>
+      ) : activeTab === "preview-tutor" ? (
+        <div className="w-full">
+          <WritingCenterPreviewBanner
+            role="tutor"
+            onBack={() => setActiveTab("sessions")}
+          />
+          <TutorDashboard preview />
+        </div>
       ) : activeTab === 'tutor-assignments' ? (
         <div className="w-full">
-          <div className="mb-6 flex items-center space-x-4">
-            <label className="text-sm font-medium text-gray-700">Filter by Tutor:</label>
-            <select
-              value={selectedTutorFilter}
-              onChange={(e) => setSelectedTutorFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-gray-700">Filter by Tutor:</label>
+              <select
+                value={selectedTutorFilter}
+                onChange={(e) => setSelectedTutorFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="ALL">All Tutors</option>
+                {tutors.map((tutor) => (
+                  <option key={tutor.id} value={tutor.id}>
+                    {getUserDisplayName(tutor) || tutor.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={openMiniLessonModal}
+              className="shrink-0 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700"
             >
-              <option value="ALL">All Tutors</option>
-              {tutors.map(tutor => (
-                <option key={tutor.id} value={tutor.id}>
-                  {tutor.displayName || tutor.email}
-                </option>
-              ))}
-            </select>
+              Assign mini lesson
+            </button>
           </div>
 
           <div className="bg-white shadow overflow-hidden sm:rounded-md w-full">
@@ -305,11 +418,22 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {tutorSessions.map((session) => (
+                {tutorSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">
+                      No sessions for this filter.
+                    </td>
+                  </tr>
+                ) : (
+                tutorSessions.map((session) => (
                   <tr key={session.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{session.studentName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {isMiniLessonSession(session) ? "—" : session.studentName}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{session.subject}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{session.sessionType}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {isMiniLessonSession(session) ? "Mini lesson" : session.sessionType}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(session.status)}`}>
                         {session.status}
@@ -327,7 +451,8 @@ export default function AdminDashboard() {
                       )}
                     </td>
                   </tr>
-                ))}
+                ))
+                )}
               </tbody>
             </table>
           </div>
@@ -389,6 +514,87 @@ export default function AdminDashboard() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {showMiniLessonModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Assign mini lesson</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Creates a completed session on the tutor&apos;s list for tracking (not tied to a
+              student account).
+            </p>
+            {miniLessonError && (
+              <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {miniLessonError}
+              </div>
+            )}
+            <form onSubmit={handleAssignMiniLesson} className="space-y-4">
+              <div>
+                <label htmlFor="mini-lesson-title" className="block text-sm font-medium text-gray-700">
+                  Title
+                </label>
+                <input
+                  id="mini-lesson-title"
+                  type="text"
+                  required
+                  value={miniLessonTitle}
+                  onChange={(e) => setMiniLessonTitle(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder="e.g. Narrative writing workshop"
+                />
+              </div>
+              <div>
+                <label htmlFor="mini-lesson-date" className="block text-sm font-medium text-gray-700">
+                  Date
+                </label>
+                <input
+                  id="mini-lesson-date"
+                  type="date"
+                  required
+                  value={miniLessonDate}
+                  onChange={(e) => setMiniLessonDate(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                />
+              </div>
+              <div>
+                <label htmlFor="mini-lesson-tutor" className="block text-sm font-medium text-gray-700">
+                  Tutor
+                </label>
+                <select
+                  id="mini-lesson-tutor"
+                  required
+                  value={miniLessonTutorId}
+                  onChange={(e) => setMiniLessonTutorId(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                >
+                  <option value="">Select a tutor</option>
+                  {tutors.map((tutor) => (
+                    <option key={tutor.id} value={tutor.id}>
+                      {getUserDisplayName(tutor) || tutor.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowMiniLessonModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={miniLessonSaving}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {miniLessonSaving ? "Saving…" : "Assign"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -20,6 +20,8 @@
     "firebase:use:dev": "firebase use dev",
     "firebase:deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes --project code4community26",
     "firebase:deploy:firestore:dev": "firebase deploy --only firestore:rules,firestore:indexes --project c4cdev-6f9f4",
+    "firebase:deploy:storage": "firebase deploy --only storage --project code4community26",
+    "firebase:deploy:storage:dev": "firebase deploy --only storage --project c4cdev-6f9f4",
     "firebase:deploy:firestore:all": "npm run firebase:deploy:firestore:dev && npm run firebase:deploy:firestore",
     "firebase:deploy:hosting": "firebase deploy --only hosting --project code4community26"
   },

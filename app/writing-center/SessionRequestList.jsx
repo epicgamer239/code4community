@@ -32,12 +32,20 @@ function buildGridTemplate({ showStudent, showTutor, showActionsCol }) {
   return cols.join(" ");
 }
 
+const EMPTY_NUDGE = {
+  student: { cell: "", header: "" },
+  tutor: { cell: "", header: "" },
+  status: { cell: "", header: "" },
+  type: { cell: "", header: "" },
+  dateTime: { cell: "", header: "" },
+  actions: { cell: "", header: "" },
+};
+
 /**
- * Manual horizontal nudge per column (Tailwind negative margin-left).
- * Tweak `cell` (row values) and `header` separately until they line up.
- * Use "" for no nudge, or e.g. "-ml-[30px]".
+ * Manual horizontal nudge — only used when both Student + Tutor columns show (admin).
+ * Student/tutor-only layouts use EMPTY_NUDGE so columns stay aligned.
  */
-const COLUMN_NUDGE = {
+const COLUMN_NUDGE_ADMIN = {
   student: { cell: "", header: "" },
   tutor: { cell: "-ml-[150px]", header: "-ml-[160px]" },
   status: { cell: "-ml-[300px]", header: "-ml-[330px]" },
@@ -46,12 +54,13 @@ const COLUMN_NUDGE = {
   actions: { cell: "", header: "" },
 };
 
-function cellNudge(column) {
-  return COLUMN_NUDGE[column]?.cell ?? "";
+function resolveColumnNudge(showStudent, showTutor) {
+  return showStudent && showTutor ? COLUMN_NUDGE_ADMIN : EMPTY_NUDGE;
 }
 
-function headerNudge(column) {
-  return COLUMN_NUDGE[column]?.header ?? "";
+function tutorDisplayName(session) {
+  const name = session.tutorName?.trim();
+  return name || "not assigned";
 }
 
 export function SessionRequestList({
@@ -75,6 +84,9 @@ export function SessionRequestList({
   const gridStyle = {
     gridTemplateColumns: buildGridTemplate({ showStudent, showTutor, showActionsCol }),
   };
+  const nudge = resolveColumnNudge(showStudent, showTutor);
+  const cellNudge = (column) => nudge[column]?.cell ?? "";
+  const headerNudge = (column) => nudge[column]?.header ?? "";
 
   return (
     <>
@@ -129,7 +141,7 @@ export function SessionRequestList({
               {showTutor && (
                 <div className={`min-w-0 ${cellNudge("tutor")}`}>
                   <span className="text-sm text-gray-600 truncate block">
-                    {session.tutorName || "Unassigned"}
+                    {tutorDisplayName(session)}
                   </span>
                 </div>
               )}
@@ -141,9 +153,15 @@ export function SessionRequestList({
                 </span>
               </div>
               <div className={cellNudge("type")}>
-                <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap bg-purple-100 text-purple-800">
-                  {session.sessionType}
-                </span>
+          <span
+            className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap ${
+              session.sessionType === "MINI_LESSON"
+                ? "bg-indigo-100 text-indigo-800"
+                : "bg-purple-100 text-purple-800"
+            }`}
+          >
+            {session.sessionType === "MINI_LESSON" ? "Mini lesson" : session.sessionType}
+          </span>
               </div>
               <div className={`min-w-0 ${cellNudge("dateTime")}`}>
                 <span className="text-sm text-gray-500 truncate block tabular-nums">

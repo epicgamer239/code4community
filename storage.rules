@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function sessionDoc(sessionId) {
+      return firestore.get(/databases/(default)/documents/sessions/$(sessionId)).data;
+    }
+
+    function isSessionStudent(sessionId) {
+      return request.auth != null && sessionDoc(sessionId).studentId == request.auth.uid;
+    }
+
+    function isSessionTutor(sessionId) {
+      return request.auth != null && sessionDoc(sessionId).tutorId == request.auth.uid;
+    }
+
+    function isWritingCenterStaff() {
+      return request.auth != null &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in
+          ['tutor', 'TUTOR', 'teacher', 'TEACHER', 'admin', 'ADMIN'];
+    }
+
+    function isAdminByEmail() {
+      return request.auth != null &&
+        request.auth.token.email is string &&
+        request.auth.token.email.lower() in ['1021676@lcps.org', 'shail40926@gmail.com'];
+    }
+
+    function canReadSessionReport(sessionId) {
+      return isSessionStudent(sessionId) ||
+        isSessionTutor(sessionId) ||
+        isWritingCenterStaff() ||
+        isAdminByEmail();
+    }
+
+    match /writing-center/sessions/{sessionId}/{fileName} {
+      allow read: if canReadSessionReport(sessionId);
+
+      allow write: if isSessionTutor(sessionId) &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType == 'application/pdf';
+    }
+  }
+}

@@ -15,15 +15,13 @@ import {
 } from "firebase/firestore";
 import { buildAsyncFormUrl } from "@/lib/writingCenterForm";
 import { SessionRequestList } from "./SessionRequestList";
+import { SessionReportLink } from "./SessionReportLink";
+import { getSessionReportUrl } from "@/lib/writingCenterSessionReport";
 
-export default function StudentDashboard() {
+export default function StudentDashboard({ preview = false }) {
   const [sessions, setSessions] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    subject: "",
-    notes: "",
-    sessionType: "IN_PERSON",
-  });
+  const [sessionType, setSessionType] = useState("IN_PERSON");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,7 +54,7 @@ export default function StudentDashboard() {
     });
     window.open(url, "_blank", "noopener,noreferrer");
     setShowModal(false);
-    setFormData({ subject: "", notes: "", sessionType: "IN_PERSON" });
+    setSessionType("IN_PERSON");
     setError("");
   };
 
@@ -64,7 +62,7 @@ export default function StudentDashboard() {
     e.preventDefault();
     if (isSubmitting) return;
 
-    if (formData.sessionType === "ASYNC") {
+    if (sessionType === "ASYNC") {
       openAsyncForm();
       return;
     }
@@ -78,8 +76,8 @@ export default function StudentDashboard() {
         studentId: user.uid,
         studentName: studentDisplayName,
         studentEmail: user.email,
-        subject: formData.subject,
-        notes: formData.notes,
+        subject: "In-person tutoring",
+        notes: "",
         sessionType: "IN_PERSON",
         status: "PENDING",
         createdAt: serverTimestamp(),
@@ -87,7 +85,7 @@ export default function StudentDashboard() {
       });
 
       setShowModal(false);
-      setFormData({ subject: "", notes: "", sessionType: "IN_PERSON" });
+      setSessionType("IN_PERSON");
       setError("");
     } catch (err) {
       setError(err.message || "Failed to create session");
@@ -109,7 +107,7 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div className="w-full px-3 sm:px-4 lg:px-6 py-4">
+    <div className={`w-full ${preview ? "" : "px-3 sm:px-4 lg:px-6 py-4"}`}>
       <header className="w-full flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6 mb-6 border-b border-gray-200 pb-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Writing Center - Student Dashboard</h1>
@@ -119,13 +117,15 @@ export default function StudentDashboard() {
               : `${sessions.length} request${sessions.length === 1 ? "" : "s"}`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowModal(true)}
-          className="shrink-0 bg-indigo-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-indigo-700 shadow-sm sm:ml-auto"
-        >
-          Request Help
-        </button>
+        {!preview && (
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            className="shrink-0 bg-indigo-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-indigo-700 shadow-sm sm:ml-auto"
+          >
+            Request Help
+          </button>
+        )}
       </header>
 
       <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden w-full">
@@ -135,17 +135,23 @@ export default function StudentDashboard() {
           showTutor
           showActions
           emptyMessage='No sessions yet. Click "Request Help" to get started.'
-          renderActions={(session) =>
-            session.status === "PENDING" ? (
-              <button
-                type="button"
-                onClick={() => handleCancel(session.id)}
-                className="text-sm font-medium text-red-600 hover:text-red-800"
-              >
-                Cancel
-              </button>
-            ) : null
-          }
+          renderActions={(session) => {
+            if (session.status === "PENDING" && !preview) {
+              return (
+                <button
+                  type="button"
+                  onClick={() => handleCancel(session.id)}
+                  className="text-sm font-medium text-red-600 hover:text-red-800"
+                >
+                  Cancel
+                </button>
+              );
+            }
+            if (session.status === "COMPLETED" && getSessionReportUrl(session)) {
+              return <SessionReportLink session={session} label="View report" />;
+            }
+            return null;
+          }}
         />
       </div>
 
@@ -170,10 +176,8 @@ export default function StudentDashboard() {
                         <input
                           type="radio"
                           value="IN_PERSON"
-                          checked={formData.sessionType === "IN_PERSON"}
-                          onChange={(e) =>
-                            setFormData({ ...formData, sessionType: e.target.value })
-                          }
+                          checked={sessionType === "IN_PERSON"}
+                          onChange={(e) => setSessionType(e.target.value)}
                           className="mr-2"
                         />
                         In-Person
@@ -182,10 +186,8 @@ export default function StudentDashboard() {
                         <input
                           type="radio"
                           value="ASYNC"
-                          checked={formData.sessionType === "ASYNC"}
-                          onChange={(e) =>
-                            setFormData({ ...formData, sessionType: e.target.value })
-                          }
+                          checked={sessionType === "ASYNC"}
+                          onChange={(e) => setSessionType(e.target.value)}
                           className="mr-2"
                         />
                         Async (Google Form)
@@ -193,32 +195,11 @@ export default function StudentDashboard() {
                     </div>
                   </div>
 
-                  {formData.sessionType === "IN_PERSON" ? (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Subject</label>
-                        <input
-                          type="text"
-                          required
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                          value={formData.subject}
-                          onChange={(e) =>
-                            setFormData({ ...formData, subject: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Notes (optional)
-                        </label>
-                        <textarea
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                          rows={3}
-                          value={formData.notes}
-                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        />
-                      </div>
-                    </>
+                  {sessionType === "IN_PERSON" ? (
+                    <p className="text-sm text-gray-600">
+                      Submit to join the in-person queue. A tutor will accept your request when
+                      available.
+                    </p>
                   ) : (
                     <div className="rounded-md border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
                       <p className="font-medium mb-1">Submit on Google Forms</p>
@@ -234,7 +215,7 @@ export default function StudentDashboard() {
                     type="button"
                     onClick={() => {
                       setShowModal(false);
-                      setFormData({ subject: "", notes: "", sessionType: "IN_PERSON" });
+                      setSessionType("IN_PERSON");
                       setError("");
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
@@ -248,7 +229,7 @@ export default function StudentDashboard() {
                   >
                     {loading
                       ? "Please wait…"
-                      : formData.sessionType === "ASYNC"
+                      : sessionType === "ASYNC"
                         ? "Open Google Form"
                         : "Submit Request"}
                   </button>

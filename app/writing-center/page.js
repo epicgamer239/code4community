@@ -101,11 +101,18 @@ export default function WritingCenterPage() {
     );
   }
 
+  const isAdminView = userRole === "ADMIN" || userRole === "TEACHER";
+
   return (
     <AppPageLayout>
-      {userRole === 'STUDENT' && <StudentDashboard />}
-      {userRole === 'TUTOR' && <TutorDashboard />}
-      {userRole === 'ADMIN' && <AdminDashboard />}
+      {userRole === "STUDENT" && <StudentDashboard />}
+      {userRole === "TUTOR" && <TutorDashboard />}
+      {isAdminView && <AdminDashboard />}
+      {!["STUDENT", "TUTOR", "ADMIN", "TEACHER"].includes(userRole) && (
+        <div className="px-6 py-8 text-center text-gray-600">
+          <p>Unknown role: {userRole}. Ask an admin to set your Writing Center role in Firestore.</p>
+        </div>
+      )}
     </AppPageLayout>
   );
 }
