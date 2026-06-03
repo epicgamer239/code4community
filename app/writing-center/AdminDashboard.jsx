@@ -19,11 +19,11 @@ import {
   miniLessonDateToDate,
   isMiniLessonSession,
 } from "@/lib/writingCenterMiniLesson";
-import { isAsyncFormSession } from "@/lib/writingCenterForm";
 import { SessionRequestList } from "./SessionRequestList";
 import StudentDashboard from "./StudentDashboard";
 import TutorDashboard from "./TutorDashboard";
 import { WritingCenterPreviewBanner } from "./WritingCenterPreviewBanner";
+import { AdminSessionExpandedPanel } from "./AdminSessionExpandedPanel";
 import { SessionReportLink } from "./SessionReportLink";
 import { getSessionReportUrl } from "@/lib/writingCenterSessionReport";
 import { sortSessionsNewestFirst } from "@/lib/firestoreDates";
@@ -67,6 +67,7 @@ export default function AdminDashboard() {
   const [selectedTutor, setSelectedTutor] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedTutorFilter, setSelectedTutorFilter] = useState('ALL');
+  const [tutorReportFilter, setTutorReportFilter] = useState('ALL');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [showMiniLessonModal, setShowMiniLessonModal] = useState(false);
   const [miniLessonTitle, setMiniLessonTitle] = useState('');
@@ -260,11 +261,18 @@ export default function AdminDashboard() {
   );
 
   const tutors = users.filter(user => (user.role || '').toUpperCase() === 'TUTOR');
-  const tutorSessions = sortSessionsNewestFirst(
-    selectedTutorFilter === "ALL"
-      ? sessions
-      : sessions.filter((s) => s.tutorId === selectedTutorFilter)
-  );
+  const tutorSessions = useMemo(() => {
+    let list =
+      selectedTutorFilter === "ALL"
+        ? sessions
+        : sessions.filter((s) => s.tutorId === selectedTutorFilter);
+    if (tutorReportFilter === "NO_REPORT") {
+      list = list.filter(
+        (s) => s.status === "COMPLETED" && !getSessionReportUrl(s),
+      );
+    }
+    return sortSessionsNewestFirst(list);
+  }, [sessions, selectedTutorFilter, tutorReportFilter]);
 
   const tabClass = (tab) =>
     `whitespace-nowrap py-2 px-3 rounded-md text-sm font-medium transition-colors ${
@@ -373,27 +381,9 @@ export default function AdminDashboard() {
               showActions
               expandedSessionId={expandedSession}
               onToggleExpand={(id) => setExpandedSession(id)}
+              isRowExpandable={(session) => !isMiniLessonSession(session)}
               renderExpanded={(session, formResponseUrl) => (
-                <div className="flex flex-col items-start gap-2">
-                  {isAsyncFormSession(session) && formResponseUrl && (
-                    <a
-                      href={formResponseUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-900"
-                    >
-                      View in Google Forms
-                    </a>
-                  )}
-                  <SessionReportLink session={session} />
-                  {session.sessionType !== "ASYNC" && session.duration != null && (
-                    <p className="m-0">
-                      <span className="font-medium text-gray-700">Duration:</span>{" "}
-                      {Math.floor(session.duration / 60)}:
-                      {(session.duration % 60).toString().padStart(2, "0")}
-                    </p>
-                  )}
-                </div>
+                <AdminSessionExpandedPanel session={session} formResponseUrl={formResponseUrl} />
               )}
             />
           </div>
@@ -417,12 +407,13 @@ export default function AdminDashboard() {
       ) : activeTab === 'tutor-assignments' ? (
         <div className="w-full">
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <label className="text-sm font-medium text-gray-700">Filter by Tutor:</label>
               <select
                 value={selectedTutorFilter}
                 onChange={(e) => setSelectedTutorFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
+                aria-label="Filter by tutor"
               >
                 <option value="ALL">All Tutors</option>
                 {tutors.map((tutor) => (
@@ -430,6 +421,15 @@ export default function AdminDashboard() {
                     {resolveDisplayName(tutor) || tutor.email}
                   </option>
                 ))}
+              </select>
+              <select
+                value={tutorReportFilter}
+                onChange={(e) => setTutorReportFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
+                aria-label="Filter by report status"
+              >
+                <option value="ALL">All sessions</option>
+                <option value="NO_REPORT">No report yet</option>
               </select>
             </div>
             <button
@@ -457,7 +457,9 @@ export default function AdminDashboard() {
                 {tutorSessions.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">
-                      No sessions for this filter.
+                      {tutorReportFilter === "NO_REPORT"
+                        ? "No completed sessions missing a tutor report for this filter."
+                        : "No sessions for this filter."}
                     </td>
                   </tr>
                 ) : (

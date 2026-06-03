@@ -98,6 +98,8 @@ export function SessionRequestList({
   expandedSessionId,
   onToggleExpand,
   renderExpanded,
+  /** When set, only matching rows show the expand chevron / panel. */
+  isRowExpandable,
 }) {
   const hasActions = Boolean(renderActions);
   const canExpand = Boolean(onToggleExpand && renderExpanded);
@@ -141,7 +143,9 @@ export function SessionRequestList({
       <ul className="divide-y divide-gray-200">
         {sortedSessions.map((session) => {
           const formResponseUrl = getGoogleFormResponseUrl(session);
-          const isExpanded = expandedSessionId === session.id;
+          const rowExpandable =
+            canExpand && (isRowExpandable ? isRowExpandable(session) : true);
+          const isExpanded = rowExpandable && expandedSessionId === session.id;
 
           const rowGrid = (
             <div className="grid w-full items-center gap-x-4" style={gridStyle}>
@@ -184,7 +188,7 @@ export function SessionRequestList({
                   onClick={(e) => e.stopPropagation()}
                 >
                   {renderActions?.(session)}
-                  {canExpand && (
+                  {rowExpandable && (
                     <svg
                       className={`w-5 h-5 shrink-0 text-gray-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
                       fill="none"
@@ -207,7 +211,7 @@ export function SessionRequestList({
 
           return (
             <li key={session.id} className="w-full">
-              {canExpand ? (
+              {rowExpandable ? (
                 <button
                   type="button"
                   onClick={() => onToggleExpand(isExpanded ? null : session.id)}
@@ -218,7 +222,7 @@ export function SessionRequestList({
               ) : (
                 <div className="w-full px-3 py-2 hover:bg-gray-50/50">{rowGrid}</div>
               )}
-              {isExpanded && renderExpanded && (
+              {isExpanded && rowExpandable && renderExpanded && (
                 <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 w-full">
                   <div className="space-y-2 text-sm text-gray-600">
                     {renderExpanded(session, formResponseUrl)}
