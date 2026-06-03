@@ -135,7 +135,6 @@ ${routes
       throw new Error('Missing closing urlset tag');
     }
   } catch (error) {
-    console.error('Sitemap validation error:', error);
     return new NextResponse('Sitemap generation error', { status: 500 });
   }
 

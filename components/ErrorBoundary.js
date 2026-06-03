@@ -29,7 +29,6 @@ class ErrorBoundary extends Component {
       sessionStorage.removeItem(key);
     }
 
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
   }
 
   render() {

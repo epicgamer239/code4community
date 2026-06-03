@@ -1,7 +1,7 @@
 "use client";
 
-import { formatSessionDate } from "@/lib/firestoreDates";
-import { getGoogleFormResponseUrl, isAsyncFormSession } from "@/lib/writingCenterForm";
+import { formatSessionDate, sortSessionsNewestFirst } from "@/lib/firestoreDates";
+import { getGoogleFormResponseUrl } from "@/lib/writingCenterForm";
 
 function getStatusColor(status) {
   switch (status) {
@@ -17,6 +17,32 @@ function getStatusColor(status) {
       return "bg-red-100 text-red-800";
     default:
       return "bg-gray-100 text-gray-800";
+  }
+}
+
+function getSessionTypeColor(sessionType) {
+  switch (sessionType) {
+    case "ASYNC":
+      return "bg-purple-100 text-purple-800";
+    case "IN_PERSON":
+      return "bg-teal-100 text-teal-800";
+    case "MINI_LESSON":
+      return "bg-indigo-100 text-indigo-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+}
+
+function formatSessionTypeLabel(sessionType) {
+  switch (sessionType) {
+    case "MINI_LESSON":
+      return "Mini lesson";
+    case "IN_PERSON":
+      return "In-person";
+    case "ASYNC":
+      return "Async";
+    default:
+      return sessionType || "—";
   }
 }
 
@@ -76,8 +102,9 @@ export function SessionRequestList({
   const hasActions = Boolean(renderActions);
   const canExpand = Boolean(onToggleExpand && renderExpanded);
   const showActionsCol = hasActions || canExpand;
+  const sortedSessions = sortSessionsNewestFirst(sessions);
 
-  if (sessions.length === 0) {
+  if (sortedSessions.length === 0) {
     return <div className="p-8 text-center text-gray-500">{emptyMessage}</div>;
   }
 
@@ -112,7 +139,7 @@ export function SessionRequestList({
         )}
       </div>
       <ul className="divide-y divide-gray-200">
-        {sessions.map((session) => {
+        {sortedSessions.map((session) => {
           const formResponseUrl = getGoogleFormResponseUrl(session);
           const isExpanded = expandedSessionId === session.id;
 
@@ -120,22 +147,9 @@ export function SessionRequestList({
             <div className="grid w-full items-center gap-x-4" style={gridStyle}>
               {showStudent && (
                 <div className={`min-w-0 ${cellNudge("student")}`}>
-                  {formResponseUrl && isAsyncFormSession(session) ? (
-                    <a
-                      href={formResponseUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline truncate block"
-                      title="Open Google Form response"
-                    >
-                      {session.studentName || "—"}
-                    </a>
-                  ) : (
-                    <span className="text-sm text-gray-900 truncate block">
-                      {session.studentName || "—"}
-                    </span>
-                  )}
+                  <span className="text-sm text-gray-900 truncate block">
+                    {session.studentName || "—"}
+                  </span>
                 </div>
               )}
               {showTutor && (
@@ -153,15 +167,11 @@ export function SessionRequestList({
                 </span>
               </div>
               <div className={cellNudge("type")}>
-          <span
-            className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap ${
-              session.sessionType === "MINI_LESSON"
-                ? "bg-indigo-100 text-indigo-800"
-                : "bg-purple-100 text-purple-800"
-            }`}
-          >
-            {session.sessionType === "MINI_LESSON" ? "Mini lesson" : session.sessionType}
-          </span>
+                <span
+                  className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap ${getSessionTypeColor(session.sessionType)}`}
+                >
+                  {formatSessionTypeLabel(session.sessionType)}
+                </span>
               </div>
               <div className={`min-w-0 ${cellNudge("dateTime")}`}>
                 <span className="text-sm text-gray-500 truncate block tabular-nums">
@@ -222,5 +232,3 @@ export function SessionRequestList({
     </>
   );
 }
-
-export { getStatusColor };

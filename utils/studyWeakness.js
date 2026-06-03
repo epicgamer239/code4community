@@ -1,4 +1,5 @@
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { assertClientRateLimit } from "@/utils/clientRateLimit";
 import { firestore } from "@/firebase";
 import { normalizeStudyTopicKey, shouldSkipTopicWeaknessKey } from "@/utils/studyTopicKey";
 
@@ -61,7 +62,6 @@ export async function loadStudyWeakness(user) {
     const raw = snap.exists() ? snap.data()?.[STUDY_WEAKNESS_FIELD] : null;
     return coerceStudyWeakness(raw);
   } catch (e) {
-    console.error("loadStudyWeakness:", e);
     return emptyStudyWeakness();
   }
 }
@@ -79,6 +79,7 @@ export async function recordStudyMiss(user, subject, normalizedTag) {
       : "general";
   const sub = subject === "science" ? "science" : "history";
   try {
+    assertClientRateLimit("studyProgressWrite", user.uid);
     const ref = doc(firestore, COLLECTION, user.uid);
     const snap = await getDoc(ref);
     const existing = snap.exists() ? snap.data()?.[STUDY_WEAKNESS_FIELD] : null;
@@ -100,7 +101,6 @@ export async function recordStudyMiss(user, subject, normalizedTag) {
       { merge: true }
     );
   } catch (e) {
-    console.error("recordStudyMiss:", e);
   }
 }
 
@@ -131,6 +131,7 @@ export async function recordStudyTopicMiss(user, subject, topicKey) {
   if (shouldSkipTopicWeaknessKey(key)) return;
   const sub = subject === "science" ? "science" : "history";
   try {
+    assertClientRateLimit("studyProgressWrite", user.uid);
     const ref = doc(firestore, COLLECTION, user.uid);
     const snap = await getDoc(ref);
     const existing = snap.exists() ? snap.data()?.[STUDY_WEAKNESS_FIELD] : null;
@@ -152,7 +153,6 @@ export async function recordStudyTopicMiss(user, subject, topicKey) {
       { merge: true }
     );
   } catch (e) {
-    console.error("recordStudyTopicMiss:", e);
   }
 }
 

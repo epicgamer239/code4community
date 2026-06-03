@@ -44,7 +44,6 @@ export default function VerifyEmailPage() {
       });
       setResendSent(true);
     } catch (err) {
-      console.error(err);
     } finally {
       setResending(false);
     }

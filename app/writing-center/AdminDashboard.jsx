@@ -25,14 +25,34 @@ import StudentDashboard from "./StudentDashboard";
 import TutorDashboard from "./TutorDashboard";
 import { WritingCenterPreviewBanner } from "./WritingCenterPreviewBanner";
 import { SessionReportLink } from "./SessionReportLink";
+import { getSessionReportUrl } from "@/lib/writingCenterSessionReport";
+import { sortSessionsNewestFirst } from "@/lib/firestoreDates";
+import { assertClientRateLimit } from "@/utils/clientRateLimit";
+import { WritingCenterCache } from "@/utils/cache";
+import {
+  commitLiveSnapshot,
+  hydrateLiveList,
+} from "@/utils/liveFirestoreCache";
+import { invalidateOnDataChange } from "@/utils/cacheInvalidation";
+import { resolveDisplayName } from "@/lib/profile";
 
-function getUserDisplayName(user) {
-  return (
-    user.displayName ||
-    [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-    user.email?.split("@")[0] ||
-    ""
-  );
+/** User Management default order: admins → tutors → students */
+function userRoleSortRank(role) {
+  const r = (role || "student").toLowerCase();
+  if (r === "admin") return 0;
+  if (r === "tutor" || r === "teacher") return 1;
+  if (r === "student") return 2;
+  return 3;
+}
+
+function sortUsersByRole(users) {
+  return [...users].sort((a, b) => {
+    const byRole = userRoleSortRank(a.role) - userRoleSortRank(b.role);
+    if (byRole !== 0) return byRole;
+    return resolveDisplayName(a).localeCompare(resolveDisplayName(b), undefined, {
+      sensitivity: "base",
+    });
+  });
 }
 
 export default function AdminDashboard() {
@@ -54,45 +74,65 @@ export default function AdminDashboard() {
   const [miniLessonTutorId, setMiniLessonTutorId] = useState('');
   const [miniLessonError, setMiniLessonError] = useState('');
   const [miniLessonSaving, setMiniLessonSaving] = useState(false);
+  const { user } = useAuth();
 
   const filteredUsers = useMemo(() => {
     const q = userSearchQuery.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter((user) => {
-      const name = getUserDisplayName(user).toLowerCase();
-      const email = (user.email || '').toLowerCase();
-      const first = (user.firstName || '').toLowerCase();
-      const last = (user.lastName || '').toLowerCase();
-      return (
-        name.includes(q) ||
-        email.includes(q) ||
-        first.includes(q) ||
-        last.includes(q)
-      );
-    });
+    const list = q
+      ? users.filter((user) => {
+          const name = resolveDisplayName(user).toLowerCase();
+          const email = (user.email || "").toLowerCase();
+          const first = (user.firstName || "").toLowerCase();
+          const last = (user.lastName || "").toLowerCase();
+          return (
+            name.includes(q) ||
+            email.includes(q) ||
+            first.includes(q) ||
+            last.includes(q)
+          );
+        })
+      : users;
+    return sortUsersByRole(list);
   }, [users, userSearchQuery]);
 
   useEffect(() => {
     if (!firestore) return;
 
-    const sessionsUnsubscribe = onSnapshot(collection(firestore, 'sessions'), (snapshot) => {
-      const sessionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setSessions(sessionsData);
+    hydrateLiveList(() => WritingCenterCache.getSessionsAll(), setSessions);
+    const cachedSessions = WritingCenterCache.getSessionsAll();
+    if (cachedSessions) {
+      setStats({
+        total: cachedSessions.length,
+        completed: cachedSessions.filter((s) => s.status === "COMPLETED").length,
+        pending: cachedSessions.filter((s) => s.status === "PENDING").length,
+        asyncPending: cachedSessions.filter(
+          (s) => s.status === "PENDING" && s.sessionType === "ASYNC"
+        ).length,
+      });
+    }
+
+    hydrateLiveList(() => WritingCenterCache.getUsers(), setUsers);
+
+    const sessionsUnsubscribe = onSnapshot(collection(firestore, "sessions"), (snapshot) => {
+      const sessionsData = commitLiveSnapshot(
+        snapshot,
+        setSessions,
+        (data) => WritingCenterCache.setSessionsAll(data)
+      );
       setStats({
         total: sessionsData.length,
-        completed: sessionsData.filter(s => s.status === 'COMPLETED').length,
-        pending: sessionsData.filter(s => s.status === 'PENDING').length,
-        asyncPending: sessionsData.filter(s => s.status === 'PENDING' && s.sessionType === 'ASYNC').length
+        completed: sessionsData.filter((s) => s.status === "COMPLETED").length,
+        pending: sessionsData.filter((s) => s.status === "PENDING").length,
+        asyncPending: sessionsData.filter(
+          (s) => s.status === "PENDING" && s.sessionType === "ASYNC"
+        ).length,
       });
     }, (err) => {
-      console.error('Failed to fetch sessions:', err);
     });
 
-    const usersUnsubscribe = onSnapshot(collection(firestore, 'users'), (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setUsers(usersData);
+    const usersUnsubscribe = onSnapshot(collection(firestore, "users"), (snapshot) => {
+      commitLiveSnapshot(snapshot, setUsers, (data) => WritingCenterCache.setUsers(data));
     }, (err) => {
-      console.error('Failed to fetch users:', err);
     });
 
     return () => {
@@ -103,11 +143,12 @@ export default function AdminDashboard() {
 
   const handleRoleChange = async (userId, newRole) => {
     try {
-      await updateDoc(doc(firestore, 'users', userId), {
-        role: newRole
+      assertClientRateLimit("profileWrite", user?.uid);
+      await updateDoc(doc(firestore, "users", userId), {
+        role: newRole,
       });
+      invalidateOnDataChange("writing_center_users", "role");
     } catch (err) {
-      console.error('Failed to update role:', err);
     }
   };
 
@@ -115,6 +156,7 @@ export default function AdminDashboard() {
     if (!selectedSession || !selectedTutor) return;
     
     try {
+      assertClientRateLimit("sessionUpdate", user?.uid);
       const tutorUser = users.find(u => u.id === selectedTutor);
       await updateDoc(doc(firestore, 'sessions', selectedSession.id), {
         tutorId: selectedTutor,
@@ -125,9 +167,9 @@ export default function AdminDashboard() {
       });
       setShowAssignModal(false);
       setSelectedSession(null);
-      setSelectedTutor('');
+      setSelectedTutor("");
+      invalidateOnDataChange("writing_center_sessions", "assign");
     } catch (err) {
-      console.error('Failed to assign session:', err);
     }
   };
 
@@ -172,6 +214,7 @@ export default function AdminDashboard() {
     setMiniLessonError('');
 
     try {
+      assertClientRateLimit("miniLessonCreate", user?.uid);
       const lessonDate = miniLessonDateToDate(miniLessonDate);
       await addDoc(collection(firestore, 'sessions'), {
         studentId: MINI_LESSON_STUDENT_ID,
@@ -183,15 +226,15 @@ export default function AdminDashboard() {
         status: 'COMPLETED',
         source: 'admin_mini_lesson',
         tutorId: miniLessonTutorId,
-        tutorName: getUserDisplayName(tutorUser) || tutorUser.email,
+        tutorName: resolveDisplayName(tutorUser) || tutorUser.email,
         tutorEmail: tutorUser.email || '',
         createdAt: Timestamp.fromDate(lessonDate),
         updatedAt: serverTimestamp(),
         sessionEndTime: lessonDate.toISOString(),
       });
       setShowMiniLessonModal(false);
+      invalidateOnDataChange("writing_center_sessions", "mini_lesson");
     } catch (err) {
-      console.error('Failed to assign mini lesson:', err);
       setMiniLessonError(err.message || 'Failed to save mini lesson.');
     } finally {
       setMiniLessonSaving(false);
@@ -208,17 +251,20 @@ export default function AdminDashboard() {
     }
   };
 
-  const filteredSessions = sessions.filter(session => {
-    if (statusFilter !== 'ALL' && session.status !== statusFilter) return false;
-    if (typeFilter !== 'ALL' && session.sessionType !== typeFilter) return false;
-    if (selectedTutorFilter !== 'ALL' && session.tutorId !== selectedTutorFilter) return false;
-    return true;
-  });
+  const filteredSessions = sortSessionsNewestFirst(
+    sessions.filter((session) => {
+      if (statusFilter !== "ALL" && session.status !== statusFilter) return false;
+      if (typeFilter !== "ALL" && session.sessionType !== typeFilter) return false;
+      return true;
+    })
+  );
 
   const tutors = users.filter(user => (user.role || '').toUpperCase() === 'TUTOR');
-  const tutorSessions = selectedTutorFilter === 'ALL' 
-    ? sessions 
-    : sessions.filter(s => s.tutorId === selectedTutorFilter);
+  const tutorSessions = sortSessionsNewestFirst(
+    selectedTutorFilter === "ALL"
+      ? sessions
+      : sessions.filter((s) => s.tutorId === selectedTutorFilter)
+  );
 
   const tabClass = (tab) =>
     `whitespace-nowrap py-2 px-3 rounded-md text-sm font-medium transition-colors ${
@@ -328,36 +374,26 @@ export default function AdminDashboard() {
               expandedSessionId={expandedSession}
               onToggleExpand={(id) => setExpandedSession(id)}
               renderExpanded={(session, formResponseUrl) => (
-                <>
-                  {session.subject && (
-                    <p>
-                      <span className="font-medium text-gray-700">Subject:</span> {session.subject}
-                    </p>
-                  )}
-                  {session.notes && (
-                    <p>
-                      <span className="font-medium text-gray-700">Notes:</span> {session.notes}
-                    </p>
-                  )}
+                <div className="flex flex-col items-start gap-2">
                   {isAsyncFormSession(session) && formResponseUrl && (
                     <a
                       href={formResponseUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-indigo-600 hover:text-indigo-900"
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-900"
                     >
                       View in Google Forms
                     </a>
                   )}
                   <SessionReportLink session={session} />
-                  {session.duration != null && (
-                    <p>
+                  {session.sessionType !== "ASYNC" && session.duration != null && (
+                    <p className="m-0">
                       <span className="font-medium text-gray-700">Duration:</span>{" "}
                       {Math.floor(session.duration / 60)}:
                       {(session.duration % 60).toString().padStart(2, "0")}
                     </p>
                   )}
-                </>
+                </div>
               )}
             />
           </div>
@@ -391,7 +427,7 @@ export default function AdminDashboard() {
                 <option value="ALL">All Tutors</option>
                 {tutors.map((tutor) => (
                   <option key={tutor.id} value={tutor.id}>
-                    {getUserDisplayName(tutor) || tutor.email}
+                    {resolveDisplayName(tutor) || tutor.email}
                   </option>
                 ))}
               </select>
@@ -441,14 +477,24 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{session.tutorName || 'Unassigned'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {session.status === 'PENDING' && (
+                      {session.status === "PENDING" && (
                         <button
+                          type="button"
                           onClick={() => openAssignModal(session)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-3"
+                          className="text-indigo-600 hover:text-indigo-900"
                         >
                           Assign Tutor
                         </button>
                       )}
+                      {session.status === "COMPLETED" &&
+                        (getSessionReportUrl(session) ? (
+                          <SessionReportLink
+                            session={session}
+                            label="View summary (PDF)"
+                          />
+                        ) : (
+                          <span className="text-gray-400">No report yet</span>
+                        ))}
                     </td>
                   </tr>
                 ))
@@ -496,7 +542,7 @@ export default function AdminDashboard() {
                 ) : (
                 filteredUsers.map((user) => (
                   <tr key={user.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{getUserDisplayName(user)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{resolveDisplayName(user)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <select
@@ -573,7 +619,7 @@ export default function AdminDashboard() {
                   <option value="">Select a tutor</option>
                   {tutors.map((tutor) => (
                     <option key={tutor.id} value={tutor.id}>
-                      {getUserDisplayName(tutor) || tutor.email}
+                      {resolveDisplayName(tutor) || tutor.email}
                     </option>
                   ))}
                 </select>

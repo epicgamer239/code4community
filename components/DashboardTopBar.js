@@ -36,7 +36,6 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
       router.push("/");
       router.refresh();
     } catch (err) {
-      console.error("Sign out error:", err);
     }
   };
 

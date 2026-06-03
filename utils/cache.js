@@ -6,22 +6,23 @@
 // Cache configuration
 export const CACHE_CONFIG = {
   USER_DATA: 'brhs_user_cache',
-  USER_PREFERENCES: 'brhs_user_preferences',
   MATHLAB_REQUESTS: 'brhs_mathlab_requests',
   MATHLAB_SESSIONS: 'brhs_mathlab_sessions',
   MATHLAB_ACTIVE_SESSIONS: 'brhs_mathlab_active_sessions',
-  TUTORS_LIST: 'brhs_tutors_list',
-  ADMINS_LIST: 'brhs_admins_list',
   SESSION_TRACKING: 'brhs_session_tracking',
-  COURSES: 'brhs_courses',
-  SETTINGS: 'brhs_settings',
-  NAVIGATION: 'brhs_navigation_state',
-  THEME: 'brhs_theme_preferences',
-  NOTIFICATIONS: 'brhs_notifications',
+  WRITING_CENTER_SESSIONS_ALL: 'brhs_wc_sessions_all',
+  WRITING_CENTER_USERS: 'brhs_wc_users',
+  STUDY_NOTE_SETS_PREFIX: 'brhs_study_notes_',
+  SCHEDULER_SLOTS_PREFIX: 'brhs_scheduler_slots_',
+  SCHEDULER_BOOKINGS_PREFIX: 'brhs_scheduler_bookings_',
   DEFAULT_TTL: 5 * 60 * 1000, // 5 minutes default TTL
+  /** Live dashboards (WC, Math Lab queues): hydrate fast, refresh via onSnapshot */
+  LIVE_DATA_TTL: 30 * 1000, // 30 seconds
   USER_DATA_TTL: 30 * 60 * 1000, // 30 minutes for user data
   STATIC_DATA_TTL: 60 * 60 * 1000, // 1 hour for static data
 };
+
+export const LIVE_DATA_TTL = CACHE_CONFIG.LIVE_DATA_TTL;
 
 // Cache metadata structure
 const createCacheEntry = (data, ttl = CACHE_CONFIG.DEFAULT_TTL) => ({
@@ -79,10 +80,6 @@ export const CacheManager = {
       const entry = createCacheEntry(data, ttl);
       const serialized = JSON.stringify(entry);
       localStorage.setItem(key, serialized);
-      
-      // Track cache operations for analytics
-      this.trackCacheOperation('set', key, serialized.length);
-      
       return true;
     } catch (error) {
       return false;
@@ -99,11 +96,9 @@ export const CacheManager = {
       
       if (!isCacheValid(entry)) {
         this.remove(key);
-        this.trackCacheOperation('expired', key, 0);
         return null;
       }
 
-      this.trackCacheOperation('hit', key, cached.length);
       return entry.data;
     } catch (error) {
       this.remove(key);
@@ -115,7 +110,6 @@ export const CacheManager = {
   remove(key) {
     try {
       localStorage.removeItem(key);
-      this.trackCacheOperation('remove', key, 0);
       return true;
     } catch (error) {
       return false;
@@ -130,7 +124,6 @@ export const CacheManager = {
           localStorage.removeItem(key);
         }
       });
-      this.trackCacheOperation('clear_all', 'all', 0);
       return true;
     } catch (error) {
       return false;
@@ -161,68 +154,6 @@ export const CacheManager = {
     }
   },
 
-  // Get cache statistics
-  getStats() {
-    try {
-      const stats = {
-        totalKeys: 0,
-        totalSize: 0,
-        hitRate: 0,
-        operations: this.cacheOperations || {}
-      };
-
-      Object.values(CACHE_CONFIG).forEach(key => {
-        if (typeof key === 'string' && key.startsWith('brhs_')) {
-          const cached = localStorage.getItem(key);
-          if (cached) {
-            stats.totalKeys++;
-            stats.totalSize += cached.length;
-          }
-        }
-      });
-
-      return stats;
-    } catch (error) {
-      return null;
-    }
-  },
-
-  // Track cache operations for analytics
-  trackCacheOperation(operation, key, size) {
-    if (!this.cacheOperations) {
-      this.cacheOperations = {};
-    }
-    
-    if (!this.cacheOperations[key]) {
-      this.cacheOperations[key] = { hits: 0, misses: 0, sets: 0, removes: 0 };
-    }
-    
-    this.cacheOperations[key][operation + 's']++;
-  },
-
-  // Batch operations for efficiency
-  batchSet(operations) {
-    try {
-      operations.forEach(({ key, data, ttl }) => {
-        this.set(key, data, ttl);
-      });
-      return true;
-    } catch (error) {
-      return false;
-    }
-  },
-
-  // Batch get for efficiency
-  batchGet(keys) {
-    try {
-      return keys.reduce((result, key) => {
-        result[key] = this.get(key);
-        return result;
-      }, {});
-    } catch (error) {
-      return {};
-    }
-  }
 };
 
 // Specialized cache functions for common use cases
@@ -238,19 +169,15 @@ export const UserCache = {
   clearUserData() {
     return CacheManager.remove(CACHE_CONFIG.USER_DATA);
   },
-
-  setPreferences(preferences) {
-    return CacheManager.set(CACHE_CONFIG.USER_PREFERENCES, preferences, CACHE_CONFIG.USER_DATA_TTL);
-  },
-
-  getPreferences() {
-    return CacheManager.get(CACHE_CONFIG.USER_PREFERENCES);
-  }
 };
 
 export const MathLabCache = {
   setRequests(requests) {
-    return CacheManager.set(CACHE_CONFIG.MATHLAB_REQUESTS, requests, CACHE_CONFIG.DEFAULT_TTL);
+    return CacheManager.set(
+      CACHE_CONFIG.MATHLAB_REQUESTS,
+      requests,
+      CACHE_CONFIG.LIVE_DATA_TTL
+    );
   },
 
   getRequests() {
@@ -266,7 +193,11 @@ export const MathLabCache = {
   },
 
   setActiveSessions(sessions) {
-    return CacheManager.set(CACHE_CONFIG.MATHLAB_ACTIVE_SESSIONS, sessions, CACHE_CONFIG.DEFAULT_TTL);
+    return CacheManager.set(
+      CACHE_CONFIG.MATHLAB_ACTIVE_SESSIONS,
+      sessions,
+      CACHE_CONFIG.LIVE_DATA_TTL
+    );
   },
 
   getActiveSessions() {
@@ -274,7 +205,11 @@ export const MathLabCache = {
   },
 
   setSessionTracking(sessions) {
-    return CacheManager.set(CACHE_CONFIG.SESSION_TRACKING, sessions, CACHE_CONFIG.DEFAULT_TTL);
+    return CacheManager.set(
+      CACHE_CONFIG.SESSION_TRACKING,
+      sessions,
+      CACHE_CONFIG.LIVE_DATA_TTL
+    );
   },
 
   getSessionTracking() {
@@ -289,75 +224,132 @@ export const MathLabCache = {
   }
 };
 
-export const AdminCache = {
-  setTutors(tutors) {
-    return CacheManager.set(CACHE_CONFIG.TUTORS_LIST, tutors, CACHE_CONFIG.DEFAULT_TTL);
+function writingCenterSessionsKey(uid) {
+  return uid
+    ? `${CACHE_CONFIG.WRITING_CENTER_SESSIONS_ALL}_${uid}`
+    : CACHE_CONFIG.WRITING_CENTER_SESSIONS_ALL;
+}
+
+export const WritingCenterCache = {
+  setSessionsAll(sessions) {
+    return CacheManager.set(
+      CACHE_CONFIG.WRITING_CENTER_SESSIONS_ALL,
+      sessions,
+      CACHE_CONFIG.LIVE_DATA_TTL
+    );
   },
 
-  getTutors() {
-    return CacheManager.get(CACHE_CONFIG.TUTORS_LIST);
+  getSessionsAll() {
+    return CacheManager.get(CACHE_CONFIG.WRITING_CENTER_SESSIONS_ALL);
   },
 
-  setAdmins(admins) {
-    return CacheManager.set(CACHE_CONFIG.ADMINS_LIST, admins, CACHE_CONFIG.DEFAULT_TTL);
+  setSessionsForUser(uid, sessions) {
+    if (!uid) return false;
+    return CacheManager.set(
+      writingCenterSessionsKey(uid),
+      sessions,
+      CACHE_CONFIG.LIVE_DATA_TTL
+    );
   },
 
-  getAdmins() {
-    return CacheManager.get(CACHE_CONFIG.ADMINS_LIST);
+  getSessionsForUser(uid) {
+    if (!uid) return null;
+    return CacheManager.get(writingCenterSessionsKey(uid));
+  },
+
+  setUsers(users) {
+    return CacheManager.set(
+      CACHE_CONFIG.WRITING_CENTER_USERS,
+      users,
+      CACHE_CONFIG.LIVE_DATA_TTL
+    );
+  },
+
+  getUsers() {
+    return CacheManager.get(CACHE_CONFIG.WRITING_CENTER_USERS);
   },
 
   clearAll() {
-    CacheManager.remove(CACHE_CONFIG.TUTORS_LIST);
-    CacheManager.remove(CACHE_CONFIG.ADMINS_LIST);
-  }
+    if (typeof window !== "undefined") {
+      Object.keys(localStorage).forEach((key) => {
+        if (
+          key === CACHE_CONFIG.WRITING_CENTER_SESSIONS_ALL ||
+          key === CACHE_CONFIG.WRITING_CENTER_USERS ||
+          key.startsWith(`${CACHE_CONFIG.WRITING_CENTER_SESSIONS_ALL}_`)
+        ) {
+          CacheManager.remove(key);
+        }
+      });
+    } else {
+      CacheManager.remove(CACHE_CONFIG.WRITING_CENTER_SESSIONS_ALL);
+      CacheManager.remove(CACHE_CONFIG.WRITING_CENTER_USERS);
+    }
+  },
+
+  clearForUser(uid) {
+    if (uid) CacheManager.remove(writingCenterSessionsKey(uid));
+    CacheManager.remove(CACHE_CONFIG.WRITING_CENTER_SESSIONS_ALL);
+  },
 };
 
-export const SettingsCache = {
-  setSettings(settings) {
-    return CacheManager.set(CACHE_CONFIG.SETTINGS, settings, CACHE_CONFIG.STATIC_DATA_TTL);
+export const StudyCache = {
+  keyForUser(uid) {
+    return `${CACHE_CONFIG.STUDY_NOTE_SETS_PREFIX}${uid}`;
   },
 
-  getSettings() {
-    return CacheManager.get(CACHE_CONFIG.SETTINGS);
+  setNoteSets(uid, noteSets) {
+    if (!uid) return false;
+    return CacheManager.set(
+      this.keyForUser(uid),
+      noteSets,
+      CACHE_CONFIG.LIVE_DATA_TTL
+    );
   },
 
-  setTheme(theme) {
-    return CacheManager.set(CACHE_CONFIG.THEME, theme, CACHE_CONFIG.STATIC_DATA_TTL);
+  getNoteSets(uid) {
+    if (!uid) return null;
+    return CacheManager.get(this.keyForUser(uid));
   },
 
-  getTheme() {
-    return CacheManager.get(CACHE_CONFIG.THEME);
-  }
+  clearForUser(uid) {
+    if (uid) CacheManager.remove(this.keyForUser(uid));
+  },
 };
 
-// Cache invalidation is now handled by cacheInvalidation.js
-
-// Performance monitoring
-export const CachePerformance = {
-  startTiming(operation) {
-    return {
-      operation,
-      startTime: performance.now()
-    };
+export const SchedulerCache = {
+  slotsKey(collection) {
+    return `${CACHE_CONFIG.SCHEDULER_SLOTS_PREFIX}${collection}`;
   },
 
-  endTiming(timing) {
-    const duration = performance.now() - timing.startTime;
-    return duration;
+  bookingsKey(collection, studentId) {
+    return `${CACHE_CONFIG.SCHEDULER_BOOKINGS_PREFIX}${collection}_${studentId}`;
   },
 
-  // Monitor cache hit rates
-  getHitRates() {
-    const stats = CacheManager.getStats();
-    if (!stats.operations) return {};
+  setOpenSlots(collection, slots) {
+    return CacheManager.set(
+      this.slotsKey(collection),
+      slots,
+      CACHE_CONFIG.LIVE_DATA_TTL
+    );
+  },
 
-    return Object.keys(stats.operations).reduce((rates, key) => {
-      const ops = stats.operations[key];
-      const total = ops.hits + ops.misses;
-      rates[key] = total > 0 ? (ops.hits / total) * 100 : 0;
-      return rates;
-    }, {});
-  }
+  getOpenSlots(collection) {
+    return CacheManager.get(this.slotsKey(collection));
+  },
+
+  setStudentBookings(collection, studentId, bookings) {
+    if (!studentId) return false;
+    return CacheManager.set(
+      this.bookingsKey(collection, studentId),
+      bookings,
+      CACHE_CONFIG.LIVE_DATA_TTL
+    );
+  },
+
+  getStudentBookings(collection, studentId) {
+    if (!studentId) return null;
+    return CacheManager.get(this.bookingsKey(collection, studentId));
+  },
 };
 
 // Initialize cache cleanup on app start

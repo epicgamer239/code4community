@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/utils/AuthContext";
 import { MATHLAB_COURSES } from "@/lib/mathlabCourses";
+import { resolveDisplayName } from "@/lib/profile";
 import {
   formatSlotWhen,
   isSlotBookable,
@@ -24,6 +25,8 @@ import AvailabilityPicker, {
   FilterMenuButton,
   TimeSlotButton,
 } from "@/components/mathlab/AvailabilityPicker";
+import { SchedulerCache } from "@/utils/cache";
+import { hydrateLiveList } from "@/utils/liveFirestoreCache";
 
 export default function SchedulerStudentView({
   scheduler = officeHoursScheduler,
@@ -51,17 +54,31 @@ export default function SchedulerStudentView({
   const [selectedYmd, setSelectedYmd] = useState("");
   const [viewMonth, setViewMonth] = useState(() => new Date());
 
-  useEffect(() => subscribeOpenSlots(setSlots), []);
+  useEffect(() => {
+    hydrateLiveList(
+      () => SchedulerCache.getOpenSlots(scheduler.slotsCollection),
+      setSlots
+    );
+    return subscribeOpenSlots(setSlots);
+  }, [scheduler.slotsCollection, subscribeOpenSlots]);
+
   useEffect(() => {
     if (!user?.uid) return;
+    hydrateLiveList(
+      () =>
+        SchedulerCache.getStudentBookings(
+          scheduler.bookingsCollection,
+          user.uid
+        ),
+      setMyBookings
+    );
     return subscribeStudentBookings(user.uid, setMyBookings);
-  }, [user?.uid]);
+  }, [user?.uid, scheduler.bookingsCollection, subscribeStudentBookings]);
 
-  const displayName =
-    userData?.displayName ||
-    [userData?.firstName, userData?.lastName].filter(Boolean).join(" ") ||
-    user?.displayName ||
-    "Student";
+  const displayName = resolveDisplayName(
+    { ...userData, displayName: userData?.displayName || user?.displayName },
+    "Student",
+  );
 
   const teachers = useMemo(() => {
     const map = new Map();

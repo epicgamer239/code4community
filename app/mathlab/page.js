@@ -20,9 +20,13 @@ import {
 } from "firebase/firestore";
 import { firestore } from "@/firebase";
 import { firestoreToDate, formatRequestTime, formatRequestDateTime } from "@/lib/firestoreDates";
-import { MathLabCache, UserCache, CachePerformance } from "@/utils/cache";
+import { MathLabCache, UserCache } from "@/utils/cache";
+import { useMathLabDisplayUser } from "@/utils/useMathLabDisplayUser";
+import { MATHLAB_COURSES } from "@/lib/mathlabCourses";
+import { resolveDisplayName, getInitials } from "@/lib/profile";
 import { invalidateOnDataChange } from "@/utils/cacheInvalidation";
-import { canAccess, canModify, isTutorOrHigher, isAdminUser, ROLES } from "@/utils/authorization";
+import { assertClientRateLimit } from "@/utils/clientRateLimit";
+import { canAccess, isTutorOrHigher, isAdminUser } from "@/utils/authorization";
 import { mathlabLoginPath } from "@/utils/mathlabGuest";
 import Image from "next/image";
 
@@ -67,7 +71,6 @@ function MathLabPageContent() {
   const searchParams = useSearchParams();
   const [selectedCourse, setSelectedCourse] = useState("");
   const [isMatching, setIsMatching] = useState(false);
-  const [cachedUser, setCachedUser] = useState(null);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [mathLabRole, setMathLabRole] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
@@ -102,25 +105,7 @@ function MathLabPageContent() {
     sessionDurationRef.current = sessionDuration;
   }, [sessionDuration]);
 
-  // Available courses - memoized for performance
-  const courses = useMemo(() => [
-    "Algebra 1",
-    "Algebra 2",
-    "Algebra 2 Trig",
-    "Functions",
-    "Trig with Adv Alg",
-    "Geometry"
-  ], []);
-
-  // Function to generate initials from name
-  const getInitials = (name) => {
-    if (!name) return '?';
-    const words = name.trim().split(' ');
-    if (words.length === 1) {
-      return words[0].substring(0, 2).toUpperCase();
-    }
-    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
-  };
+  const courses = MATHLAB_COURSES;
 
   // Custom image component with proper Google URL handling
   const ProfileImage = ({ src, alt, name, className, showOnlineIndicator = false }) => {
@@ -209,56 +194,11 @@ function MathLabPageContent() {
 
   // No custom filtering — native select handles searching
 
-  // Optimized caching with intelligent cache management
-  useEffect(() => {
-    const timing = CachePerformance.startTiming('loadCachedUser');
-    
-    // Try to get cached user data immediately
-    const cached = UserCache.getUserData();
-    if (cached) {
-      setCachedUser(cached);
-      // Check role selection - always check current role
-      if (!cached.mathLabRole) {
-        setShowRoleSelection(true);
-      } else {
-        setShowRoleSelection(false);
-      }
-    }
-    
-    CachePerformance.endTiming(timing);
-  }, []);
+  const displayUser = useMathLabDisplayUser(user, userData);
 
-  // Optimized cache update with smart invalidation
   useEffect(() => {
-    if (userData && user) {
-      const timing = CachePerformance.startTiming('updateUserCache');
-      
-      // Combine Firebase Auth user with Firestore data
-      const combinedUserData = {
-        ...userData,
-        uid: user.uid,
-        email: user.email
-      };
-      
-      // Update cache using centralized cache manager
-      UserCache.setUserData(combinedUserData);
-      setCachedUser(combinedUserData);
-      
-      // Check role selection - always check current role
-      if (!userData.mathLabRole) {
-        setShowRoleSelection(true);
-      } else {
-        setShowRoleSelection(false);
-      }
-      
-      CachePerformance.endTiming(timing);
-    }
-  }, [userData, user]);
-
-  const displayUser = useMemo(
-    () => (user ? userData || cachedUser : null),
-    [user, userData, cachedUser],
-  );
+    if (displayUser) setShowRoleSelection(!displayUser.mathLabRole);
+  }, [displayUser?.mathLabRole]);
   
   // Helper function to check if user is a tutor (including admins who can also tutor)
   const isTutor = useMemo(() => {
@@ -285,10 +225,7 @@ function MathLabPageContent() {
   const fetchPendingRequests = useCallback(() => {
     if (!isTutor) {
       return () => {}; // Return empty cleanup function
-    }
-    
-    const timing = CachePerformance.startTiming('fetchPendingRequests');
-    
+    }    
     // Try to load from cache first, but always refresh for real-time data
     const cachedRequests = MathLabCache.getRequests();
     if (cachedRequests && cachedRequests.length >= 0) {
@@ -297,9 +234,6 @@ function MathLabPageContent() {
     } else {
       setIsLoadingRequests(true);
     }
-    
-    // Always fetch fresh data for real-time updates
-    setIsLoadingRequests(true);
     
     try {
       const q = query(
@@ -322,23 +256,14 @@ function MathLabPageContent() {
 
           MathLabCache.setRequests(requests);
           setPendingRequests(requests);
-          setIsLoadingRequests(false);
-
-          CachePerformance.endTiming(timing);
-        },
+          setIsLoadingRequests(false);        },
         (err) => {
-          console.error("Error fetching pending requests:", err);
-          setIsLoadingRequests(false);
-          CachePerformance.endTiming(timing);
-        }
+          setIsLoadingRequests(false);        }
       );
 
       return unsubscribe;
     } catch (error) {
-      console.error("Error fetching requests:", error);
-      setIsLoadingRequests(false);
-      CachePerformance.endTiming(timing);
-      return () => {}; // Return empty cleanup function on error
+      setIsLoadingRequests(false);      return () => {}; // Return empty cleanup function on error
     }
   }, [isTutor]);
 
@@ -397,13 +322,11 @@ function MathLabPageContent() {
         setActiveSessions(sessions);
         setIsLoadingActiveSessions(false);
       }, (error) => {
-        console.error("Error fetching active sessions:", error);
         setIsLoadingActiveSessions(false);
       });
 
       return unsubscribe;
     } catch (error) {
-      console.error("Error setting up active sessions listener:", error);
       setIsLoadingActiveSessions(false);
       return () => {}; // Return empty cleanup function on error
     }
@@ -433,7 +356,7 @@ function MathLabPageContent() {
           // Avoid composite index by querying by tutorId first, then filter status client-side
           const q = query(
             collection(firestore, "tutoringRequests"),
-            where("tutorId", "==", user?.uid || cachedUser?.uid)
+            where("tutorId", "==", displayUser?.uid)
           );
           const snapshot = await getDocs(q);
           if (!snapshot.empty) {
@@ -466,7 +389,6 @@ function MathLabPageContent() {
             }
           }
         } catch (error) {
-          console.error("Error checking active sessions:", error);
         }
       };
       
@@ -476,7 +398,7 @@ function MathLabPageContent() {
         if (unsubscribe) unsubscribe();
       };
     }
-  }, [displayUser?.mathLabRole, user?.uid, cachedUser?.uid, fetchPendingRequests]);
+  }, [displayUser?.mathLabRole, displayUser?.uid, fetchPendingRequests]);
 
 
   // Session timer effect
@@ -500,7 +422,7 @@ function MathLabPageContent() {
 
   // Check for student requests (any user who submitted as a student, including tutors)
   useEffect(() => {
-    const studentUid = user?.uid || cachedUser?.uid;
+    const studentUid = displayUser?.uid;
     if (!studentUid) {
       setStudentRequest(null);
       return;
@@ -508,22 +430,14 @@ function MathLabPageContent() {
 
       const checkStudentRequest = async () => {
         try {
-          console.log('[StudentRequest] Checking for student requests:', user?.uid || cachedUser?.uid);
-          
           // Use a simple query to get student's requests
           const q = query(
             collection(firestore, "tutoringRequests"),
-            where("studentId", "==", user?.uid || cachedUser?.uid)
+            where("studentId", "==", displayUser?.uid)
           );
           
           const snapshot = await getDocs(q);
-          
-          console.log('[StudentRequest] Snapshot result:', {
-            size: snapshot.size,
-            empty: snapshot.empty,
-            docs: snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
-          });
-          
+
           if (!snapshot.empty) {
             const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             const match = docs.find(d => d.status === 'pending' || d.status === 'accepted');
@@ -564,22 +478,8 @@ function MathLabPageContent() {
               }
             }
           } else {
-            // If we had a student request but now it's gone, the session ended
-            console.log('[StudentRequest] No requests found, checking if session ended:', {
-              hadStudentRequest: !!studentRequestRef.current,
-              hadPreviousRequest: !!previousStudentRequestRef.current,
-              studentRequestStatus: studentRequestRef.current?.status,
-              previousRequestStatus: previousStudentRequestRef.current?.status,
-              shouldShowEndedScreen: (studentRequestRef.current && studentRequestRef.current.status === 'accepted') || 
-                                   (previousStudentRequestRef.current && previousStudentRequestRef.current.status === 'accepted')
-            });
-            
-            // Check if session ended using current or previous request state
             const requestToCheck = studentRequestRef.current || previousStudentRequestRef.current;
             if (requestToCheck && requestToCheck.status === 'accepted') {
-              // Session ended - show session ended screen
-              // For students, show tutor info; for tutors, show student info
-              console.log('[StudentRequest] Session ended! Showing session ended screen');
               setSessionEndData({
                 studentName: requestToCheck.tutorName || 'Tutor',
                 studentEmail: requestToCheck.tutorEmail || '',
@@ -600,7 +500,6 @@ function MathLabPageContent() {
             setStudentRequest(null);
           }
         } catch (error) {
-          console.error('[StudentRequest] Error checking student request:', error);
         }
       };
       
@@ -610,16 +509,10 @@ function MathLabPageContent() {
       // Set up real-time listener for instant updates
       const q = query(
         collection(firestore, "tutoringRequests"),
-        where("studentId", "==", user?.uid || cachedUser?.uid)
+        where("studentId", "==", displayUser?.uid)
       );
       
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        console.log('[StudentRequest] Real-time update:', {
-          size: snapshot.size,
-          empty: snapshot.empty,
-          docs: snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
-        });
-        
         if (!snapshot.empty) {
           const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
           const match = docs.find(d => d.status === 'pending' || d.status === 'accepted');
@@ -657,24 +550,11 @@ function MathLabPageContent() {
             }
           }
         } else {
-          // If we had a student request but now it's gone, the session ended
-          console.log('[StudentRequest] No requests found, checking if session ended:', {
-            hadStudentRequest: !!studentRequestRef.current,
-            hadPreviousRequest: !!previousStudentRequestRef.current,
-            studentRequestStatus: studentRequestRef.current?.status,
-            previousRequestStatus: previousStudentRequestRef.current?.status,
-            shouldShowEndedScreen: (studentRequestRef.current && studentRequestRef.current.status === 'accepted') || 
-                                 (previousStudentRequestRef.current && previousStudentRequestRef.current.status === 'accepted')
-          });
-          
           const requestToCheck = studentRequestRef.current || previousStudentRequestRef.current;
           if (requestToCheck && requestToCheck.status === 'accepted') {
-            console.log('[StudentRequest] Session ended! Showing session ended screen');
             setSessionEndData({
-              studentName: (displayUser?.displayName && displayUser.displayName.trim()) || 
-                          ([displayUser?.firstName, displayUser?.lastName].filter(Boolean).join(' ').trim()) ||
-                          user?.email || cachedUser?.email || 'Student',
-              studentEmail: user?.email || cachedUser?.email || '',
+              studentName: resolveDisplayName(displayUser, "Student"),
+              studentEmail: displayUser?.email || '',
               course: requestToCheck.course,
               startTime: requestToCheck.sessionStartedAt || requestToCheck.acceptedAt,
               endTime: new Date(),
@@ -689,9 +569,6 @@ function MathLabPageContent() {
           setStudentRequest(null);
         }
       }, (error) => {
-        console.error('[StudentRequest] Listener error:', error);
-        // Fallback to polling if listener fails
-        console.log('[StudentRequest] Falling back to polling due to listener error');
         const pollInterval = setInterval(checkStudentRequest, 2000);
         return () => clearInterval(pollInterval);
       });
@@ -699,7 +576,7 @@ function MathLabPageContent() {
       return () => {
         unsubscribe();
       };
-  }, [user?.uid, cachedUser?.uid, displayUser?.displayName, user?.email]);
+  }, [displayUser?.uid, displayUser?.displayName, displayUser?.email]);
 
   // No dropdown overlay logic needed with native select
 
@@ -722,14 +599,15 @@ function MathLabPageContent() {
     setIsMatching(true);
     
     try {
+      assertClientRateLimit(
+        "tutoringRequestCreate",
+        displayUser?.uid
+      );
       // Create a tutoring request
       const requestData = {
-        studentId: user?.uid || cachedUser?.uid,
-        studentName: (displayUser?.displayName && displayUser.displayName.trim())
-          || ([displayUser?.firstName, displayUser?.lastName].filter(Boolean).join(' ').trim())
-          || user?.email
-          || 'Anonymous Student',
-        studentEmail: user?.email || cachedUser?.email || '',
+        studentId: displayUser?.uid,
+        studentName: resolveDisplayName(displayUser, user?.email || "Anonymous Student"),
+        studentEmail: displayUser?.email || '',
         course: selectedCourse,
         description: `Help needed with ${selectedCourse}`,
         status: 'pending',
@@ -750,8 +628,7 @@ function MathLabPageContent() {
       setIsMatching(false);
       setSelectedCourse(""); // Reset selection
     } catch (error) {
-      console.error("Error submitting request:", error);
-      alert("Failed to submit request. Please try again.");
+      alert(error.message || "Failed to submit request. Please try again.");
       setIsMatching(false);
     }
   };
@@ -805,7 +682,6 @@ function MathLabPageContent() {
         MathLabCache.clearAll();
       }
     } catch (error) {
-      console.error("Error cleaning up old requests:", error);
     }
   }, [displayUser]);
 
@@ -841,6 +717,10 @@ function MathLabPageContent() {
     if (!studentRequest) return;
     
     try {
+      assertClientRateLimit(
+        "tutoringRequestUpdate",
+        displayUser?.uid
+      );
       // Delete the request from the database instead of marking as cancelled
       await deleteDoc(doc(firestore, "tutoringRequests", studentRequest.id));
       
@@ -850,7 +730,6 @@ function MathLabPageContent() {
       
       setStudentRequest(null);
     } catch (error) {
-      console.error("Error cancelling request:", error);
       alert("Failed to cancel request. Please try again.");
     }
   };
@@ -860,6 +739,10 @@ function MathLabPageContent() {
     if (!activeSession) return;
     
     try {
+      assertClientRateLimit(
+        "tutoringRequestUpdate",
+        displayUser?.uid
+      );
       const endTime = new Date();
       const sessionDuration = Math.floor((endTime - sessionStartTime) / 1000);
       
@@ -868,12 +751,9 @@ function MathLabPageContent() {
         studentId: activeSession.studentId, // Use the student ID from activeSession
         studentName: activeSession.studentName,
         studentEmail: activeSession.studentEmail || '',
-        tutorId: user?.uid || cachedUser?.uid, // Tutor's ID
-        tutorName: (displayUser?.displayName && displayUser.displayName.trim())
-          || ([displayUser?.firstName, displayUser?.lastName].filter(Boolean).join(' ').trim())
-          || user?.email
-          || 'Anonymous Tutor',
-        tutorEmail: user?.email || cachedUser?.email || '',
+        tutorId: displayUser?.uid, // Tutor's ID
+        tutorName: resolveDisplayName(displayUser, user?.email || "Anonymous Tutor"),
+        tutorEmail: displayUser?.email || '',
         course: activeSession.course,
         startTime: sessionStartTime,
         endTime: endTime,
@@ -882,12 +762,8 @@ function MathLabPageContent() {
         status: 'completed'
       };
 
-      console.log('[HandleEndSession] Creating completed session:', completedSessionData);
+      await addDoc(collection(firestore, "completedSessions"), completedSessionData);
 
-      // Add to completed sessions collection
-      const docRef = await addDoc(collection(firestore, "completedSessions"), completedSessionData);
-      console.log('[HandleEndSession] Completed session created with ID:', docRef.id);
-      
       // Delete the original request from the database
       await deleteDoc(doc(firestore, "tutoringRequests", activeSession.requestId));
       
@@ -903,11 +779,8 @@ function MathLabPageContent() {
       setSessionEndData({
         studentName: activeSession.studentName,
         studentEmail: activeSession.studentEmail,
-        tutorName: (displayUser?.displayName && displayUser.displayName.trim())
-          || ([displayUser?.firstName, displayUser?.lastName].filter(Boolean).join(' ').trim())
-          || user?.email
-          || 'Anonymous Tutor',
-        tutorEmail: user?.email || cachedUser?.email || '',
+        tutorName: resolveDisplayName(displayUser, user?.email || "Anonymous Tutor"),
+        tutorEmail: displayUser?.email || '',
         course: activeSession.course,
         startTime: sessionStartTime,
         endTime: endTime,
@@ -920,7 +793,6 @@ function MathLabPageContent() {
       setSessionStartTime(null);
       setSessionDuration(0);
     } catch (error) {
-      console.error("Error ending session:", error);
       alert("Failed to end session. Please try again.");
     }
   };
@@ -929,12 +801,15 @@ function MathLabPageContent() {
   const handleAcceptRequest = async (requestId, studentId, course) => {
     // Check authorization - only tutors and higher can accept requests
     if (!isTutorOrHigher(userData.role, userData.mathLabRole)) {
-      console.error('Unauthorized: User cannot accept math lab requests');
       alert("You don't have permission to accept requests.");
       return;
     }
 
     try {
+      assertClientRateLimit(
+        "tutoringRequestUpdate",
+        displayUser?.uid
+      );
       // Find the request details
       const request = pendingRequests.find(req => req.id === requestId);
       if (!request) {
@@ -944,12 +819,9 @@ function MathLabPageContent() {
       // Update the request status to accepted
       await updateDoc(doc(firestore, "tutoringRequests", requestId), {
         status: 'accepted',
-        tutorId: user?.uid || cachedUser?.uid,
-        tutorName: (displayUser?.displayName && displayUser.displayName.trim())
-          || ([displayUser?.firstName, displayUser?.lastName].filter(Boolean).join(' ').trim())
-          || user?.email
-          || 'Anonymous Tutor',
-        tutorEmail: user?.email || cachedUser?.email,
+        tutorId: displayUser?.uid,
+        tutorName: resolveDisplayName(displayUser, user?.email || "Anonymous Tutor"),
+        tutorEmail: displayUser?.email,
         acceptedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -963,10 +835,7 @@ function MathLabPageContent() {
         course: request.course
       });
       setSessionStatus('accepted');
-
-      // TODO: Send notification to student (could be email, push notification, etc.)
     } catch (error) {
-      console.error("Error accepting request:", error);
       alert("Failed to accept request. Please try again.");
     }
   };
@@ -976,6 +845,10 @@ function MathLabPageContent() {
     if (!activeSession) return;
     
     try {
+      assertClientRateLimit(
+        "tutoringRequestUpdate",
+        displayUser?.uid
+      );
       const startTime = new Date();
       setSessionStartTime(startTime);
       setSessionDuration(0);
@@ -987,7 +860,6 @@ function MathLabPageContent() {
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
-      console.error("Error starting session:", error);
       alert("Failed to start session. Please try again.");
     }
   };
@@ -1006,13 +878,13 @@ function MathLabPageContent() {
 
     try {
       // Get user ID from multiple sources with proper fallback
-      const userId = user?.uid || cachedUser?.uid;
+      const userId = displayUser?.uid;
       if (!userId) {
         throw new Error("User ID not found. Please try refreshing the page.");
       }
 
       // Check if user is switching roles
-      const currentRole = cachedUser?.mathLabRole;
+      const currentRole = displayUser?.mathLabRole;
       const isSwitchingToStudent = currentRole === 'tutor' && selectedRole === 'student';
       
       // If switching to student, clear any active tutor sessions
@@ -1028,6 +900,7 @@ function MathLabPageContent() {
         setTimeout(() => setRoleChangeMessage(""), 5000);
       }
 
+      assertClientRateLimit("profileWrite", userId);
       // Update Firestore
       await updateDoc(doc(firestore, "users", userId), {
         mathLabRole: selectedRole,
@@ -1035,9 +908,8 @@ function MathLabPageContent() {
       });
 
       // Update local cache using centralized cache manager
-      const updatedUser = { ...cachedUser, mathLabRole: selectedRole };
+      const updatedUser = { ...displayUser, mathLabRole: selectedRole };
       UserCache.setUserData(updatedUser);
-      setCachedUser(updatedUser);
       
       // Invalidate related caches to prevent stale data
       invalidateOnDataChange('mathlab_role', 'update');
@@ -1052,12 +924,11 @@ function MathLabPageContent() {
       // Hide role selection
       setShowRoleSelection(false);
     } catch (error) {
-      console.error("Error updating math lab role:", error);
       alert(error.message || "Failed to update role. Please try again.");
     } finally {
       setIsUpdating(false);
     }
-  }, [cachedUser, user?.uid]);
+  }, [displayUser, user?.uid]);
 
   // Auto-set role to student if not set and continue to main page
   useEffect(() => {

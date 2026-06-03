@@ -1,4 +1,5 @@
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { assertClientRateLimit } from "@/utils/clientRateLimit";
 import { firestore } from "@/firebase";
 
 const COLLECTION = "users";
@@ -70,7 +71,6 @@ export async function loadStudyStats(user) {
     const raw = snap.exists() ? snap.data()?.[STUDY_STATS_FIELD] : null;
     return coerceStudyStats(raw);
   } catch (e) {
-    console.error("loadStudyStats:", e);
     return emptyStudyStats();
   }
 }
@@ -83,6 +83,7 @@ export async function recordStudyQuestionResult(user, outcome) {
   if (outcome !== "correct" && outcome !== "wrong" && outcome !== "skipped") return;
   const dateKey = getLocalDateKey();
   try {
+    assertClientRateLimit("studyProgressWrite", user.uid);
     const ref = doc(firestore, COLLECTION, user.uid);
     const snap = await getDoc(ref);
     const raw = snap.exists() ? snap.data()?.[STUDY_STATS_FIELD] : null;
@@ -114,7 +115,6 @@ export async function recordStudyQuestionResult(user, outcome) {
       { merge: true }
     );
   } catch (e) {
-    console.error("recordStudyQuestionResult:", e);
   }
 }
 
@@ -127,6 +127,7 @@ export async function mergeStudyStatsTime(user, seconds) {
   if (sec <= 0) return;
   const dateKey = getLocalDateKey();
   try {
+    assertClientRateLimit("studyProgressWrite", user.uid);
     const ref = doc(firestore, COLLECTION, user.uid);
     const snap = await getDoc(ref);
     const raw = snap.exists() ? snap.data()?.[STUDY_STATS_FIELD] : null;
@@ -152,7 +153,6 @@ export async function mergeStudyStatsTime(user, seconds) {
       { merge: true }
     );
   } catch (e) {
-    console.error("mergeStudyStatsTime:", e);
   }
 }
 

@@ -81,7 +81,6 @@ export async function validateAppCheckToken(request) {
       };
     }
   } catch (error) {
-    console.error('App Check token validation error:', error);
     return {
       valid: false,
       error: 'Invalid App Check token'
@@ -107,7 +106,6 @@ export function withAppCheck(handler) {
     const validation = await validateAppCheckToken(request);
     
     if (!validation.valid) {
-      console.log('App Check validation failed:', validation.error);
       
       return new Response(
         JSON.stringify({ 

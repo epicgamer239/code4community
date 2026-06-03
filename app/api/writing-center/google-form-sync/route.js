@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSessionFromGoogleForm } from "@/lib/writingCenterGoogleFormSync";
+import { withRateLimit } from "@/utils/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,7 @@ function verifySecret(request) {
   return request.headers.get("x-wc-sync-secret") === expected;
 }
 
-export async function POST(request) {
+async function syncHandler(request) {
   if (!verifySecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -49,3 +50,5 @@ export async function POST(request) {
     { status: result.status }
   );
 }
+
+export const POST = withRateLimit(syncHandler, { preset: "syncWebhook" });

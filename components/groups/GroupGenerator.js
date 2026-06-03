@@ -67,7 +67,6 @@ export default function GroupGenerator({ embedded = false }) {
         }
       }
     } catch (e) {
-      console.error(e);
     }
 
     setCurrentClass(updated);
@@ -147,7 +146,6 @@ export default function GroupGenerator({ embedded = false }) {
         setActiveTab("results");
       }
     } catch (error) {
-      console.error("Error generating groups:", error);
       alert("Error generating groups. Please check your constraints and try again.");
     } finally {
       setIsGenerating(false);

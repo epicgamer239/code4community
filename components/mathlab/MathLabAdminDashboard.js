@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { firestore } from "@/firebase";
 import { useAuth } from "@/utils/AuthContext";
+import { assertClientRateLimit } from "@/utils/clientRateLimit";
 import { ADMIN_CONFIG, canRemoveTeamPrivileges, isProtectedAdminEmail } from "@/config/admin";
 import { normalizeEmail } from "@/lib/email";
 import {
@@ -116,7 +117,6 @@ export default function MathLabAdminDashboard() {
       setAppointedAdmins(parts.appointedAdmins);
       setTutors(parts.tutors);
     } catch (err) {
-      console.error("[AdminDashboard] loadTeam", err);
       setError(err.message || "Failed to load team list.");
     } finally {
       setLoading(false);
@@ -160,6 +160,7 @@ export default function MathLabAdminDashboard() {
     }
     setSaving(true);
     try {
+      assertClientRateLimit("profileWrite", authUser?.uid);
       const existing = await findUserByEmail(normalized);
       if (existing) {
         if (grantRole === "admin") {
@@ -204,7 +205,6 @@ export default function MathLabAdminDashboard() {
       setEmail("");
       await loadTeam();
     } catch (err) {
-      console.error("[AdminDashboard] handleAdd", err);
       setError(err.message || "Failed to add user.");
     } finally {
       setSaving(false);
@@ -217,6 +217,7 @@ export default function MathLabAdminDashboard() {
     setMessage("");
     setError("");
     try {
+      assertClientRateLimit("profileWrite", authUser?.uid);
       if (user.pending) {
         await deleteDoc(doc(firestore, MATHLAB_TEAM_PENDING_COLLECTION, user.id));
       } else {
@@ -241,6 +242,7 @@ export default function MathLabAdminDashboard() {
     setMessage("");
     setError("");
     try {
+      assertClientRateLimit("profileWrite", authUser?.uid);
       if (user.pending) {
         await deleteDoc(doc(firestore, MATHLAB_TEAM_PENDING_COLLECTION, user.id));
       } else {

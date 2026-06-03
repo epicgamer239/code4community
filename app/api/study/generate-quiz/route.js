@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { verifyFirebaseIdToken } from "@/utils/verifyFirebaseIdToken";
 import {
+  checkApiRateLimit,
+  rateLimitNextResponse,
+} from "@/utils/rateLimit";
+import {
   normalizeSkillTag,
   skillTagListForPrompt,
   weakTagsHumanReadable,
@@ -522,6 +526,11 @@ ${
 
 export async function POST(request) {
   try {
+    const ipLimit = checkApiRateLimit(request, "aiQuizIp");
+    if (!ipLimit.allowed) {
+      return rateLimitNextResponse(ipLimit, NextResponse);
+    }
+
     const authHeader = request.headers.get("authorization");
     const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const body = await request.json().catch(() => ({}));
@@ -530,6 +539,11 @@ export async function POST(request) {
     const auth = await verifyFirebaseIdToken(idToken);
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    const userLimit = checkApiRateLimit(request, "aiQuizUser", auth.uid);
+    if (!userLimit.allowed) {
+      return rateLimitNextResponse(userLimit, NextResponse);
     }
 
     let {
@@ -720,13 +734,11 @@ ${notesForPrompt}
         geminiData?.error?.message ||
         geminiData?.error?.status ||
         `Gemini request failed (${geminiRes.status})`;
-      console.error("Gemini error:", geminiData);
       return NextResponse.json({ error: msg }, { status: 502 });
     }
 
     const blockReason = geminiData?.promptFeedback?.blockReason;
     if (blockReason) {
-      console.error("Gemini blocked prompt:", blockReason);
       return NextResponse.json(
         { error: "Content could not be processed. Try shorter notes or different wording." },
         { status: 502 }
@@ -752,7 +764,6 @@ ${notesForPrompt}
     try {
       quiz = extractJsonObject(content);
     } catch (e) {
-      console.error("Quiz JSON parse error:", e, content.slice(0, 500));
       return NextResponse.json(
         { error: "Could not parse quiz. Try again with shorter notes." },
         { status: 502 }
@@ -816,12 +827,10 @@ ${notesForPrompt}
                 quiz = sanitizeQuizSurface(quiz, subject);
               }
             } catch (e2) {
-              console.error("refineQuizWithGemini (retry):", e2);
             }
           }
         }
       } catch (e) {
-        console.error("refineQuizWithGemini:", e);
       }
     }
 
@@ -844,7 +853,6 @@ ${notesForPrompt}
 
     return NextResponse.json({ quiz });
   } catch (err) {
-    console.error("generate-quiz:", err);
     return NextResponse.json(
       { error: err?.message || "Something went wrong." },
       { status: 500 }

@@ -12,6 +12,13 @@ import {
   validateSessionReportFile,
 } from "@/lib/writingCenterSessionReport";
 import { isMiniLessonSession } from "@/lib/writingCenterMiniLesson";
+import { assertClientRateLimit } from "@/utils/clientRateLimit";
+import { WritingCenterCache } from "@/utils/cache";
+import {
+  commitLiveSnapshot,
+  hydrateLiveList,
+} from "@/utils/liveFirestoreCache";
+import { invalidateOnDataChange } from "@/utils/cacheInvalidation";
 
 export default function TutorDashboard({ preview = false }) {
   const [sessions, setSessions] = useState([]);
@@ -40,10 +47,15 @@ export default function TutorDashboard({ preview = false }) {
 
   useEffect(() => {
     if (user && firestore) {
+      hydrateLiveList(() => WritingCenterCache.getSessionsAll(), setSessions);
+
       const q = query(collection(firestore, "sessions"));
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        const sessionsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setSessions(sessionsData);
+        const sessionsData = commitLiveSnapshot(
+          snapshot,
+          setSessions,
+          (data) => WritingCenterCache.setSessionsAll(data)
+        );
 
         const activeInProgress = sessionsData.find(
           (s) =>
@@ -58,7 +70,6 @@ export default function TutorDashboard({ preview = false }) {
           }
         }
       }, (err) => {
-        console.error("Failed to fetch sessions:", err);
       });
       return () => unsubscribe();
     }
@@ -82,6 +93,7 @@ export default function TutorDashboard({ preview = false }) {
 
   const handleAccept = async (sessionId) => {
     try {
+      assertClientRateLimit("sessionUpdate", user?.uid);
       await updateDoc(doc(firestore, "sessions", sessionId), {
         tutorId: user.uid,
         tutorName: user.displayName || user.email,
@@ -89,6 +101,7 @@ export default function TutorDashboard({ preview = false }) {
         status: "ACCEPTED",
         updatedAt: serverTimestamp(),
       });
+      invalidateOnDataChange("writing_center_sessions", user.uid);
     } catch (err) {
       setError(err.message || "Failed to accept session");
     }
@@ -99,13 +112,14 @@ export default function TutorDashboard({ preview = false }) {
     setSessionStartTime(Date.now());
     setElapsedTime(0);
     try {
+      assertClientRateLimit("sessionUpdate", user?.uid);
       await updateDoc(doc(firestore, "sessions", session.id), {
         status: "IN_PROGRESS",
         sessionStartTime: new Date().toISOString(),
         updatedAt: serverTimestamp(),
       });
+      invalidateOnDataChange("writing_center_sessions", user?.uid);
     } catch (err) {
-      console.error("Failed to start session:", err);
     }
   };
 
@@ -128,6 +142,7 @@ export default function TutorDashboard({ preview = false }) {
     setError("");
 
     try {
+      assertClientRateLimit("sessionUpdate", user?.uid);
       const duration =
         selectedSession.id === activeSession?.id ? elapsedTime : selectedSession.duration;
 
@@ -142,6 +157,7 @@ export default function TutorDashboard({ preview = false }) {
       setSessionStartTime(null);
       setElapsedTime(0);
       setCompleteStep("upload");
+      invalidateOnDataChange("writing_center_sessions", user?.uid);
     } catch (err) {
       setError(err.message || "Failed to complete session");
     } finally {
@@ -173,6 +189,7 @@ export default function TutorDashboard({ preview = false }) {
         });
       }
       closeCompleteModal();
+      invalidateOnDataChange("writing_center_sessions", user.uid);
     } catch (err) {
       setError(err.message || "Failed to upload report");
     } finally {

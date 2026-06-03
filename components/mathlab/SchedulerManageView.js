@@ -19,6 +19,7 @@ import {
   toYmd,
 } from "@/lib/schedulerCalendar";
 import AvailabilityPicker, { TimeSlotButton } from "@/components/mathlab/AvailabilityPicker";
+import { resolveDisplayName } from "@/lib/profile";
 
 const defaultSettings = {
   maxCapacity: "4",
@@ -55,11 +56,10 @@ export default function SchedulerManageView({
   }));
   const [massProgress, setMassProgress] = useState(null);
 
-  const hostName =
-    userData?.displayName ||
-    [userData?.firstName, userData?.lastName].filter(Boolean).join(" ") ||
-    user?.displayName ||
-    "Teacher";
+  const hostName = resolveDisplayName(
+    { ...userData, displayName: userData?.displayName || user?.displayName },
+    "Teacher",
+  );
 
   useEffect(() => {
     if (!user?.uid) return;

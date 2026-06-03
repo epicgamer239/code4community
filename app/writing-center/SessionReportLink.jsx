@@ -11,7 +11,7 @@ export function SessionReportLink({ session, label = "View session report (PDF)"
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-900"
+      className="block text-sm font-medium text-indigo-600 hover:text-indigo-900"
     >
       {label}
     </a>

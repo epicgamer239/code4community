@@ -192,7 +192,6 @@ export default function YearbookFormatting() {
       const formatted = formatOutput(students, photographer);
       setFormattedOutput(formatted);
     } catch (err) {
-      console.error("Error formatting:", err);
       setError("An error occurred while formatting. Please check your input.");
     }
   };
@@ -212,7 +211,6 @@ export default function YearbookFormatting() {
           }, 2000);
         }
       }).catch(err => {
-        console.error("Failed to copy:", err);
         setError("Failed to copy to clipboard");
       });
     }

@@ -1,5 +1,5 @@
 import { withAppCheck } from "@/utils/appCheck";
-import { avatarRouteRateLimit } from "@/utils/rateLimit";
+import { withRateLimit } from "@/utils/rateLimit";
 
 const AVATAR_FETCH_TIMEOUT_MS = 8000;
 const DEFAULT_AVATAR_SIZE = 96;
@@ -22,16 +22,6 @@ function buildGoogleAvatarUrl(parsedUrl, size) {
 
 async function avatarHandler(request) {
   try {
-    const rateLimit = avatarRouteRateLimit(request);
-    if (!rateLimit.allowed) {
-      return new Response("Too many requests", {
-        status: 429,
-        headers: {
-          "Retry-After": "60",
-        },
-      });
-    }
-
     const { searchParams } = new URL(request.url);
     const urlParam = searchParams.get("u");
     const szParam = searchParams.get("sz");
@@ -98,4 +88,4 @@ async function avatarHandler(request) {
   }
 }
 
-export const GET = withAppCheck(avatarHandler);
+export const GET = withRateLimit(withAppCheck(avatarHandler), { preset: "avatar" });

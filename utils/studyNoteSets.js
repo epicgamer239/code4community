@@ -9,6 +9,9 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { firestore } from "@/firebase";
+import { assertClientRateLimit } from "@/utils/clientRateLimit";
+import { StudyCache } from "@/utils/cache";
+import { invalidateOnDataChange } from "@/utils/cacheInvalidation";
 
 const MAX_NOTES = 120_000;
 
@@ -36,12 +39,32 @@ function tsToMs(v) {
  * @param {{ uid: string } | null} user
  * @returns {Promise<Array<{ id: string, name: string, notes: string, subject: string, updatedAt?: unknown }>>}
  */
-export async function loadStudyNoteSets(user) {
-  if (!user?.uid || !firestore) return [];
+async function fetchStudyNoteSetsFromFirestore(user) {
   const ref = collection(firestore, "users", user.uid, "studyNoteSets");
   const snap = await getDocs(ref);
   const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   list.sort((a, b) => tsToMs(b.updatedAt) - tsToMs(a.updatedAt));
+  StudyCache.setNoteSets(user.uid, list);
+  return list;
+}
+
+export async function loadStudyNoteSets(
+  user,
+  { preferCache = true, onFresh } = {}
+) {
+  if (!user?.uid || !firestore) return [];
+
+  if (preferCache) {
+    const cached = StudyCache.getNoteSets(user.uid);
+    if (Array.isArray(cached)) {
+      fetchStudyNoteSetsFromFirestore(user)
+        .then((list) => onFresh?.(list))
+      return cached;
+    }
+  }
+
+  const list = await fetchStudyNoteSetsFromFirestore(user);
+  onFresh?.(list);
   return list;
 }
 
@@ -52,6 +75,7 @@ export async function loadStudyNoteSets(user) {
  */
 export async function createStudyNoteSet(user, { name, notes, subject }) {
   if (!user?.uid || !firestore) throw new Error("Not signed in");
+  assertClientRateLimit("studyNoteCreate", user.uid);
   const ref = collection(firestore, "users", user.uid, "studyNoteSets");
   const docRef = await addDoc(ref, {
     name: String(name || "Untitled").slice(0, 200),
@@ -60,6 +84,7 @@ export async function createStudyNoteSet(user, { name, notes, subject }) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  invalidateOnDataChange("study_note_sets", user.uid);
   return docRef.id;
 }
 
@@ -70,6 +95,7 @@ export async function createStudyNoteSet(user, { name, notes, subject }) {
  */
 export async function updateStudyNoteSet(user, id, patch) {
   if (!user?.uid || !firestore || !id) return;
+  assertClientRateLimit("studyNoteWrite", user.uid);
   const payload = { updatedAt: serverTimestamp() };
   if (patch.name != null) payload.name = String(patch.name).slice(0, 200);
   if (patch.notes != null) payload.notes = String(patch.notes).slice(0, MAX_NOTES);
@@ -80,6 +106,7 @@ export async function updateStudyNoteSet(user, id, patch) {
     payload,
     { merge: true }
   );
+  invalidateOnDataChange("study_note_sets", user.uid);
 }
 
 /** Max Firestore doc size is 1MB; skip saving if payload is huge */
@@ -94,9 +121,9 @@ const MAX_SESSION_RESUME_BYTES = 900_000;
 export async function saveNoteSetSessionResume(user, noteSetId, resume) {
   if (!user?.uid || !firestore || !noteSetId || !resume) return;
   try {
+    assertClientRateLimit("studySessionResume", user.uid);
     const json = JSON.stringify(resume);
     if (json.length > MAX_SESSION_RESUME_BYTES) {
-      console.warn("saveNoteSetSessionResume: payload too large, skipping");
       return;
     }
     await setDoc(
@@ -108,7 +135,6 @@ export async function saveNoteSetSessionResume(user, noteSetId, resume) {
       { merge: true }
     );
   } catch (e) {
-    console.error("saveNoteSetSessionResume:", e);
   }
 }
 
@@ -128,7 +154,6 @@ export async function clearNoteSetSessionResume(user, noteSetId) {
       { merge: true }
     );
   } catch (e) {
-    console.error("clearNoteSetSessionResume:", e);
   }
 }
 
@@ -139,5 +164,7 @@ export async function clearNoteSetSessionResume(user, noteSetId) {
  */
 export async function deleteStudyNoteSet(user, id) {
   if (!user?.uid || !firestore || !id) return;
+  assertClientRateLimit("studyNoteWrite", user.uid);
   await deleteDoc(doc(firestore, "users", user.uid, "studyNoteSets", id));
+  invalidateOnDataChange("study_note_sets", user.uid);
 }

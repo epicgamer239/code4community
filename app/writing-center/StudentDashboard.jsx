@@ -17,6 +17,13 @@ import { buildAsyncFormUrl } from "@/lib/writingCenterForm";
 import { SessionRequestList } from "./SessionRequestList";
 import { SessionReportLink } from "./SessionReportLink";
 import { getSessionReportUrl } from "@/lib/writingCenterSessionReport";
+import { assertClientRateLimit } from "@/utils/clientRateLimit";
+import { WritingCenterCache } from "@/utils/cache";
+import {
+  commitLiveSnapshot,
+  hydrateLiveList,
+} from "@/utils/liveFirestoreCache";
+import { invalidateOnDataChange } from "@/utils/cacheInvalidation";
 
 export default function StudentDashboard({ preview = false }) {
   const [sessions, setSessions] = useState([]);
@@ -29,15 +36,20 @@ export default function StudentDashboard({ preview = false }) {
 
   useEffect(() => {
     if (user && firestore) {
+      hydrateLiveList(
+        () => WritingCenterCache.getSessionsForUser(user.uid),
+        setSessions
+      );
+
       const q = query(collection(firestore, "sessions"), where("studentId", "==", user.uid));
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
-          const sessionsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-          setSessions(sessionsData);
+          commitLiveSnapshot(snapshot, setSessions, (data) =>
+            WritingCenterCache.setSessionsForUser(user.uid, data)
+          );
         },
         (err) => {
-          console.error("Failed to fetch sessions:", err);
         }
       );
       return () => unsubscribe();
@@ -72,6 +84,7 @@ export default function StudentDashboard({ preview = false }) {
     setIsSubmitting(true);
 
     try {
+      assertClientRateLimit("sessionCreate", user?.uid);
       await addDoc(collection(firestore, "sessions"), {
         studentId: user.uid,
         studentName: studentDisplayName,
@@ -87,6 +100,7 @@ export default function StudentDashboard({ preview = false }) {
       setShowModal(false);
       setSessionType("IN_PERSON");
       setError("");
+      invalidateOnDataChange("writing_center_sessions", user.uid);
     } catch (err) {
       setError(err.message || "Failed to create session");
     } finally {
@@ -97,12 +111,13 @@ export default function StudentDashboard({ preview = false }) {
 
   const handleCancel = async (sessionId) => {
     try {
+      assertClientRateLimit("sessionUpdate", user?.uid);
       await updateDoc(doc(firestore, "sessions", sessionId), {
         status: "CANCELLED",
         updatedAt: serverTimestamp(),
       });
+      invalidateOnDataChange("writing_center_sessions", user?.uid);
     } catch (err) {
-      console.error("Failed to cancel session:", err);
     }
   };
 

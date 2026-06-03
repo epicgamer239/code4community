@@ -132,7 +132,6 @@ export default function StudentRosterManager({ students, onStudentsUpdate, onTog
       onStudentsUpdate(students);
       return students;
     } catch (error) {
-      console.error("Error parsing Schoology page:", error);
       alert("Error parsing Schoology page. Please check the content and try again.");
       return [];
     } finally {
@@ -177,7 +176,6 @@ export default function StudentRosterManager({ students, onStudentsUpdate, onTog
 
         onStudentsUpdate(students);
       } catch (error) {
-        console.error("Error parsing CSV:", error);
         alert("Error parsing CSV file. Please check the format.");
       }
     };

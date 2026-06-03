@@ -1,4 +1,5 @@
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { assertClientRateLimit } from "@/utils/clientRateLimit";
 import { firestore } from "@/firebase";
 
 const COLLECTION = "users";
@@ -85,7 +86,6 @@ export async function loadStudyMastery(user) {
     const raw = snap.exists() ? snap.data()?.[STUDY_MASTERY_FIELD] : null;
     return coerceStudyMastery(raw);
   } catch (e) {
-    console.error("loadStudyMastery:", e);
     return emptyStudyMastery();
   }
 }
@@ -107,6 +107,7 @@ export async function recordStudySkillOutcome(user, subject, normalizedTag, corr
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
   try {
+    assertClientRateLimit("studyProgressWrite", user.uid);
     const ref = doc(firestore, COLLECTION, user.uid);
     const snap = await getDoc(ref);
     const existing = snap.exists() ? snap.data()?.[STUDY_MASTERY_FIELD] : null;
@@ -143,7 +144,6 @@ export async function recordStudySkillOutcome(user, subject, normalizedTag, corr
       { merge: true }
     );
   } catch (e) {
-    console.error("recordStudySkillOutcome:", e);
   }
 }
 

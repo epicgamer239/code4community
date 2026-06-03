@@ -36,6 +36,7 @@ import {
 } from "@/utils/studyTopicKey";
 import { normalizeSkillTag, skillTagLabel } from "@/utils/studyTags";
 import { recordStudyQuestionResult, mergeStudyStatsTime } from "@/utils/studyStatsFirestore";
+import { StudyCache } from "@/utils/cache";
 import {
   loadStudyNoteSets,
   createStudyNoteSet,
@@ -302,13 +303,22 @@ export default function StudyQuiz({ user }) {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    setNoteSetsLoading(true);
+    const cached = StudyCache.getNoteSets(user.uid);
+    if (Array.isArray(cached) && cached.length > 0) {
+      setNoteSets(cached);
+      setNoteSetsLoading(false);
+    } else {
+      setNoteSetsLoading(true);
+    }
     (async () => {
       try {
-        const list = await loadStudyNoteSets(user);
+        const list = await loadStudyNoteSets(user, {
+          onFresh: (fresh) => {
+            if (!cancelled) setNoteSets(fresh);
+          },
+        });
         if (!cancelled) setNoteSets(list);
       } catch (e) {
-        console.error("loadStudyNoteSets:", e);
       } finally {
         if (!cancelled) setNoteSetsLoading(false);
       }
@@ -532,7 +542,6 @@ export default function StudyQuiz({ user }) {
         setNoteSets(list);
         return id;
       } catch (e) {
-        console.error("persistNoteSetAfterGenerate:", e);
         return null;
       }
     },
@@ -572,7 +581,6 @@ export default function StudyQuiz({ user }) {
           });
         }
       } catch (e) {
-        console.error("Prefetch batch:", e);
       } finally {
         prefetchInFlightRef.current = false;
         prefetchPromiseRef.current = null;
@@ -623,7 +631,6 @@ export default function StudyQuiz({ user }) {
         }
       }
     } catch (err) {
-      console.error(err);
       setError(err?.message || "Network error. Try again.");
     } finally {
       setLoading(false);
@@ -649,7 +656,6 @@ export default function StudyQuiz({ user }) {
       setNoteSets(list);
       setInspectNoteSet(null);
     } catch (e) {
-      console.error("deleteStudyNoteSet:", e);
       setError("Could not delete note set. Try again.");
     } finally {
       setDeletingNoteSet(false);
@@ -715,7 +721,6 @@ export default function StudyQuiz({ user }) {
         setActiveNoteSetId(set.id);
         setIsDemoSession(false);
       } catch (e) {
-        console.error("continueNoteSet resume:", e);
         setError("Could not restore session. Starting a new session…");
         void generate({
           notesOverride: noteText,
@@ -753,7 +758,6 @@ export default function StudyQuiz({ user }) {
       });
       return true;
     } catch (err) {
-      console.error(err);
       setError(err?.message || "Network error. Try again.");
       return false;
     } finally {
@@ -782,7 +786,6 @@ export default function StudyQuiz({ user }) {
           const list = await loadStudyNoteSets(user);
           setNoteSets(list);
         } catch (e) {
-          console.error("endSession save resume:", e);
         }
       })();
     }

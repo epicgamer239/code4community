@@ -18,10 +18,3 @@ export const AP_PRECALC_UNIT1_TOPICS = [
   { id: "1.13", title: "Function Model Selection and Assumption Articulation", periods: 2 },
   { id: "1.14", title: "Function Model Construction and Application", periods: 2 },
 ];
-
-const byId = new Map(AP_PRECALC_UNIT1_TOPICS.map((t) => [t.id, t]));
-
-export function getApPrecalcUnit1Topic(topicId) {
-  if (typeof topicId !== "string") return null;
-  return byId.get(topicId.trim()) ?? null;
-}
