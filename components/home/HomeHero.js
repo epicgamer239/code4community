@@ -89,14 +89,14 @@ export default function HomeHero() {
     <div className="flex-1 flex flex-col lg:flex-row lg:min-h-[calc(100vh-4rem)]">
       <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:py-16 lg:pl-12 xl:pl-24 max-w-2xl">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-snug mb-6 overflow-visible">
-          Free Digital Tools Built by Students for Our Community to{" "}
+          Low-Cost Digital Tools Built by Students for Our Community to{" "}
           <span className="inline-block pb-1.5 overflow-visible bg-gradient-to-r from-violet-500 via-purple-500 to-amber-500 bg-clip-text text-transparent">
             {visibleText}
           </span>
           <span className="inline-block w-0.5 h-8 md:h-10 ml-0.5 bg-foreground animate-pulse align-middle" aria-hidden />
         </h1>
         <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg">
-          Code4Community is a student-led engineering club that builds <strong>custom tools and software</strong> for local nonprofits and small businesses <strong>at no cost.</strong>
+          Code4Community is a student-led engineering club that builds <strong>custom tools and software</strong> for local nonprofits and small businesses <strong>at low cost.</strong>
         </p>
         <div className="flex flex-wrap gap-4">
           <Link

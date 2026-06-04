@@ -22,6 +22,8 @@ export const CLIENT_RATE_LIMITS = {
   /** Study stats / mastery / weakness updates during quizzes. */
   studyProgressWrite: { maxRequests: 120, windowMs: 60_000 },
   profileWrite: { maxRequests: 15, windowMs: 60_000 },
+  libraryPassClaim: { maxRequests: 12, windowMs: 10 * 60_000 },
+  libraryPassAdmin: { maxRequests: 40, windowMs: 60_000 },
 };
 
 function nowMs() {

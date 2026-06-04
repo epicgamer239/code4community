@@ -93,9 +93,9 @@ export default function AboutPageContent() {
                 Code4Community was started as a club at Broad Run High School to build software that
                 teachers and organizations at our school could use. After building hundreds of
                 applications and having great success, we decided to expand to helping create services to
-                benefit our community, free of charge. Our goal is to help organizations and the community
+                benefit our community at low cost. Our goal is to help organizations and the community
                 through technology by building the tools and software they need to work better. We focus
-                on practical, free solutions that make a real difference for teams and users.
+                on practical, low-cost solutions that make a real difference for teams and users.
               </p>
             </div>
             <div className="w-full">

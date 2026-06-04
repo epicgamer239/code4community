@@ -61,13 +61,13 @@ export default function HomePageSections() {
             What We Do
           </h2>
           <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
-            Our student team designs and builds digital tools for local organizations completely free of charge.
+            Our student team designs and builds digital tools for local organizations at low cost.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="rounded-xl border border-border bg-muted/30 p-6">
               <h3 className="font-semibold text-foreground mb-2">Custom Websites</h3>
               <p className="text-sm text-muted-foreground">
-                We build simple, clean websites for organizations that need an online presence.
+                We build simple, clean websites for organizations that need an online presence at low cost.
               </p>
             </div>
             <div className="rounded-xl border border-border bg-muted/30 p-6">

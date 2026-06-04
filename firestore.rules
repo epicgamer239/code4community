@@ -565,6 +565,61 @@
                         request.resource.data.status == 'cancelled';
       }
 
+      function isValidLibraryBlockId(blockId) {
+        return blockId is int && blockId >= 1 && blockId <= 8;
+      }
+
+      function libraryPassSettingsData() {
+        return get(/databases/$(database)/documents/libraryPassSettings/config).data;
+      }
+
+      function libraryPassesEnabled() {
+        return !exists(/databases/$(database)/documents/libraryPassSettings/config) ||
+              libraryPassSettingsData().passesEnabled != false;
+      }
+
+      match /libraryPassSettings/{docId} {
+        allow read: if isAuthenticated();
+        allow create, update: if (isTeacherOrAdmin() || isAdminByEmail()) &&
+                                request.resource.data.passesEnabled is bool &&
+                                request.resource.data.blockCapacities is map &&
+                                request.resource.data.updatedAt is timestamp &&
+                                (!('dayTypeOverride' in request.resource.data) ||
+                                  request.resource.data.dayTypeOverride == null ||
+                                  request.resource.data.dayTypeOverride in ['A', 'B']);
+        allow delete: if isTeacherOrAdmin() || isAdminByEmail();
+      }
+
+      match /libraryPasses/{passId} {
+        // Students list today's passes to see block availability (counts).
+        allow read: if isAuthenticated();
+
+        allow create: if isAuthenticated() &&
+                        libraryPassesEnabled() &&
+                        request.resource.data.keys().hasAll([
+                          'date', 'blockId', 'studentId', 'studentName', 'studentEmail',
+                          'status', 'createdAt', 'updatedAt'
+                        ]) &&
+                        request.resource.data.studentId == request.auth.uid &&
+                        request.resource.data.status == 'active' &&
+                        request.resource.data.date is string &&
+                        request.resource.data.date.size() == 10 &&
+                        isValidLibraryBlockId(request.resource.data.blockId) &&
+                        request.resource.data.studentName is string &&
+                        request.resource.data.studentName.size() > 0 &&
+                        request.resource.data.studentName.size() <= 100 &&
+                        request.resource.data.studentEmail is string &&
+                        request.resource.data.createdAt is timestamp &&
+                        request.resource.data.updatedAt is timestamp &&
+                        passId == request.resource.data.date + '_' + request.auth.uid;
+
+        allow delete: if isAuthenticated() && (
+                          resource.data.studentId == request.auth.uid ||
+                          isTeacherOrAdmin() ||
+                          isAdminByEmail()
+                        );
+      }
+
       match /{document=**} {
         allow read, write: if false;
       }
