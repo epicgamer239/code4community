@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 const heroPhrases = [
@@ -14,23 +15,11 @@ const heroPhrases = [
   "serve your community",
 ];
 
-const buildItems = [
-  { label: "Web apps", icon: "globe" },
-  { label: "Websites for organizations", icon: "building" },
-  { label: "Volunteer management tools", icon: "users" },
-  { label: "Event scheduling systems", icon: "calendar" },
-  { label: "Donation tracking dashboards", icon: "chart" },
-  { label: "Custom software", icon: "code" },
+const heroPhotos = [
+  { src: "/group-pics/IMG_4044.png", alt: "Code4Community team on the stairs", position: "top-[2%] left-[4%]" },
+  { src: "/group-pics/IMG_8371.png", alt: "Code4Community team at a hackathon", position: "top-[32%] right-[4%]" },
+  { src: "/group-pics/IMG_0636 2.png", alt: "Code4Community presenting in a classroom", position: "bottom-[2%] left-[4%]" },
 ];
-
-const buildIcons = {
-  globe: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>,
-  building: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 21h16.5M3.75 9h16.5m-16.5 6h16.5M2.25 6l9 3.75L20.25 6M2.25 21V6l9 3.75 9-3.75v15" /></svg>,
-  users: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
-  calendar: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
-  chart: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
-  code: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>,
-};
 
 const TYPE_MS = 70;
 const DELETE_MS = 45;
@@ -86,8 +75,8 @@ export default function HomeHero() {
   const visibleText = heroPhrases[phraseIndex].slice(0, displayLength);
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row lg:min-h-[calc(100vh-4rem)]">
-      <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:py-16 lg:pl-12 xl:pl-24 max-w-2xl">
+    <div className="flex-1 flex flex-col lg:flex-row lg:h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-4rem)] lg:max-h-[calc(100vh-4rem)] lg:overflow-hidden">
+      <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:py-16 lg:pl-12 xl:pl-24 max-w-2xl min-h-0">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-snug mb-6 overflow-visible">
           Low-Cost Digital Tools Built by Students for Our Community to{" "}
           <span className="inline-block pb-1.5 overflow-visible bg-gradient-to-r from-violet-500 via-purple-500 to-amber-500 bg-clip-text text-transparent">
@@ -115,25 +104,26 @@ export default function HomeHero() {
         </div>
       </div>
 
-      <div className="flex-1 bg-muted/30 border-l border-border flex flex-col justify-center p-6 lg:p-10 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(var(--foreground) 1px, transparent 1px), linear-gradient(90deg, var(--foreground) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-        <div className="relative max-w-md mx-auto w-full">
-          <h2 className="text-lg font-semibold text-foreground mb-1">We help you make</h2>
-          <p className="text-sm text-muted-foreground mb-6">Your idea, we build it—from concept to launch.</p>
-          <div className="grid grid-cols-2 gap-3">
-            {buildItems.map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center gap-3 bg-background border border-border rounded-lg px-4 py-3 shadow-sm"
-              >
-                <span className="flex-shrink-0 text-violet-500">{buildIcons[item.icon]}</span>
-                <span className="text-sm font-medium text-foreground">{item.label}</span>
+      <div className="flex-1 bg-muted/30 border-l border-border relative overflow-hidden min-h-[70vh] lg:min-h-0">
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "linear-gradient(var(--foreground) 1px, transparent 1px), linear-gradient(90deg, var(--foreground) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+        <div className="absolute inset-0 p-4 lg:p-5">
+          {heroPhotos.map((photo) => (
+            <div
+              key={photo.src}
+              className={`absolute aspect-square h-[38%] max-w-[58%] bg-[#2a2a2a] border-[3px] border-[#2a2a2a] shadow-[7px_7px_0_0_#2a2a2a] ${photo.position}`}
+            >
+              <div className="relative w-full h-full overflow-hidden">
+                <Image
+                  src={photo.src}
+                  alt={photo.alt}
+                  fill
+                  sizes="240px"
+                  className="object-cover"
+                  priority
+                />
               </div>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground mt-6 text-center">
-            Websites, volunteer management tools, event scheduling, donation dashboards, custom software—whatever your organization needs.
-          </p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
