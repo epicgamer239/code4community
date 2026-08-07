@@ -1,16 +1,17 @@
 "use client";
 
 import { useAuth } from "@/utils/AuthContext";
-import { normalizeWritingCenterRole } from "@/lib/profile";
+import { resolveWritingCenterViewRole } from "@/lib/profile";
 import { AppPageLayout } from "@/components/common/AppPageLayout";
-import StudentDashboard from "./StudentDashboard";
-import TutorDashboard from "./TutorDashboard";
-import AdminDashboard from "./AdminDashboard";
+import StudentDashboard from "@/components/writing-center/StudentDashboard";
+import TutorDashboard from "@/components/writing-center/TutorDashboard";
+import AdminDashboard from "@/components/writing-center/AdminDashboard";
+import TeacherDashboard from "@/components/writing-center/TeacherDashboard";
 import { firestore } from "@/firebase";
 
 export default function WritingCenterPage() {
   const { user, userData, loading } = useAuth();
-  const userRole = normalizeWritingCenterRole(userData?.role);
+  const userRole = resolveWritingCenterViewRole(userData);
   const firebaseError = !firestore;
 
   if (loading) {
@@ -65,12 +66,13 @@ export default function WritingCenterPage() {
     );
   }
 
-  const isAdminView = userRole === "ADMIN" || userRole === "TEACHER";
+  const isAdminView = userRole === "ADMIN";
 
   return (
     <AppPageLayout>
       {userRole === "STUDENT" && <StudentDashboard />}
       {userRole === "TUTOR" && <TutorDashboard />}
+      {userRole === "TEACHER" && <TeacherDashboard />}
       {isAdminView && <AdminDashboard />}
       {!["STUDENT", "TUTOR", "ADMIN", "TEACHER"].includes(userRole) && (
         <div className="px-6 py-8 text-center text-gray-600">

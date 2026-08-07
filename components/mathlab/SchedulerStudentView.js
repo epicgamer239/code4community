@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/utils/AuthContext";
-import { MATHLAB_COURSES } from "@/lib/mathlabCourses";
+import { MATHLAB_COURSES } from "@/lib/mathlab/courses";
 import { resolveDisplayName } from "@/lib/profile";
 import {
   formatSlotWhen,
@@ -11,16 +11,16 @@ import {
   slotTypeLabel,
   SLOT_TYPES,
   spotsLeft,
-} from "@/lib/mathlabScheduler";
-import { OFFICE_HOURS_SCHEDULER } from "@/lib/schedulerConfig";
-import { officeHoursScheduler } from "@/lib/schedulerFirestore";
+} from "@/lib/mathlab/scheduler";
+import { OFFICE_HOURS_SCHEDULER } from "@/lib/mathlab/schedulerConfig";
+import { officeHoursScheduler } from "@/lib/mathlab/schedulerFirestore";
 import {
   availableYmdsFromSlots,
   formatTime12h,
   slotStartDate,
   slotsForDay,
   toYmd,
-} from "@/lib/schedulerCalendar";
+} from "@/lib/mathlab/schedulerCalendar";
 import AvailabilityPicker, {
   FilterMenuButton,
   TimeSlotButton,

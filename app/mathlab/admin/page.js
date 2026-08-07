@@ -2,11 +2,11 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import DashboardTopBar from "@/components/DashboardTopBar";
-import MathLabSidebar from "@/components/MathLabSidebar";
+import DashboardTopBar from "@/components/layout/DashboardTopBar";
+import MathLabSidebar from "@/components/mathlab/MathLabSidebar";
 import MathLabAdminDashboard from "@/components/mathlab/MathLabAdminDashboard";
-import MathLabLoginPrompt from "@/components/MathLabLoginPrompt";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import MathLabLoginPrompt from "@/components/mathlab/MathLabLoginPrompt";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuth } from "@/utils/AuthContext";
 import { isAdminUser } from "@/utils/authorization";
 

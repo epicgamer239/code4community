@@ -9,61 +9,41 @@ export const dynamic = "force-static";
 export default function ContactPage() {
   return (
     <AppPageLayout>
-      <div className="relative min-h-[28vh] flex flex-col justify-center px-6 py-12 lg:py-16 lg:px-8 xl:px-12 overflow-hidden -mt-6">
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              "linear-gradient(var(--foreground) 1px, transparent 1px), linear-gradient(90deg, var(--foreground) 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
-          }}
-        />
-        <div className="relative z-10 max-w-4xl mx-auto w-full">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
-            Contact Us
+      <div className="max-w-3xl mx-auto px-6 py-14 md:py-20 w-full">
+        <header className="border-b border-border pb-8 mb-10">
+          <h1 className="text-3xl md:text-[2.5rem] font-semibold text-foreground tracking-tight">
+            Contact
           </h1>
-          <p className="mt-3 text-lg text-muted-foreground">
-            Reach out for inquiries, partnerships, or questions about our services.
+          <p className="mt-3 text-[15px] text-muted-foreground leading-relaxed max-w-xl">
+            For project inquiries, partnerships, or general questions, email us and we&apos;ll get back to you.
           </p>
-        </div>
-      </div>
+        </header>
 
-      <div className="border-t border-border bg-muted/20">
-        <div className="max-w-4xl mx-auto px-6 py-16">
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-2">
-                Email
-              </h2>
-              <a href="mailto:brhsc4c@gmail.com" className="text-lg text-primary hover:underline">
-                brhsc4c@gmail.com
-              </a>
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-2">
-                Response time
-              </h2>
-              <p className="text-muted-foreground">
-                We typically respond within 1 to 2 business days. For urgent matters, say so in the
-                subject line.
-              </p>
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-2">
-                What we can help with
-              </h2>
-              <ul className="text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Custom software development</li>
-                <li>Partnership opportunities</li>
-                <li>Technical consultations</li>
-                <li>General inquiries and support</li>
-              </ul>
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-x-8 gap-y-8 text-[15px]">
+          <div className="text-muted-foreground font-medium">Email</div>
+          <div>
+            <a
+              href="mailto:brhsc4c@gmail.com"
+              className="text-foreground font-medium underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors"
+            >
+              brhsc4c@gmail.com
+            </a>
           </div>
-          <p className="mt-10 text-sm text-muted-foreground">
-            <strong className="text-foreground">Shail Shah, Aryan Kothari, and Pranav Natarajan</strong>{" "}
-            lead Code4Community and are the main points of contact.
-          </p>
+
+          <div className="text-muted-foreground font-medium">Response</div>
+          <div className="text-foreground leading-relaxed">
+            Within 1–2 business days. Mark urgent requests in the subject line.
+          </div>
+
+          <div className="text-muted-foreground font-medium">Inquiries</div>
+          <div className="text-foreground leading-relaxed">
+            Software development, partnerships, technical consultations, and general support.
+          </div>
+
+          <div className="text-muted-foreground font-medium">Leadership</div>
+          <div className="text-foreground leading-relaxed">
+            Shail Shah, Aryan Kothari, and Pranav Natarajan
+          </div>
         </div>
       </div>
     </AppPageLayout>

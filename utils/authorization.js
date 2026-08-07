@@ -1,5 +1,5 @@
 // Authorization utility functions
-import { isAdminEmail } from "@/config/admin";
+import { isAdminEmail } from "@/lib/admin";
 import { normalizeEmail } from "@/lib/email";
 
 const ROLES = {
@@ -100,7 +100,8 @@ export const isTeacherOrAdmin = (userRole) => {
 };
 
 export const isTutorOrHigher = (userRole, mathLabRole = null) => {
-  if ([ROLES.TUTOR, ROLES.TEACHER, ROLES.ADMIN].includes(userRole)) {
+  // Math Lab tutoring is mathLabRole (or teacher/admin). role===tutor is Writing Center only.
+  if ([ROLES.TEACHER, ROLES.ADMIN].includes(userRole)) {
     return true;
   }
 

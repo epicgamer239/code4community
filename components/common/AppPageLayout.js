@@ -1,5 +1,5 @@
-import DashboardTopBar from "@/components/DashboardTopBar";
-import Footer from "@/components/Footer";
+import DashboardTopBar from "@/components/layout/DashboardTopBar";
+import Footer from "@/components/layout/Footer";
 
 export function AppPageLayout({
   children,

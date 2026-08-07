@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSessionFromGoogleForm } from "@/lib/writingCenterGoogleFormSync";
+import { createSessionFromGoogleForm } from "@/lib/writing-center/googleFormSync";
 import { withRateLimit } from "@/utils/rateLimit";
 
 export const runtime = "nodejs";

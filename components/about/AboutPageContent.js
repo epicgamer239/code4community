@@ -71,7 +71,7 @@ export default function AboutPageContent() {
               style={{ aspectRatio: "482 / 316" }}
             >
               <Image
-                src="/c4c%20about%20us%20%281%29.png"
+                src="/brand/c4c-about-us.png"
                 alt="Code4Community at Broad Run High School, school spirit on the fence"
                 fill
                 className="object-cover object-center"

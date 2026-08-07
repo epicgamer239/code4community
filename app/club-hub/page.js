@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import LaurelRankSeal from "@/components/club-hub/LaurelRankSeal";
 import ClubHubWeekCalendar from "@/components/club-hub/ClubHubWeekCalendar";
-import { CLUB_ENGAGEMENT_RANKINGS } from "@/lib/clubHubEngagementRankings";
+import ClubHubNav from "@/components/club-hub/ClubHubNav";
+import { CLUB_ENGAGEMENT_RANKINGS } from "@/lib/club-hub/clubHubEngagementRankings";
 
 const MAROON = "#5c1417";
 const MAROON_DARK = "#3f0e10";
@@ -23,9 +24,9 @@ export default function ClubHubPage() {
 
   return (
     <div id="top" className="min-h-screen bg-neutral-100 text-neutral-900">
-      <section className="relative min-h-[280px] sm:min-h-[340px]">
+      <section className="relative min-h-[246px] sm:min-h-[299px]">
         <Image
-          src="/Broad_Run_HS_Ashburn_VA_20147_ext2.JPG"
+          src="/brand/brh.png"
           alt="Broad Run High School, Ashburn, Virginia"
           fill
           priority
@@ -38,54 +39,42 @@ export default function ClubHubPage() {
             background: `linear-gradient(to bottom, rgba(60,12,16,0.55) 0%, rgba(60,12,16,0.82) 100%)`,
           }}
         />
-        <div className="relative z-10 flex min-h-[280px] flex-col items-center justify-center px-6 py-16 text-center sm:min-h-[340px]">
-          <h1 className="max-w-4xl text-3xl font-bold tracking-tight text-white drop-shadow-md sm:text-4xl md:text-5xl">
+        <div className="relative z-10 flex min-h-[246px] flex-col items-center justify-center px-6 py-10 text-center sm:min-h-[299px] sm:py-12">
+          <h1 className="max-w-4xl text-3xl font-bold tracking-tight text-white drop-shadow-md sm:text-4xl md:text-[2.75rem]">
             Broad Run Club Hub
           </h1>
         </div>
       </section>
 
-      <nav className="border-b border-black/10 shadow-md" style={{ backgroundColor: MAROON }}>
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-8 px-4 py-3.5 text-sm font-semibold tracking-wide text-white sm:gap-12 sm:text-base md:gap-16">
-          <Link href="#top" className="hover:underline underline-offset-4">
-            Home
-          </Link>
-          <Link href="/club-hub/directory" className="hover:underline underline-offset-4">
-            Club Directory
-          </Link>
-          <Link href="/login?redirectTo=%2Fclub-hub" className="hover:underline underline-offset-4">
-            Log in
-          </Link>
-        </div>
-      </nav>
+      <ClubHubNav active="home" loginRedirect="/club-hub" />
 
-      <main id="club-directory" className="mx-auto max-w-6xl px-4 pb-0 pt-10 sm:px-6 sm:pt-12">
-        <div className="grid gap-6 md:grid-cols-3">
+      <main id="club-directory" className="mx-auto w-full max-w-7xl px-3 pb-0 pt-6 sm:px-5 sm:pt-8 lg:px-8">
+        <div className="grid gap-4 md:grid-cols-3 md:gap-5">
           {CLUB_ENGAGEMENT_RANKINGS.map((col) => (
             <div
               key={col.title}
-              className="overflow-hidden rounded-xl border border-neutral-200/90 bg-white shadow-[0_8px_28px_rgba(0,0,0,0.07)]"
+              className="overflow-hidden rounded-xl border border-neutral-200/90 bg-white shadow-[0_6px_20px_rgba(0,0,0,0.06)]"
             >
               <div
-                className="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-white sm:text-[13px]"
+                className="px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-white sm:text-xs"
                 style={{ backgroundColor: MAROON }}
               >
                 {col.title}
               </div>
-              <ul className="space-y-2.5 bg-gradient-to-b from-neutral-50/90 to-white p-3">
+              <ul className="space-y-1.5 bg-gradient-to-b from-neutral-50/90 to-white p-2 sm:p-2.5">
                 {col.rows.map((row) => (
                   <li
                     key={`${col.title}-${row.name}`}
-                    className="rounded-lg bg-white px-1 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.07)] ring-1 ring-black/[0.04] sm:px-2 sm:py-3"
+                    className="rounded-md bg-white px-1.5 py-1 shadow-[0_1px_4px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] sm:px-2 sm:py-1.5"
                   >
-                    <div className="flex items-center justify-center gap-0.5 sm:gap-1">
-                      <LaurelRankSeal rank={row.rank} mirrored />
+                    <div className="flex items-center justify-center gap-1 sm:gap-1.5">
+                      <LaurelRankSeal rank={row.rank} size="sm" />
                       <span
-                        className={`min-w-0 flex-1 px-1 text-center text-xs font-semibold leading-snug sm:text-sm md:text-base ${rankNameClass(row.rank)}`}
+                        className={`min-w-0 flex-1 px-0.5 text-center text-xs font-semibold leading-tight sm:text-sm ${rankNameClass(row.rank)}`}
                       >
                         {row.name}
                       </span>
-                      <LaurelRankSeal rank={row.rank} />
+                      <LaurelRankSeal rank={row.rank} size="sm" />
                     </div>
                   </li>
                 ))}
@@ -95,14 +84,14 @@ export default function ClubHubPage() {
         </div>
       </main>
 
-      <div className="bg-white py-6 sm:py-8" aria-hidden />
+      <div className="bg-white py-4 sm:py-5" aria-hidden />
 
       <section
         className="relative border-t border-black/10"
         style={{
           backgroundColor: MAROON_DARK,
           backgroundImage:
-            "linear-gradient(rgba(40,8,10,0.88), rgba(40,8,10,0.92)), url(/Broad_Run_HS_Ashburn_VA_20147_ext2.JPG)",
+            "linear-gradient(rgba(40,8,10,0.88), rgba(40,8,10,0.92)), url(/brand/brh.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

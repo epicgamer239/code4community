@@ -1,11 +1,11 @@
 "use client";
 
 import { Suspense } from "react";
-import DashboardTopBar from "@/components/DashboardTopBar";
+import DashboardTopBar from "@/components/layout/DashboardTopBar";
 import OfficeHoursSidebar from "@/components/office-hours/OfficeHoursSidebar";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import SchedulerStudentView from "@/components/mathlab/SchedulerStudentView";
-import { OFFICE_HOURS_SCHEDULER } from "@/lib/schedulerConfig";
+import { OFFICE_HOURS_SCHEDULER } from "@/lib/mathlab/schedulerConfig";
 import { useAuth } from "@/utils/AuthContext";
 
 function SchedulerPageContent() {

@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import DashboardTopBar from "@/components/DashboardTopBar";
+import DashboardTopBar from "@/components/layout/DashboardTopBar";
 
 /** Centered rectangle (not full-width). When fixedHeight, same size for all slides (desktop); otherwise expands to content (mobile). No internal scrolling. */
 function SlideContent({ leftText, rightContent, className = "", fixedHeight = false }) {
@@ -57,13 +57,6 @@ function WhatWeDeliverPanel() {
     { name: "Volunteer portals", status: "Delivered", type: "Custom web app", icon: "users", href: null },
     { name: "Program dashboards", status: "Delivered", type: "Reporting", icon: "chart", href: null },
     { name: "Integrations & APIs", status: "Ready", type: "Custom", icon: "plug", href: null },
-    {
-      name: "Study quiz (adaptive)",
-      status: "Live",
-      type: "Learning tool",
-      icon: "book",
-      href: "/study",
-    },
   ];
   return (
     <div className="w-full max-w-md">

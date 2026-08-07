@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/utils/AuthContext";
 import { isAdminUser, isTeacherOrAdmin, isTutorOrHigher } from "@/utils/authorization";
-import { OFFICE_HOURS_SCHEDULER } from "@/lib/schedulerConfig";
+import { OFFICE_HOURS_SCHEDULER } from "@/lib/mathlab/schedulerConfig";
 
 const calendarIcon = (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,7 +110,7 @@ export default function OfficeHoursSidebar() {
 
   return (
     <div
-      className={`fixed left-0 bottom-0 z-40 bg-background border-r border-border transition-all duration-300 top-[var(--mathlab-header-height,5.5rem)] h-[calc(100vh-var(--mathlab-header-height,5.5rem))] flex flex-col ${
+      className={`fixed left-0 top-0 bottom-0 z-40 bg-background border-r border-border transition-all duration-300 flex flex-col pt-[var(--mathlab-header-height,4.5rem)] ${
         isCollapsed ? "w-16" : "w-64"
       }`}
     >

@@ -12,7 +12,6 @@ export const CACHE_CONFIG = {
   SESSION_TRACKING: 'brhs_session_tracking',
   WRITING_CENTER_SESSIONS_ALL: 'brhs_wc_sessions_all',
   WRITING_CENTER_USERS: 'brhs_wc_users',
-  STUDY_NOTE_SETS_PREFIX: 'brhs_study_notes_',
   SCHEDULER_SLOTS_PREFIX: 'brhs_scheduler_slots_',
   SCHEDULER_BOOKINGS_PREFIX: 'brhs_scheduler_bookings_',
   DEFAULT_TTL: 5 * 60 * 1000, // 5 minutes default TTL
@@ -289,30 +288,6 @@ export const WritingCenterCache = {
   clearForUser(uid) {
     if (uid) CacheManager.remove(writingCenterSessionsKey(uid));
     CacheManager.remove(CACHE_CONFIG.WRITING_CENTER_SESSIONS_ALL);
-  },
-};
-
-export const StudyCache = {
-  keyForUser(uid) {
-    return `${CACHE_CONFIG.STUDY_NOTE_SETS_PREFIX}${uid}`;
-  },
-
-  setNoteSets(uid, noteSets) {
-    if (!uid) return false;
-    return CacheManager.set(
-      this.keyForUser(uid),
-      noteSets,
-      CACHE_CONFIG.LIVE_DATA_TTL
-    );
-  },
-
-  getNoteSets(uid) {
-    if (!uid) return null;
-    return CacheManager.get(this.keyForUser(uid));
-  },
-
-  clearForUser(uid) {
-    if (uid) CacheManager.remove(this.keyForUser(uid));
   },
 };
 

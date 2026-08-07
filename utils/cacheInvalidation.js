@@ -6,7 +6,6 @@ import {
   UserCache,
   MathLabCache,
   WritingCenterCache,
-  StudyCache,
   CacheManager,
   CACHE_CONFIG,
 } from "./cache";
@@ -46,9 +45,6 @@ class CacheInvalidationManager {
         break;
       case "writing_center_users":
         CacheManager.remove(CACHE_CONFIG.WRITING_CENTER_USERS);
-        break;
-      case "study_note_sets":
-        if (changeType) StudyCache.clearForUser(changeType);
         break;
       default:
         this.invalidateUserCaches();

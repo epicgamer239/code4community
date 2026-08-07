@@ -2,15 +2,15 @@
 import { useAuth } from "@/utils/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
-import DashboardTopBar from "@/components/DashboardTopBar";
-import MathLabSidebar from "@/components/MathLabSidebar";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import DashboardTopBar from "@/components/layout/DashboardTopBar";
+import MathLabSidebar from "@/components/mathlab/MathLabSidebar";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { collection, query, getDocs, orderBy } from "firebase/firestore";
 import { firestore } from "@/firebase";
 import { MathLabCache } from "@/utils/cache";
 import { hydrateCompletedSession, formatClockDuration } from "@/lib/firestoreDates";
 import { isAdminUser } from "@/utils/authorization";
-import MathLabLoginPrompt from "@/components/MathLabLoginPrompt";
+import MathLabLoginPrompt from "@/components/mathlab/MathLabLoginPrompt";
 
 function SessionTrackingPageContent() {
   const { user, userData, loading } = useAuth();
@@ -55,8 +55,21 @@ function SessionTrackingPageContent() {
         );
 
         allSessions.sort((a, b) => b.completedAt - a.completedAt);
-        MathLabCache.setSessionTracking(allSessions);
-        setSessions(allSessions);
+        const deduped = allSessions.filter((session, index, list) => {
+          const t = session.completedAt?.getTime?.() ?? 0;
+          return !list.slice(0, index).some((earlier) => {
+            const et = earlier.completedAt?.getTime?.() ?? 0;
+            return (
+              earlier.tutorId === session.tutorId &&
+              earlier.studentId === session.studentId &&
+              earlier.course === session.course &&
+              earlier.duration === session.duration &&
+              Math.abs(et - t) < 120_000
+            );
+          });
+        });
+        MathLabCache.setSessionTracking(deduped);
+        setSessions(deduped);
       } catch (err) {
         if (err.code === "failed-precondition" || err.message?.includes("index")) {
           setSessions([]);
@@ -128,7 +141,7 @@ function SessionTrackingPageContent() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by tutor name, student name, or course..."
-                className="w-full px-4 py-3 pl-10 text-sm text-foreground bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full py-3 pl-11 pr-4 text-sm text-foreground bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               />
               <svg
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground"

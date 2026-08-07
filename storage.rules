@@ -2,27 +2,53 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    function sessionPath(sessionId) {
+      return /databases/(default)/documents/sessions/$(sessionId);
+    }
+
+    function userPath() {
+      return /databases/(default)/documents/users/$(request.auth.uid);
+    }
+
     function sessionDoc(sessionId) {
-      return firestore.get(/databases/(default)/documents/sessions/$(sessionId)).data;
+      return firestore.get(sessionPath(sessionId)).data;
+    }
+
+    function userDoc() {
+      return firestore.get(userPath()).data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function sessionExists(sessionId) {
+      return firestore.exists(sessionPath(sessionId));
     }
 
     function isSessionStudent(sessionId) {
-      return request.auth != null && sessionDoc(sessionId).studentId == request.auth.uid;
+      return isSignedIn() &&
+        sessionExists(sessionId) &&
+        sessionDoc(sessionId).studentId == request.auth.uid;
     }
 
     function isSessionTutor(sessionId) {
-      return request.auth != null && sessionDoc(sessionId).tutorId == request.auth.uid;
+      return isSignedIn() &&
+        sessionExists(sessionId) &&
+        sessionDoc(sessionId).tutorId == request.auth.uid;
     }
 
     function isWritingCenterStaff() {
-      return request.auth != null &&
-        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in
-          ['tutor', 'TUTOR', 'teacher', 'TEACHER', 'admin', 'ADMIN'];
+      return isSignedIn() &&
+        firestore.exists(userPath()) &&
+        (
+          userDoc().role in ['tutor', 'TUTOR', 'teacher', 'TEACHER', 'admin', 'ADMIN'] ||
+          (('writingCenterRole' in userDoc()) && userDoc().writingCenterRole == 'tutor')
+        );
     }
 
     function isAdminByEmail() {
-      return request.auth != null &&
+      return isSignedIn() &&
         request.auth.token.email is string &&
         request.auth.token.email.lower() in ['1021676@lcps.org', 'shail40926@gmail.com'];
     }
@@ -34,12 +60,28 @@ service firebase.storage {
         isAdminByEmail();
     }
 
+    function isPdfUpload() {
+      return request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType is string &&
+        (
+          request.resource.contentType == 'application/pdf' ||
+          request.resource.contentType.matches('application/pdf.*') ||
+          // Some browsers/OS send a generic type; path is always session-report.pdf
+          request.resource.contentType == 'application/octet-stream'
+        );
+    }
+
+    function canWriteSessionReport(sessionId) {
+      // Only the assigned tutor may upload the report for that session
+      return isSessionTutor(sessionId);
+    }
+
     match /writing-center/sessions/{sessionId}/{fileName} {
       allow read: if canReadSessionReport(sessionId);
 
-      allow write: if isSessionTutor(sessionId) &&
-        request.resource.size < 10 * 1024 * 1024 &&
-        request.resource.contentType == 'application/pdf';
+      allow write: if fileName == 'session-report.pdf' &&
+        isPdfUpload() &&
+        canWriteSessionReport(sessionId);
     }
   }
 }

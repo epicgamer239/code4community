@@ -2,7 +2,13 @@
 
 import { Lexend_Deca, Open_Sans } from "next/font/google";
 import React, { useState, useLayoutEffect, useRef, useCallback, useEffect, useMemo } from "react";
-import DashboardTopBar from "@/components/DashboardTopBar";
+import { useRouter } from "next/navigation";
+import DashboardTopBar from "@/components/layout/DashboardTopBar";
+import { useAuth } from "@/utils/AuthContext";
+import {
+  fetchUserSeatingChart,
+  saveUserSeatingChart,
+} from "@/lib/seating-chart/firestore";
 import styles from "./seating-chart.module.css";
 
 /** Gynzy-style typography for this page only (does not change global layout fonts). */
@@ -22,11 +28,13 @@ const seatingLexendDeca = Lexend_Deca({
 
 // Furniture type definitions: { id, seats, w, h, color?, paletteImage?, pieceLabel?, labelColor? }
 // Optional paletteImage: path under /public for custom thumbnails.
-/** On-canvas desk PNG size (larger pieces read better from a distance). */
-const DESK_CANVAS_W = 152;
-const DESK_CANVAS_H = 146;
-/** Same width ratio as source art (128:72) relative to single desk width. */
-const DOUBLE_DESK_CANVAS_W = Math.round((128 / 72) * DESK_CANVAS_W);
+/** On-canvas desk height — shared so one double matches two singles side by side. */
+const DESK_CANVAS_H = 112;
+/** Single desk width; double is exactly 2× this (plus tiny seam in the PNG). */
+const DESK_CANVAS_W = 128;
+const DOUBLE_DESK_CANVAS_W = DESK_CANVAS_W * 2;
+/** Bump when desk PNGs change so browsers don’t keep stale cached art. */
+const DESK_ART_VERSION = "v2";
 
 const FURNITURE_TYPES = [
   {
@@ -35,7 +43,7 @@ const FURNITURE_TYPES = [
     w: DESK_CANVAS_W,
     h: DESK_CANVAS_H,
     color: "#8d6e63",
-    paletteImage: "/seating-furniture/single%20desk.png",
+    paletteImage: `/seating-furniture/single-desk.png?${DESK_ART_VERSION}`,
   },
   {
     id: "double-desk",
@@ -43,10 +51,18 @@ const FURNITURE_TYPES = [
     w: DOUBLE_DESK_CANVAS_W,
     h: DESK_CANVAS_H,
     color: "#8d6e63",
-    paletteImage: "/seating-furniture/double%20desk.png",
+    paletteImage: `/seating-furniture/double-desk.png?${DESK_ART_VERSION}`,
   },
   { id: "promethean", seats: 0, w: 180, h: 55, color: "#1e293b" },
 ];
+
+/** Keep placed desks on the current type size (localStorage may have old w/h). */
+function withCurrentFurnitureSize(f) {
+  const def = FURNITURE_TYPES.find((t) => t.id === f.type);
+  if (!def) return f;
+  if (f.w === def.w && f.h === def.h) return f;
+  return { ...f, w: def.w, h: def.h };
+}
 
 const STUDENT_COLORS = ["#ef4444", "#f97316", "#22c55e", "#3b82f6", "#a855f7"];
 
@@ -142,41 +158,97 @@ export default function SeatingChart() {
     document.title = "Code4Community | Seating Chart";
   }, []);
 
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [chartName, setChartName] = useState("");
   const [activeTab, setActiveTab] = useState("furniture");
   const [students, setStudents] = useState([]);
   const [furnitureOnCanvas, setFurnitureOnCanvas] = useState([]);
   const [restrictions, setRestrictions] = useState([]);
   const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
   const [showManageStudents, setShowManageStudents] = useState(false);
   const [manageStudentsText, setManageStudentsText] = useState("");
   const [sheetAnimated, setSheetAnimated] = useState(false);
   const [showManageRestrictions, setShowManageRestrictions] = useState(false);
   const [restrictionsSheetAnimated, setRestrictionsSheetAnimated] = useState(false);
 
+  const applyChartData = useCallback((data) => {
+    if (!data || typeof data !== "object") return;
+    if (data.chartName != null) setChartName(String(data.chartName));
+    if (Array.isArray(data.students)) setStudents(data.students.length > 0 ? data.students : []);
+    if (Array.isArray(data.furniture)) {
+      setFurnitureOnCanvas(data.furniture.map(withCurrentFurnitureSize));
+    }
+    if (Array.isArray(data.restrictions)) setRestrictions(data.restrictions);
+    const fNums = (data.furniture || [])
+      .map((f) => parseInt(String(f.id).replace(/^f-/, ""), 10))
+      .filter((n) => !Number.isNaN(n));
+    const sNums = (data.students || [])
+      .map((s) => parseInt(String(s.id).replace(/^s-/, ""), 10))
+      .filter((n) => !Number.isNaN(n));
+    const rNums = (data.restrictions || [])
+      .map((r) => parseInt(String(r.id).replace(/^r-/, ""), 10))
+      .filter((n) => !Number.isNaN(n));
+    if (fNums.length > 0) furnitureIdCounter = Math.max(...fNums, furnitureIdCounter) + 1;
+    if (sNums.length > 0) studentIdCounter = Math.max(...sNums, studentIdCounter) + 1;
+    if (rNums.length > 0) restrictionIdCounter = Math.max(...rNums, restrictionIdCounter) + 1;
+  }, []);
+
   useEffect(() => {
-    if (hasLoadedFromStorage) return;
-    try {
-      const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-      if (!raw) {
-        setHasLoadedFromStorage(true);
-        return;
+    setHasLoadedFromStorage(false);
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (hasLoadedFromStorage || authLoading) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        if (user?.uid) {
+          const cloud = await fetchUserSeatingChart(user.uid);
+          if (cancelled) return;
+          if (cloud) {
+            applyChartData(cloud);
+            try {
+              localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify({ ...cloud, savedAt: cloud.savedAt || new Date().toISOString() }),
+              );
+            } catch (_) {}
+            setHasLoadedFromStorage(true);
+            return;
+          }
+        }
+
+        const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (!cancelled) applyChartData(data);
+        }
+      } catch (_) {
+      } finally {
+        if (!cancelled) setHasLoadedFromStorage(true);
       }
-      const data = JSON.parse(raw);
-      if (data && typeof data === "object") {
-        if (data.chartName != null) setChartName(String(data.chartName));
-        if (Array.isArray(data.students)) setStudents(data.students.length > 0 ? data.students : []);
-        if (Array.isArray(data.furniture)) setFurnitureOnCanvas(data.furniture);
-        if (Array.isArray(data.restrictions)) setRestrictions(data.restrictions);
-        const fNums = (data.furniture || []).map((f) => parseInt(String(f.id).replace(/^f-/, ""), 10)).filter((n) => !Number.isNaN(n));
-        const sNums = (data.students || []).map((s) => parseInt(String(s.id).replace(/^s-/, ""), 10)).filter((n) => !Number.isNaN(n));
-        const rNums = (data.restrictions || []).map((r) => parseInt(String(r.id).replace(/^r-/, ""), 10)).filter((n) => !Number.isNaN(n));
-        if (fNums.length > 0) furnitureIdCounter = Math.max(...fNums, furnitureIdCounter) + 1;
-        if (sNums.length > 0) studentIdCounter = Math.max(...sNums, studentIdCounter) + 1;
-        if (rNums.length > 0) restrictionIdCounter = Math.max(...rNums, restrictionIdCounter) + 1;
-      }
-    } catch (_) {}
-    setHasLoadedFromStorage(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLoadedFromStorage, authLoading, user?.uid, applyChartData]);
+
+  useEffect(() => {
+    if (!hasLoadedFromStorage) return;
+    setFurnitureOnCanvas((prev) => {
+      let changed = false;
+      const next = prev.map((f) => {
+        const n = withCurrentFurnitureSize(f);
+        if (n !== f && (n.w !== f.w || n.h !== f.h)) changed = true;
+        return n;
+      });
+      return changed ? next : prev;
+    });
   }, [hasLoadedFromStorage]);
 
   const [newRestrictionType, setNewRestrictionType] = useState("cannot_sit_together");
@@ -792,16 +864,41 @@ export default function SeatingChart() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedFurnitureId, canUndo, canRedo, handleDeleteFurniture, undoLayout, redoLayout]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saving) return;
+    setSaveMessage("");
+
+    if (!user?.uid) {
+      router.push(`/login?redirectTo=${encodeURIComponent("/seating-chart")}`);
+      return;
+    }
+
     const data = {
       chartName,
       students,
-      furniture: furnitureOnCanvas,
+      furniture: furnitureOnCanvas.map(withCurrentFurnitureSize),
       restrictions,
       savedAt: new Date().toISOString(),
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    alert("Seating chart saved. Your chart will be restored when you return or refresh.");
+
+    setSaving(true);
+    try {
+      await saveUserSeatingChart({
+        uid: user.uid,
+        chartName: data.chartName,
+        students: data.students,
+        furniture: data.furniture,
+        restrictions: data.restrictions,
+      });
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (_) {}
+      setSaveMessage("Saved to your account.");
+    } catch (err) {
+      setSaveMessage(err.message || "Failed to save chart.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openManageStudents = () => {
@@ -885,13 +982,14 @@ export default function SeatingChart() {
   };
 
   const renderFurnitureShape = (f, isDropTarget, idx = 0) => {
-    const def = FURNITURE_TYPES.find((t) => t.id === f.type) || FURNITURE_TYPES[0];
-    const deskStudentLabels = (f.assignedStudentIds || [])
+    const piece = withCurrentFurnitureSize(f);
+    const def = FURNITURE_TYPES.find((t) => t.id === piece.type) || FURNITURE_TYPES[0];
+    const deskStudentLabels = (piece.assignedStudentIds || [])
       .map((sid) => deskLabelFromStudentName(students.find((s) => s.id === sid)?.name))
       .filter(Boolean);
-    const isSelected = selectedFurnitureId === f.id;
-    const isDragging = dragState?.type === "canvas-furniture" && dragState?.furnitureId === f.id;
-    const rotation = f.rotation || 0;
+    const isSelected = selectedFurnitureId === piece.id;
+    const isDragging = dragState?.type === "canvas-furniture" && dragState?.furnitureId === piece.id;
+    const rotation = piece.rotation || 0;
 
     const pieceBorder = isDropTarget ? "3px solid #3b82f6" : "2px solid rgba(0,0,0,0.15)";
     const deskStretchArt = def.paletteImage && (def.id === "desk" || def.id === "double-desk");
@@ -900,23 +998,23 @@ export default function SeatingChart() {
 
     const tableEl = (
       <div
-        key={`${f.id}-${idx}`}
+        key={`${piece.id}-${idx}`}
         draggable={true}
         onDragStart={(e) => {
           e.stopPropagation();
-          handleCanvasFurnitureDragStart(e, f.id);
+          handleCanvasFurnitureDragStart(e, piece.id);
         }}
         onDragEnd={handleDragEnd}
         onClick={(e) => {
           e.stopPropagation();
-          setSelectedFurnitureId(f.id);
+          setSelectedFurnitureId(piece.id);
         }}
         className={`absolute cursor-grab active:cursor-grabbing select-none touch-none${def.paletteImage ? " overflow-hidden" : " rounded"}`}
         style={{
-          left: f.x,
-          top: f.y,
-          width: f.w,
-          height: f.h,
+          left: piece.x,
+          top: piece.y,
+          width: piece.w,
+          height: piece.h,
           transform: `translate3d(-50%, -50%, 0) rotate(${rotation}deg)`,
           backgroundColor: def.paletteImage ? "transparent" : def.color || "#8B4513",
           border: def.paletteImage ? paletteBorder : isDropTarget ? pieceBorder : pieceBorderSolid,
@@ -1108,8 +1206,8 @@ export default function SeatingChart() {
     if (!isSelected) return tableEl;
 
     const pad = 8;
-    const boxW = f.w + pad * 2;
-    const boxH = f.h + pad * 2;
+    const boxW = piece.w + pad * 2;
+    const boxH = piece.h + pad * 2;
 
     return (
       <React.Fragment key={`${f.id}-${idx}`}>
@@ -1192,10 +1290,14 @@ export default function SeatingChart() {
     return totalSeats === 0;
   }, [students, furnitureOnCanvas]);
 
-  /** Large palette previews (no per-item boxes); scales to fit two columns in the side panel. */
+  /** Large palette previews — desks share one scale so two singles match one double. */
   const paletteThumbSize = (def) => {
     const mw = 142;
-    const mh = 103;
+    const mh = 72;
+    if (def.id === "desk" || def.id === "double-desk") {
+      const deskScale = Math.min(mw / DOUBLE_DESK_CANVAS_W, mh / DESK_CANVAS_H);
+      return { width: def.w * deskScale, height: def.h * deskScale };
+    }
     const scale = Math.min(mw / def.w, mh / def.h, 1);
     return { width: def.w * scale, height: def.h * scale };
   };
@@ -1417,9 +1519,25 @@ export default function SeatingChart() {
             <button type="button" className={`${styles.btn} ${styles.btnSecondary} cancel-button`} onClick={() => window.history.back()}>
               Cancel
             </button>
-            <button type="button" className={`${styles.btn} ${styles.btnPrimary} save-button`} onClick={handleSave}>
-              Save
-            </button>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnPrimary} save-button`}
+                onClick={handleSave}
+                disabled={saving}
+                title={user ? "Save chart to your account" : "Sign in to save to your account"}
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+              {saveMessage ? (
+                <span
+                  className="text-xs max-w-[12rem] text-right"
+                  style={{ color: saveMessage.includes("Failed") ? "#b91c1c" : "#15803d" }}
+                >
+                  {saveMessage}
+                </span>
+              ) : null}
+            </div>
           </div>
           <div className={styles.buttonGroup}>
             <button type="button" className={`${styles.btn} ${styles.btnSecondary} shuffle-button`} onClick={handleShuffle} disabled={shuffleDisabled} title={shuffleDisabled ? "Add students and seatable furniture to shuffle" : "Randomize seating"}>

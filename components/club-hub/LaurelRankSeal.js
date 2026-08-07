@@ -1,96 +1,92 @@
 "use client";
 
-import { useId } from "react";
-
-/** Decorative laurel-style seal with rank digit — mirrored left/right in ranking rows */
+/** Flat laurel wreath rank seal — gold / silver / bronze */
 
 const PALETTE = {
-  1: {
-    branch: "#b45309",
-    leaf: "#fbbf24",
-    leafDeep: "#d97706",
-    disk: "#fffbeb",
-    diskStroke: "#f59e0b",
-    num: "#92400e",
-    glow: "#fcd34d",
-  },
-  2: {
-    branch: "#475569",
-    leaf: "#cbd5e1",
-    leafDeep: "#94a3b8",
-    disk: "#f8fafc",
-    diskStroke: "#94a3b8",
-    num: "#334155",
-    glow: "#e2e8f0",
-  },
-  3: {
-    branch: "#9a3412",
-    leaf: "#fb923c",
-    leafDeep: "#ea580c",
-    disk: "#fff7ed",
-    diskStroke: "#ea580c",
-    num: "#7c2d12",
-    glow: "#fdba74",
-  },
+  1: { stroke: "#c9a227", fill: "#e8c547", num: "#a67c00" },
+  2: { stroke: "#8a9199", fill: "#b0b6bd", num: "#5c636a" },
+  3: { stroke: "#b87333", fill: "#d4924a", num: "#8a4f1f" },
 };
 
-export default function LaurelRankSeal({ rank, mirrored }) {
-  const rid = useId().replace(/:/g, "");
+/**
+ * @param {{ rank: 1 | 2 | 3, mirrored?: boolean, size?: "sm" | "md" }} props
+ */
+export default function LaurelRankSeal({ rank, size = "md" }) {
   const p = PALETTE[rank] || PALETTE[3];
-  const uid = `lr-${rank}-${rid}`;
+  const sizeClass =
+    size === "sm"
+      ? "h-[36px] w-[36px] sm:h-[40px] sm:w-[40px]"
+      : "h-[48px] w-[48px] sm:h-[52px] sm:w-[52px]";
 
   return (
     <svg
-      viewBox="0 0 52 58"
-      className={`h-[50px] w-[46px] shrink-0 sm:h-[54px] sm:w-[50px] ${mirrored ? "scale-x-[-1]" : ""}`}
+      viewBox="0 0 64 64"
+      className={`${sizeClass} shrink-0`}
       aria-hidden
+      fill="none"
     >
-      <defs>
-        <linearGradient id={`${uid}-g`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor={p.leaf} />
-          <stop offset="100%" stopColor={p.leafDeep} />
-        </linearGradient>
-      </defs>
-
-      {/* Left vine */}
+      {/* Left branch */}
       <path
-        d="M26 46 C10 38 6 26 10 14 C12 8 18 6 22 10"
-        fill="none"
-        stroke={p.branch}
-        strokeWidth="2"
+        d="M32 52 C18 46 12 36 14 24 C15 16 20 12 26 14"
+        stroke={p.stroke}
+        strokeWidth="2.2"
         strokeLinecap="round"
       />
-      {/* Right vine */}
+      {/* Right branch */}
       <path
-        d="M26 46 C42 38 46 26 42 14 C40 8 34 6 30 10"
-        fill="none"
-        stroke={p.branch}
-        strokeWidth="2"
+        d="M32 52 C46 46 52 36 50 24 C49 16 44 12 38 14"
+        stroke={p.stroke}
+        strokeWidth="2.2"
         strokeLinecap="round"
       />
-      {/* Leaves — left cluster */}
-      <ellipse cx="14" cy="18" rx="5" ry="8" fill={`url(#${uid}-g)`} transform="rotate(-28 14 18)" opacity={0.92} />
-      <ellipse cx="11" cy="28" rx="4" ry="7" fill={`url(#${uid}-g)`} transform="rotate(-8 11 28)" opacity={0.88} />
-      <ellipse cx="12" cy="38" rx="4" ry="6" fill={`url(#${uid}-g)`} transform="rotate(12 12 38)" opacity={0.85} />
-      {/* Leaves — right cluster */}
-      <ellipse cx="38" cy="18" rx="5" ry="8" fill={`url(#${uid}-g)`} transform="rotate(28 38 18)" opacity={0.92} />
-      <ellipse cx="41" cy="28" rx="4" ry="7" fill={`url(#${uid}-g)`} transform="rotate(8 41 28)" opacity={0.88} />
-      <ellipse cx="40" cy="38" rx="4" ry="6" fill={`url(#${uid}-g)`} transform="rotate(-12 40 38)" opacity={0.85} />
 
-      {/* Center medallion */}
-      <circle cx="26" cy="30" r="11.5" fill={p.disk} stroke={p.diskStroke} strokeWidth="1.8" />
-      <circle cx="26" cy="30" r="10" fill="none" stroke={p.glow} strokeWidth="0.75" opacity={0.65} />
+      {/* Left leaves */}
+      <Leaf cx={22} cy={20} rot={-40} color={p.fill} stroke={p.stroke} />
+      <Leaf cx={17} cy={28} rot={-18} color={p.fill} stroke={p.stroke} />
+      <Leaf cx={16} cy={36} rot={5} color={p.fill} stroke={p.stroke} />
+      <Leaf cx={18} cy={43} rot={28} color={p.fill} stroke={p.stroke} />
+      {/* Right leaves */}
+      <Leaf cx={42} cy={20} rot={40} color={p.fill} stroke={p.stroke} />
+      <Leaf cx={47} cy={28} rot={18} color={p.fill} stroke={p.stroke} />
+      <Leaf cx={48} cy={36} rot={-5} color={p.fill} stroke={p.stroke} />
+      <Leaf cx={46} cy={43} rot={-28} color={p.fill} stroke={p.stroke} />
+
+      {/* Center number */}
       <text
-        x="26"
-        y="35"
+        x="32"
+        y="36"
         textAnchor="middle"
-        fontSize="17"
-        fontWeight={800}
+        fontSize="20"
+        fontWeight={700}
         fill={p.num}
-        fontFamily="system-ui, ui-sans-serif, sans-serif"
+        fontFamily="ui-sans-serif, system-ui, sans-serif"
       >
         {rank}
       </text>
+
+      {/* Star at base */}
+      <path
+        d="M32 54.5 L33.1 57.2 L36.1 57.4 L33.8 59.3 L34.5 62.2 L32 60.6 L29.5 62.2 L30.2 59.3 L27.9 57.4 L30.9 57.2 Z"
+        fill={p.fill}
+        stroke={p.stroke}
+        strokeWidth="0.6"
+        strokeLinejoin="round"
+      />
     </svg>
+  );
+}
+
+function Leaf({ cx, cy, rot, color, stroke }) {
+  return (
+    <ellipse
+      cx={cx}
+      cy={cy}
+      rx="3.2"
+      ry="6.2"
+      fill={color}
+      stroke={stroke}
+      strokeWidth="0.7"
+      transform={`rotate(${rot} ${cx} ${cy})`}
+    />
   );
 }

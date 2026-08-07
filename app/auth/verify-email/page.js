@@ -62,7 +62,7 @@ export default function AuthVerifyEmailPage() {
       <CenteredMain className="py-12">
         <div className="w-full max-w-md text-center">
           <div className="flex justify-center mb-6">
-            <Image src="/c4c.png" alt="Code4Community" width={56} height={56} />
+            <Image src="/brand/c4c.png" alt="Code4Community" width={56} height={56} />
           </div>
 
           {status === "checking" && (

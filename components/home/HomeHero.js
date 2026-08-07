@@ -18,7 +18,7 @@ const heroPhrases = [
 const heroPhotos = [
   { src: "/group-pics/IMG_4044.png", alt: "Code4Community team on the stairs", position: "top-[2%] left-[4%]" },
   { src: "/group-pics/IMG_8371.png", alt: "Code4Community team at a hackathon", position: "top-[32%] right-[4%]" },
-  { src: "/group-pics/IMG_0636 2.png", alt: "Code4Community presenting in a classroom", position: "bottom-[2%] left-[4%]" },
+  { src: "/group-pics/IMG_0636-2.png", alt: "Code4Community presenting in a classroom", position: "bottom-[2%] left-[4%]" },
 ];
 
 const TYPE_MS = 70;
@@ -78,7 +78,7 @@ export default function HomeHero() {
     <div className="flex-1 flex flex-col lg:flex-row lg:h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-4rem)] lg:max-h-[calc(100vh-4rem)] lg:overflow-hidden">
       <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:py-16 lg:pl-12 xl:pl-24 max-w-2xl min-h-0">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-snug mb-6 overflow-visible">
-          Low-Cost Digital Tools Built by Students for Our Community to{" "}
+          Software Solutions designed to{" "}
           <span className="inline-block pb-1.5 overflow-visible bg-gradient-to-r from-violet-500 via-purple-500 to-amber-500 bg-clip-text text-transparent">
             {visibleText}
           </span>

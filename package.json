@@ -29,7 +29,6 @@
     "@tailwindcss/postcss": "^4.1.13",
     "firebase": "^12.1.0",
     "firebase-admin": "^13.10.0",
-    "katex": "^0.16.40",
     "next": "^16.1.4",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"

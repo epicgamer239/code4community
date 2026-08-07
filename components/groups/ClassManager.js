@@ -14,22 +14,19 @@ export default function ClassManager({ currentClass, onClassSelect, onClassCreat
     }
   };
 
-  // Load classes from localStorage on mount
   useEffect(() => {
     loadClassesFromStorage();
   }, []);
 
-  // Refresh list when roster sync updates schoologyClasses (see GroupGenerator)
   useEffect(() => {
     const onSync = () => loadClassesFromStorage();
     window.addEventListener("c4c-schoology-classes-updated", onSync);
     return () => window.removeEventListener("c4c-schoology-classes-updated", onSync);
   }, []);
 
-  // Save classes to localStorage whenever they change
   useEffect(() => {
     if (classes.length > 0) {
-      localStorage.setItem('schoologyClasses', JSON.stringify(classes));
+      localStorage.setItem("schoologyClasses", JSON.stringify(classes));
     }
   }, [classes]);
 
@@ -41,7 +38,7 @@ export default function ClassManager({ currentClass, onClassSelect, onClassCreat
       name: newClassName.trim(),
       students: [],
       createdAt: new Date().toISOString(),
-      lastModified: new Date().toISOString()
+      lastModified: new Date().toISOString(),
     };
 
     setClasses([...classes, newClass]);
@@ -55,86 +52,93 @@ export default function ClassManager({ currentClass, onClassSelect, onClassCreat
   };
 
   const handleDeleteClass = (classId) => {
-    const updatedClasses = classes.filter(c => c.id !== classId);
+    const updatedClasses = classes.filter((c) => c.id !== classId);
     setClasses(updatedClasses);
-    
-    // Also delete the class roster from storage
-    const rosterKey = `classRoster-${classId}`;
-    localStorage.removeItem(rosterKey);
+    localStorage.removeItem(`classRoster-${classId}`);
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Classes</h3>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-base font-semibold text-foreground">Classes</h3>
         <button
+          type="button"
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
         >
-          {showCreateForm ? 'Cancel' : '+ New Class'}
+          {showCreateForm ? "Cancel" : "New class"}
         </button>
       </div>
 
       {showCreateForm && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
-            placeholder="Enter class name (e.g., English 10H)"
+            placeholder="Class name"
             value={newClassName}
             onChange={(e) => setNewClassName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
-            onKeyPress={(e) => e.key === 'Enter' && handleCreateClass()}
+            className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400/30"
+            onKeyDown={(e) => e.key === "Enter" && handleCreateClass()}
           />
           <button
+            type="button"
             onClick={handleCreateClass}
             disabled={!newClassName.trim()}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="shrink-0 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Create Class
+            Create
           </button>
         </div>
       )}
 
-      <div className="space-y-2">
-        {classes.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <p>No classes yet. Create your first class to get started.</p>
-          </div>
-        ) : (
-          classes.map((classItem) => (
-            <div
-              key={classItem.id}
-              className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                currentClass?.id === classItem.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:bg-gray-50'
-              }`}
-              onClick={() => handleSelectClass(classItem)}
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{classItem.name}</h4>
-                  <p className="text-sm text-gray-600">
-                    {classItem.students?.length || 0} students
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    Last modified: {new Date(classItem.lastModified).toLocaleDateString()}
-                  </p>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteClass(classItem.id);
+      {classes.length === 0 ? (
+        <p className="py-4 text-sm text-muted-foreground">
+          No classes yet. Create one to start a roster.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border rounded-md border border-border">
+          {classes.map((classItem) => {
+            const selected = currentClass?.id === classItem.id;
+            return (
+              <li key={classItem.id}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleSelectClass(classItem)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleSelectClass(classItem);
+                    }
                   }}
-                  className="text-red-500 hover:text-red-700 text-sm ml-2"
+                  className={`flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 transition-colors ${
+                    selected ? "bg-muted" : "hover:bg-muted/60"
+                  }`}
                 >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {classItem.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {classItem.students?.length || 0} students
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClass(classItem.id);
+                    }}
+                    className="shrink-0 text-sm text-muted-foreground hover:text-destructive"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

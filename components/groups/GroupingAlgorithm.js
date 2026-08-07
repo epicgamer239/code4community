@@ -71,30 +71,24 @@ export default class GroupingAlgorithm {
     numGroups = Math.min(numGroups, n);
 
     let ordered = [...active];
+    let assignMode = "roundRobin"; // roundRobin | chunk | random
 
     switch (config.strategy) {
       case "random":
         ordered = shuffle(ordered);
+        assignMode = "roundRobin";
         break;
       case "homogeneous":
+        // Similar levels together: sort by ability, then fill groups in contiguous chunks.
         ordered.sort((a, b) => perfRank(b.performance) - perfRank(a.performance));
+        assignMode = "chunk";
         break;
-      case "heterogeneous": {
-        const byPerf = [...ordered].sort((a, b) => perfRank(a.performance) - perfRank(b.performance));
-        const half = Math.ceil(byPerf.length / 2);
-        const low = byPerf.slice(0, half);
-        const high = byPerf.slice(half);
-        ordered = [];
-        const maxLen = Math.max(low.length, high.length);
-        for (let i = 0; i < maxLen; i++) {
-          if (high[i]) ordered.push(high[i]);
-          if (low[i]) ordered.push(low[i]);
-        }
-        break;
-      }
+      case "heterogeneous":
       case "balanced":
       default:
+        // Mixed / balanced: sort by ability, then deal round-robin so each group gets a mix.
         ordered.sort((a, b) => perfRank(b.performance) - perfRank(a.performance));
+        assignMode = "roundRobin";
         break;
     }
 
@@ -107,9 +101,20 @@ export default class GroupingAlgorithm {
       balance: {},
     }));
 
-    ordered.forEach((student, idx) => {
-      groups[idx % numGroups].members.push(student);
-    });
+    if (assignMode === "chunk") {
+      const base = Math.floor(n / numGroups);
+      const extra = n % numGroups;
+      let cursor = 0;
+      for (let g = 0; g < numGroups; g++) {
+        const take = base + (g < extra ? 1 : 0);
+        groups[g].members = ordered.slice(cursor, cursor + take);
+        cursor += take;
+      }
+    } else {
+      ordered.forEach((student, idx) => {
+        groups[idx % numGroups].members.push(student);
+      });
+    }
 
     groups.forEach((g) => {
       g.size = g.members.length;

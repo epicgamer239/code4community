@@ -1,4 +1,4 @@
-import { getFirebaseConfigDebug } from "@/lib/firebaseConfig";
+import { getFirebaseConfigDebug } from "@/lib/firebase/config";
 import { withRateLimit } from "@/utils/rateLimit";
 
 export const dynamic = "force-dynamic";

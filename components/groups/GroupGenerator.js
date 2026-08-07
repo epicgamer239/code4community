@@ -8,20 +8,27 @@ import GroupDisplay from "./GroupDisplay";
 import ExportTools from "./ExportTools";
 import ClassManager from "./ClassManager";
 
+const TABS = [
+  { id: "roster", label: "Roster" },
+  { id: "constraints", label: "Constraints" },
+  { id: "config", label: "Settings" },
+  { id: "results", label: "Results" },
+];
+
 export default function GroupGenerator({ embedded = false }) {
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
   const [constraints, setConstraints] = useState({
-    hardBlocks: [], // [[student1, student2], ...]
-    buddyPairs: [], // [[student1, student2], ...]
+    hardBlocks: [],
+    buddyPairs: [],
     avoidPrevious: false,
-    previousGroups: []
+    previousGroups: [],
   });
   const [groupingConfig, setGroupingConfig] = useState({
-    mode: "byNumber", // "byNumber" or "bySize"
+    mode: "byNumber",
     numberOfGroups: 4,
     studentsPerGroup: 4,
-    strategy: "balanced", // "balanced", "homogeneous", "heterogeneous", "random"
+    strategy: "balanced",
   });
   const [activeTab, setActiveTab] = useState("roster");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -29,14 +36,12 @@ export default function GroupGenerator({ embedded = false }) {
   const currentClassRef = useRef(null);
   currentClassRef.current = currentClass;
 
-  // Load current class and its students on mount
   useEffect(() => {
-    const savedCurrentClass = localStorage.getItem('currentClass');
+    const savedCurrentClass = localStorage.getItem("currentClass");
     if (savedCurrentClass) {
       const classData = JSON.parse(savedCurrentClass);
       setCurrentClass(classData);
-      
-      // Load the class roster
+
       const rosterKey = `classRoster-${classData.id}`;
       const savedRoster = localStorage.getItem(rosterKey);
       if (savedRoster) {
@@ -45,7 +50,6 @@ export default function GroupGenerator({ embedded = false }) {
     }
   }, []);
 
-  // Save roster; sync currentClass + schoologyClasses. Side effects must NOT run inside setState updaters.
   useEffect(() => {
     const cc = currentClassRef.current;
     if (!cc?.id) return;
@@ -66,8 +70,7 @@ export default function GroupGenerator({ embedded = false }) {
           localStorage.setItem("schoologyClasses", JSON.stringify(list));
         }
       }
-    } catch (e) {
-    }
+    } catch (_) {}
 
     setCurrentClass(updated);
 
@@ -94,9 +97,8 @@ export default function GroupGenerator({ embedded = false }) {
 
   const handleClassSelect = (classItem) => {
     setCurrentClass(classItem);
-    localStorage.setItem('currentClass', JSON.stringify(classItem));
-    
-    // Load the class's roster
+    localStorage.setItem("currentClass", JSON.stringify(classItem));
+
     const rosterKey = `classRoster-${classItem.id}`;
     const savedRoster = localStorage.getItem(rosterKey);
     if (savedRoster) {
@@ -104,15 +106,14 @@ export default function GroupGenerator({ embedded = false }) {
     } else {
       setStudents([]);
     }
-    
-    // Reset groups when switching classes
+
     setGroups([]);
     setActiveTab("roster");
   };
 
   const handleClassCreate = (newClass) => {
     setCurrentClass(newClass);
-    localStorage.setItem('currentClass', JSON.stringify(newClass));
+    localStorage.setItem("currentClass", JSON.stringify(newClass));
     setStudents([]);
     setGroups([]);
     setActiveTab("roster");
@@ -120,10 +121,9 @@ export default function GroupGenerator({ embedded = false }) {
 
   /**
    * @param {unknown} rosterOverride — when a full roster array; non-arrays ignored (e.g. click events).
-   * @param {{ selectResultsTab?: boolean }} [options] — set `selectResultsTab: false` when regenerating from roster absent toggle so the active tab stays on Student Roster.
+   * @param {{ selectResultsTab?: boolean }} [options]
    */
   const generateGroups = async (rosterOverride, { selectResultsTab = true } = {}) => {
-    // Ignore non-arrays (e.g. React passes the click event when using onClick={generateGroups})
     const roster = Array.isArray(rosterOverride) ? rosterOverride : students;
     if (roster.length === 0) {
       alert("Please add students first!");
@@ -132,20 +132,15 @@ export default function GroupGenerator({ embedded = false }) {
 
     setIsGenerating(true);
     try {
-      // Simulate processing time for complex algorithm
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newGroups = GroupingAlgorithm.generate(
-        roster,
-        constraints,
-        groupingConfig
-      );
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const newGroups = GroupingAlgorithm.generate(roster, constraints, groupingConfig);
+
       setGroups(newGroups);
       if (selectResultsTab) {
         setActiveTab("results");
       }
-    } catch (error) {
+    } catch (_) {
       alert("Error generating groups. Please check your constraints and try again.");
     } finally {
       setIsGenerating(false);
@@ -173,75 +168,63 @@ export default function GroupGenerator({ embedded = false }) {
   };
 
   const shell = embedded
-    ? "bg-muted/40 rounded-xl border border-border p-4 md:p-6"
-    : "min-h-screen bg-gray-50 p-6";
+    ? "rounded-xl border border-border bg-muted/30 p-4 md:p-5"
+    : "flex-1 px-4 py-6 sm:px-6 lg:px-8";
 
   return (
     <div className={shell}>
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Student Group Generator</h1>
-          <p className="text-gray-600">
-            Create balanced student groups with smart constraints and flexible configurations
-          </p>
-        </div>
+      <div className="mx-auto max-w-5xl space-y-6">
+        {embedded && (
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+              Student Groups
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Build balanced groups with roster constraints and export options.
+            </p>
+          </div>
+        )}
 
-        {/* Class Management */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <section className="rounded-lg border border-border bg-card p-4 sm:p-5">
           <ClassManager
             currentClass={currentClass}
             onClassSelect={handleClassSelect}
             onClassCreate={handleClassCreate}
           />
-        </div>
+          {currentClass && (
+            <p className="mt-4 border-t border-border pt-3 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{currentClass.name}</span>
+              {" · "}
+              {students.length} student{students.length === 1 ? "" : "s"}
+              {" · "}
+              Updated{" "}
+              {new Date(currentClass.lastModified).toLocaleString(undefined, {
+                dateStyle: "short",
+                timeStyle: "short",
+              })}
+            </p>
+          )}
+        </section>
 
-        {/* Current Class Indicator */}
-        {currentClass && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-medium text-blue-900">Current Class: {currentClass.name}</h3>
-                <p className="text-sm text-blue-700">{students.length} students in roster</p>
-              </div>
-              <div className="text-sm text-blue-600">
-                Last modified:{" "}
-                {new Date(currentClass.lastModified).toLocaleString(undefined, {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                })}
-              </div>
-            </div>
-          </div>
-        )}
+        <section className="rounded-lg border border-border bg-card">
+          <nav className="flex gap-1 overflow-x-auto border-b border-border px-2" aria-label="Group tools">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
 
-        {/* Navigation Tabs */}
-        <div className="bg-white rounded-lg shadow-lg mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
-              {[
-                { id: "roster", label: "Student Roster", icon: "👥" },
-                { id: "constraints", label: "Constraints", icon: "⚙️" },
-                { id: "config", label: "Group Settings", icon: "🔧" },
-                { id: "results", label: "Results", icon: "📊" }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-6 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                >
-                  <span className="mr-2">{tab.icon}</span>
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          {/* Tab Content */}
-          <div className="p-6">
+          <div className="p-4 sm:p-5">
             {activeTab === "roster" && (
               <StudentRosterManager
                 students={students}
@@ -261,80 +244,91 @@ export default function GroupGenerator({ embedded = false }) {
             )}
 
             {activeTab === "config" && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900">Group Configuration</h3>
-                
-                {/* Group Size/Number */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="max-w-xl space-y-5">
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Group settings</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Choose how many groups to create and how to balance them.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Grouping Mode
+                    <label className="mb-1.5 block text-sm font-medium text-foreground">
+                      Mode
                     </label>
                     <select
                       value={groupingConfig.mode}
-                      onChange={(e) => handleConfigUpdate({
-                        ...groupingConfig,
-                        mode: e.target.value
-                      })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) =>
+                        handleConfigUpdate({
+                          ...groupingConfig,
+                          mode: e.target.value,
+                        })
+                      }
+                      className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400/30"
                     >
-                      <option value="byNumber">Number of Groups</option>
-                      <option value="bySize">Students per Group</option>
+                      <option value="byNumber">Number of groups</option>
+                      <option value="bySize">Students per group</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {groupingConfig.mode === "byNumber" ? "Number of Groups" : "Students per Group"}
+                    <label className="mb-1.5 block text-sm font-medium text-foreground">
+                      {groupingConfig.mode === "byNumber"
+                        ? "Number of groups"
+                        : "Students per group"}
                     </label>
                     <input
                       type="number"
                       min="2"
                       max={groupingConfig.mode === "byNumber" ? 10 : 8}
-                      value={groupingConfig.mode === "byNumber" ? (groupingConfig.numberOfGroups || 4) : (groupingConfig.studentsPerGroup || 4)}
+                      value={
+                        groupingConfig.mode === "byNumber"
+                          ? groupingConfig.numberOfGroups || 4
+                          : groupingConfig.studentsPerGroup || 4
+                      }
                       onChange={(e) => {
-                        const value = parseInt(e.target.value) || 4;
+                        const value = parseInt(e.target.value, 10) || 4;
                         handleConfigUpdate({
                           ...groupingConfig,
-                          [groupingConfig.mode === "byNumber" ? "numberOfGroups" : "studentsPerGroup"]: value
+                          [groupingConfig.mode === "byNumber"
+                            ? "numberOfGroups"
+                            : "studentsPerGroup"]: value,
                         });
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400/30"
                     />
                   </div>
                 </div>
 
-                {/* Grouping Strategy */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Grouping Strategy
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    Strategy
                   </label>
                   <select
                     value={groupingConfig.strategy}
-                    onChange={(e) => handleConfigUpdate({
-                      ...groupingConfig,
-                      strategy: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) =>
+                      handleConfigUpdate({
+                        ...groupingConfig,
+                        strategy: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400/30"
                   >
-                    <option value="balanced">Balanced Groups</option>
-                    <option value="heterogeneous">Heterogeneous (Mixed Levels)</option>
-                    <option value="homogeneous">Homogeneous (Similar Levels)</option>
+                    <option value="balanced">Balanced (mixed levels)</option>
+                    <option value="homogeneous">Similar levels</option>
                     <option value="random">Random</option>
                   </select>
                 </div>
 
-                {/* Generate Button */}
-                <div className="pt-4">
-                  <button
-                    type="button"
-                    onClick={() => void generateGroups()}
-                    disabled={isGenerating || students.length === 0}
-                    className="px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isGenerating ? "Generating Groups..." : "Generate Groups"}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => void generateGroups()}
+                  disabled={isGenerating || students.length === 0}
+                  className="rounded-md bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isGenerating ? "Generating…" : "Generate groups"}
+                </button>
               </div>
             )}
 
@@ -348,15 +342,11 @@ export default function GroupGenerator({ embedded = false }) {
                   onToggleStudentAbsent={handleStudentAbsentToggle}
                   onRegenerate={() => void generateGroups()}
                 />
-                {groups.length > 0 && (
-                  <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-4 md:p-6">
-                    <ExportTools groups={groups} students={students} />
-                  </div>
-                )}
+                {groups.length > 0 && <ExportTools groups={groups} students={students} />}
               </div>
             )}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

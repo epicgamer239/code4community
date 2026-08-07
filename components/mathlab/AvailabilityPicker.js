@@ -8,7 +8,7 @@ import {
   isDayAvailable,
   isPastYmd,
   toYmd,
-} from "@/lib/schedulerCalendar";
+} from "@/lib/mathlab/schedulerCalendar";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 

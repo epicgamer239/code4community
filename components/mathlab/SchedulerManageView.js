@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/utils/AuthContext";
-import { spotsLeft } from "@/lib/mathlabScheduler";
-import { OFFICE_HOURS_SCHEDULER } from "@/lib/schedulerConfig";
-import { officeHoursScheduler } from "@/lib/schedulerFirestore";
+import { spotsLeft } from "@/lib/mathlab/scheduler";
+import { OFFICE_HOURS_SCHEDULER } from "@/lib/mathlab/schedulerConfig";
+import { officeHoursScheduler } from "@/lib/mathlab/schedulerFirestore";
 import {
   addMinutes,
   availableYmdsFromSlots,
@@ -17,7 +17,7 @@ import {
   slotsForDay,
   TEACHER_TIME_PRESETS,
   toYmd,
-} from "@/lib/schedulerCalendar";
+} from "@/lib/mathlab/schedulerCalendar";
 import AvailabilityPicker, { TimeSlotButton } from "@/components/mathlab/AvailabilityPicker";
 import { resolveDisplayName } from "@/lib/profile";
 

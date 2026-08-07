@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Regenerate lib/broadRunRoster.js from the CSV in public/.
+ * Regenerate lib/club-hub/broadRunRoster.js from the CSV in public/.
  * Run: node scripts/generate-broad-run-roster.js
  */
 const fs = require("fs");
@@ -12,7 +12,7 @@ const csvPath = path.join(
   "public",
   "Broad Run High School Name List & Emails - Sheet1.csv",
 );
-const outPath = path.join(root, "lib", "broadRunRoster.js");
+const outPath = path.join(root, "lib", "club-hub", "broadRunRoster.js");
 
 const csv = fs.readFileSync(csvPath, "utf8");
 const map = {};
@@ -34,4 +34,4 @@ export function lookupBroadRunName(email) {
 `;
 
 fs.writeFileSync(outPath, out);
-console.log(`Wrote ${Object.keys(map).length} entries to lib/broadRunRoster.js`);
+console.log(`Wrote ${Object.keys(map).length} entries to lib/club-hub/broadRunRoster.js`);

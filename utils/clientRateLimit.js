@@ -11,19 +11,15 @@ export const CLIENT_RATE_LIMITS = {
   sessionCreate: { maxRequests: 8, windowMs: 10 * 60_000 },
   sessionUpdate: { maxRequests: 40, windowMs: 60_000 },
   sessionReportUpload: { maxRequests: 15, windowMs: 60 * 60_000 },
+  receiptShareCreate: { maxRequests: 20, windowMs: 60 * 60_000 },
   miniLessonCreate: { maxRequests: 30, windowMs: 60_000 },
   tutoringRequestCreate: { maxRequests: 10, windowMs: 10 * 60_000 },
   tutoringRequestUpdate: { maxRequests: 60, windowMs: 60_000 },
   schedulerBook: { maxRequests: 20, windowMs: 60_000 },
-  studyNoteCreate: { maxRequests: 20, windowMs: 60_000 },
-  studyNoteWrite: { maxRequests: 60, windowMs: 60_000 },
-  /** Autosave during Study quiz (high frequency). */
-  studySessionResume: { maxRequests: 180, windowMs: 60_000 },
-  /** Study stats / mastery / weakness updates during quizzes. */
-  studyProgressWrite: { maxRequests: 120, windowMs: 60_000 },
   profileWrite: { maxRequests: 15, windowMs: 60_000 },
   libraryPassClaim: { maxRequests: 12, windowMs: 10 * 60_000 },
   libraryPassAdmin: { maxRequests: 40, windowMs: 60_000 },
+  seatingChartSave: { maxRequests: 20, windowMs: 60_000 },
 };
 
 function nowMs() {

@@ -90,7 +90,7 @@ export default function LoginPage() {
       <CenteredMain className="py-8 min-h-0">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-4">
-            <Image src="/c4c.png" alt="Code4Community" width={48} height={48} />
+            <Image src="/brand/c4c.png" alt="Code4Community" width={48} height={48} />
           </div>
           <h1 className="text-xl font-bold text-foreground text-center mb-1">Log in</h1>
           <p className="text-muted-foreground text-center text-sm mb-5">

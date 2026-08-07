@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import ErrorBoundary from "@/components/layout/ErrorBoundary";
 import { AuthProvider } from "@/utils/AuthContext";
 
 // Security headers are configured in next.config.mjs
@@ -29,11 +29,11 @@ export const metadata = {
   },
   icons: {
     icon: [
-      { url: '/c4c.png', sizes: '32x32', type: 'image/png' },
-      { url: '/c4c.png', sizes: '16x16', type: 'image/png' },
+      { url: '/brand/c4c.png', sizes: '32x32', type: 'image/png' },
+      { url: '/brand/c4c.png', sizes: '16x16', type: 'image/png' },
     ],
     apple: [
-      { url: '/c4c.png', sizes: '180x180', type: 'image/png' },
+      { url: '/brand/c4c.png', sizes: '180x180', type: 'image/png' },
     ],
   },
 };

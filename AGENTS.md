@@ -5,6 +5,15 @@
 ### Project overview
 Code4Community — a Next.js 16 (App Router) platform for a student-led engineering club that builds free digital tools for nonprofits. Single-service architecture: one Next.js app handles both frontend and API routes.
 
+### Repo layout
+- `app/` — routes and API only
+- `components/<feature>/` — UI (`layout/`, `common/`, `mathlab/`, `writing-center/`, `library-pass/`, `club-hub/`, …)
+- `lib/<feature>/` — domain logic (`club-hub/`, `mathlab/`, `writing-center/`, `library-pass/`, `firebase/`); shared modules (`email.js`, `profile.js`, `admin.js`, …) stay at `lib/` root
+- `utils/` — cross-cutting helpers (AuthContext, cache, rate limits, App Check)
+- `public/brand|team|partners|demos|group-pics|seating-furniture` — static assets
+- `firebase.js` — client Firebase entry at repo root (keeps `keys.dev.js` resolve aliases working); config/admin live under `lib/firebase/`
+- SEO routes: `app/(seo)/` (sitemap + robots)
+
 ### Commands
 - **Dev server**: `npm run dev` (uses Turbopack, starts on port 3000)
 - **Dev (stale UI / HMR issues)**: `npm run dev:clean` or `npm run dev:stable` (no Turbopack, clears `.next`)
@@ -19,7 +28,6 @@ Code4Community — a Next.js 16 (App Router) platform for a student-led engineer
 ### Firebase configuration
 The app requires Firebase credentials for authentication features. Without `keys.dev.js`, the app falls back to `tempkeys.dev.js` (empty config) via Turbopack/webpack aliases in `next.config.mjs`. Pages load and render correctly without credentials, but authentication flows (login, signup) will fail with "invalid-api-key" errors. To configure:
 1. Copy `tempkeys.dev.js` to `keys.dev.js` and fill in Firebase Console credentials (local dev uses project `c4cdev-6f9f4`).
-2. Optionally set `GEMINI_API_KEY` in `.env.local` for the AI study quiz feature.
 
 **Firestore rules and indexes** (same `firestore.rules` + `firestore.indexes.json` for both projects):
 - Dev (`c4cdev-6f9f4`): `npm run firebase:deploy:firestore:dev`

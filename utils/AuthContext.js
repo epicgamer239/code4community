@@ -13,13 +13,13 @@ import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "fire
 import { assertClientRateLimit } from "@/utils/clientRateLimit";
 import { auth, firestore } from "@/firebase";
 import { UserCache } from "@/utils/cache";
-import { isAdminEmail } from "@/config/admin";
-import { lookupBroadRunName } from "@/lib/broadRunRoster";
+import { isAdminEmail } from "@/lib/admin";
+import { lookupBroadRunName } from "@/lib/club-hub/broadRunRoster";
 import {
   applyPendingGrantToProfile,
   MATHLAB_TEAM_PENDING_COLLECTION,
   pendingTeamDocId,
-} from "@/lib/mathlabTeamPending";
+} from "@/lib/mathlab/teamPending";
 import { normalizeEmail } from "@/lib/email";
 
 const AuthContext = createContext({ user: null, userData: null, loading: true });
@@ -69,6 +69,7 @@ export function AuthProvider({ children }) {
         "User";
       let role = isAdminEmail(normalizedEmail) ? "admin" : "student";
       let mathLabRole = "";
+      let writingCenterRole = "";
       const pendingRef = doc(
         firestore,
         MATHLAB_TEAM_PENDING_COLLECTION,
@@ -78,11 +79,12 @@ export function AuthProvider({ children }) {
       if (pendingSnap.exists()) {
         const withPending = applyPendingGrantToProfile(
           pendingSnap.data(),
-          { role, mathLabRole },
+          { role, mathLabRole, writingCenterRole },
           normalizedEmail,
         );
         role = withPending.role;
         mathLabRole = withPending.mathLabRole;
+        writingCenterRole = withPending.writingCenterRole || "";
       }
       const newProfile = {
         email: normalizedEmail,
@@ -90,6 +92,7 @@ export function AuthProvider({ children }) {
         photoURL: currentUser.photoURL || "",
         role,
         mathLabRole,
+        writingCenterRole,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };

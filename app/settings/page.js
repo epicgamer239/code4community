@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { AppPageLayout, ContainerMain } from "@/components/common/AppPageLayout";
 import FullPageLoading from "@/components/common/FullPageLoading";
 import { useAuth } from "@/utils/AuthContext";
-import StudyStatsSection from "@/components/settings/StudyStatsSection";
 import {
   auth,
   updateProfile,
@@ -234,8 +233,6 @@ export default function SettingsPage() {
               </svg>
             </span>
           </button>
-
-          <StudyStatsSection user={user} />
         </div>
       </ContainerMain>
 

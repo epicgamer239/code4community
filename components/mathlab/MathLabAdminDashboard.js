@@ -15,20 +15,53 @@ import {
 import { firestore } from "@/firebase";
 import { useAuth } from "@/utils/AuthContext";
 import { assertClientRateLimit } from "@/utils/clientRateLimit";
-import { ADMIN_CONFIG, canRemoveTeamPrivileges, isProtectedAdminEmail } from "@/config/admin";
-import { normalizeEmail } from "@/lib/email";
+import { ADMIN_CONFIG, canRemoveTeamPrivileges, isProtectedAdminEmail } from "@/lib/admin";
+import { normalizeEmail, isValidEmail } from "@/lib/email";
 import {
   partitionTeamUsers,
-  isValidLcpsEmail,
   findUserByNormalizedEmail,
-} from "@/lib/mathlabTeam";
+} from "@/lib/mathlab/team";
 import {
   MATHLAB_TEAM_PENDING_COLLECTION,
   mergePendingIntoTeam,
   pendingTeamDocId,
-} from "@/lib/mathlabTeamPending";
+} from "@/lib/mathlab/teamPending";
+import {
+  TUTOR_SERVICE,
+  TUTOR_SERVICE_OPTIONS,
+  normalizeTutorServices,
+  tutorServicesLabel,
+  tutorServiceProfileUpdate,
+  hasAnyTutorService,
+} from "@/lib/tutorServices";
 
-function UserRow({ user, badge, onRemove, removeLabel, removeDisabled, removeHint, subtitle }) {
+function ServiceBadges({ services }) {
+  const labels = TUTOR_SERVICE_OPTIONS.filter((o) => (services || []).includes(o.id));
+  if (labels.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 justify-end">
+      {labels.map((o) => (
+        <span
+          key={o.id}
+          className="text-xs font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground"
+        >
+          {o.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function UserRow({
+  user,
+  badge,
+  badges,
+  onRemove,
+  removeLabel,
+  removeDisabled,
+  removeHint,
+  subtitle,
+}) {
   return (
     <li className="flex items-center justify-between gap-4 py-3 border-b border-border last:border-0">
       <div className="min-w-0">
@@ -39,11 +72,13 @@ function UserRow({ user, badge, onRemove, removeLabel, removeDisabled, removeHin
         {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {badge && (
+        {badges ? (
+          <ServiceBadges services={badges} />
+        ) : badge ? (
           <span className="text-xs font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground">
             {badge}
           </span>
-        )}
+        ) : null}
         {onRemove && (
           <button
             type="button"
@@ -68,10 +103,21 @@ export default function MathLabAdminDashboard() {
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
   const [grantRole, setGrantRole] = useState("tutor");
+  const [tutorServices, setTutorServices] = useState([TUTOR_SERVICE.MATH_LAB]);
   const [protectedAdmins, setProtectedAdmins] = useState([]);
   const [appointedAdmins, setAppointedAdmins] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [tutors, setTutors] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+
+  const toggleTutorService = (serviceId) => {
+    setTutorServices((prev) => {
+      if (prev.includes(serviceId)) {
+        return prev.filter((id) => id !== serviceId);
+      }
+      return normalizeTutorServices([...prev, serviceId]);
+    });
+  };
 
   const loadTeam = useCallback(async () => {
     if (!firestore) {
@@ -91,6 +137,7 @@ export default function MathLabAdminDashboard() {
         id: d.id,
         email: d.data().email || d.id,
         grantType: d.data().grantType,
+        services: d.data().services,
       }));
       const parts = mergePendingIntoTeam(partitionTeamUsers(users), pendingRows);
       const protectedList = [...parts.protectedAdmins];
@@ -115,6 +162,7 @@ export default function MathLabAdminDashboard() {
       );
       setProtectedAdmins(protectedList);
       setAppointedAdmins(parts.appointedAdmins);
+      setTeachers(parts.teachers);
       setTutors(parts.tutors);
     } catch (err) {
       setError(err.message || "Failed to load team list.");
@@ -150,12 +198,17 @@ export default function MathLabAdminDashboard() {
     setMessage("");
     setError("");
     const normalized = normalizeEmail(email);
-    if (!isValidLcpsEmail(normalized)) {
-      setError("Enter a valid @lcps.org school email.");
+    if (!isValidEmail(normalized)) {
+      setError("Enter a valid email address.");
       return;
     }
     if (isProtectedAdminEmail(normalized)) {
       setError("Built-in admins are already configured.");
+      return;
+    }
+    const services = normalizeTutorServices(tutorServices);
+    if (grantRole === "tutor" && services.length === 0) {
+      setError("Choose at least one service for this tutor.");
       return;
     }
     setSaving(true);
@@ -173,16 +226,32 @@ export default function MathLabAdminDashboard() {
             updatedAt: serverTimestamp(),
           });
           setMessage(`Added admin access for ${existing.displayName || normalized}.`);
-        } else {
-          if (existing.mathLabRole === "tutor" || existing.role === "admin") {
-            setMessage("That user is already a tutor or admin.");
+        } else if (grantRole === "teacher") {
+          if (existing.role === "teacher" || existing.role === "admin") {
+            setMessage("That user is already a teacher or admin.");
             return;
           }
           await updateDoc(doc(firestore, "users", existing.id), {
-            mathLabRole: "tutor",
+            role: "teacher",
             updatedAt: serverTimestamp(),
           });
-          setMessage(`Added tutor access for ${existing.displayName || normalized}.`);
+          setMessage(`Added teacher access for ${existing.displayName || normalized}.`);
+        } else {
+          if (existing.role === "admin" || existing.role === "teacher") {
+            setMessage("That user is already a teacher or admin.");
+            return;
+          }
+          const profileUpdate = tutorServiceProfileUpdate(services, existing);
+          await updateDoc(doc(firestore, "users", existing.id), {
+            ...profileUpdate,
+            updatedAt: serverTimestamp(),
+          });
+          const label = tutorServicesLabel(services);
+          setMessage(
+            hasAnyTutorService(existing)
+              ? `Updated tutor services for ${existing.displayName || normalized}: ${label}.`
+              : `Added tutor access for ${existing.displayName || normalized}: ${label}.`,
+          );
         }
         await deleteDoc(doc(firestore, MATHLAB_TEAM_PENDING_COLLECTION, pendingTeamDocId(normalized))).catch(
           () => {},
@@ -191,16 +260,27 @@ export default function MathLabAdminDashboard() {
           new CustomEvent("userRoleChanged", { detail: { userId: existing.id } }),
         );
       } else {
-        await setDoc(doc(firestore, MATHLAB_TEAM_PENDING_COLLECTION, pendingTeamDocId(normalized)), {
+        /** @type {Record<string, unknown>} */
+        const pending = {
           email: normalized,
           grantType: grantRole,
           addedBy: normalizeEmail(authUser?.email) || "",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-        });
-        setMessage(
-          `Saved ${grantRole} access for ${normalized}. It applies automatically when they sign up.`,
-        );
+        };
+        if (grantRole === "tutor") {
+          pending.services = services;
+        }
+        await setDoc(doc(firestore, MATHLAB_TEAM_PENDING_COLLECTION, pendingTeamDocId(normalized)), pending);
+        if (grantRole === "tutor") {
+          setMessage(
+            `Saved tutor access for ${normalized} (${tutorServicesLabel(services)}). It applies when they sign up.`,
+          );
+        } else {
+          setMessage(
+            `Saved ${grantRole} access for ${normalized}. It applies automatically when they sign up.`,
+          );
+        }
       }
       setEmail("");
       await loadTeam();
@@ -222,7 +302,7 @@ export default function MathLabAdminDashboard() {
         await deleteDoc(doc(firestore, MATHLAB_TEAM_PENDING_COLLECTION, user.id));
       } else {
         await updateDoc(doc(firestore, "users", user.id), {
-          mathLabRole: "",
+          ...tutorServiceProfileUpdate([], user),
           updatedAt: serverTimestamp(),
         });
         window.dispatchEvent(new CustomEvent("userRoleChanged", { detail: { userId: user.id } }));
@@ -261,6 +341,31 @@ export default function MathLabAdminDashboard() {
     }
   };
 
+  const removeTeacher = async (user) => {
+    if (!canRemoveTeamPrivileges(user.email)) return;
+    setSaving(true);
+    setMessage("");
+    setError("");
+    try {
+      assertClientRateLimit("profileWrite", authUser?.uid);
+      if (user.pending) {
+        await deleteDoc(doc(firestore, MATHLAB_TEAM_PENDING_COLLECTION, user.id));
+      } else {
+        await updateDoc(doc(firestore, "users", user.id), {
+          role: "student",
+          updatedAt: serverTimestamp(),
+        });
+        window.dispatchEvent(new CustomEvent("userRoleChanged", { detail: { userId: user.id } }));
+      }
+      setMessage(`Removed teacher access for ${user.displayName || user.email}.`);
+      await loadTeam();
+    } catch (err) {
+      setError(err.message || "Failed to remove teacher.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -274,21 +379,21 @@ export default function MathLabAdminDashboard() {
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
         <p className="text-muted-foreground">
-          Add or remove tutors and appointed admins. Built-in admins cannot be changed here.
+          Add or remove tutors, teachers, and appointed admins. Built-in admins cannot be changed here.
         </p>
       </div>
 
       <form onSubmit={handleAdd} className="card-elevated p-6 rounded-xl space-y-4">
         <h2 className="text-lg font-semibold text-foreground">Add team member</h2>
         <p className="text-sm text-muted-foreground">
-          Add by school email. If they have not signed up yet, access is saved and applied at first login.
+          Add by email (any domain). If they have not signed up yet, access is saved and applied at first login.
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="name@lcps.org"
+            placeholder="name@example.com"
             className="flex-1 px-4 py-2.5 rounded-lg border border-border bg-background"
             required
           />
@@ -299,6 +404,7 @@ export default function MathLabAdminDashboard() {
             aria-label="Role to grant"
           >
             <option value="tutor">Tutor</option>
+            <option value="teacher">Teacher</option>
             <option value="admin">Admin</option>
           </select>
           <button
@@ -309,6 +415,35 @@ export default function MathLabAdminDashboard() {
             {saving ? "Saving…" : "Add"}
           </button>
         </div>
+
+        {grantRole === "tutor" && (
+          <fieldset className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <legend className="px-1 text-sm font-medium text-foreground">Tutor for</legend>
+            <p className="text-xs text-muted-foreground mb-3">
+              Choose one or both. Re-adding an existing tutor updates their services.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {TUTOR_SERVICE_OPTIONS.map((option) => {
+                const checked = tutorServices.includes(option.id);
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={checked}
+                    onClick={() => toggleTutorService(option.id)}
+                    className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                      checked
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-background text-foreground border-border hover:bg-muted"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
       </form>
 
       {error && (
@@ -369,9 +504,33 @@ export default function MathLabAdminDashboard() {
       </section>
 
       <section className="card-elevated rounded-xl overflow-hidden">
+        <h2 className="text-lg font-semibold text-foreground px-6 pt-6 pb-2">Teachers</h2>
+        <p className="text-sm text-muted-foreground px-6 pb-4">
+          Teachers have tutor privileges and appear with a teacher role in Math Lab.
+        </p>
+        <ul className="px-6 pb-4">
+          {teachers.length === 0 ? (
+            <li className="text-sm text-muted-foreground py-2">No teachers yet</li>
+          ) : (
+            teachers.map((user) => (
+              <UserRow
+                key={user.id}
+                user={user}
+                badge={user.pending ? "Pending" : "Teacher"}
+                subtitle={user.pending ? "Has not signed up yet" : undefined}
+                onRemove={() => removeTeacher(user)}
+                removeLabel="Remove"
+                removeDisabled={saving}
+              />
+            ))
+          )}
+        </ul>
+      </section>
+
+      <section className="card-elevated rounded-xl overflow-hidden">
         <h2 className="text-lg font-semibold text-foreground px-6 pt-6 pb-2">Tutors</h2>
         <p className="text-sm text-muted-foreground px-6 pb-4">
-          Users who can accept tutoring requests on the tutor dashboard.
+          Tutors only see the services they are assigned to. Badges show Math Lab and/or Writing Center.
         </p>
         <ul className="px-6 pb-6">
           {tutors.length === 0 ? (
@@ -381,8 +540,12 @@ export default function MathLabAdminDashboard() {
               <UserRow
                 key={user.id}
                 user={user}
-                badge={user.pending ? "Pending" : "Tutor"}
-                subtitle={user.pending ? "Has not signed up yet" : undefined}
+                badges={user.services}
+                subtitle={
+                  user.pending
+                    ? `Has not signed up yet${user.services?.length ? ` · ${tutorServicesLabel(user.services)}` : ""}`
+                    : undefined
+                }
                 onRemove={() => removeTutor(user)}
                 removeLabel="Remove"
                 removeDisabled={saving}

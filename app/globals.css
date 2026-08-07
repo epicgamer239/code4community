@@ -6,22 +6,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* KaTeX (MathText): inherit text color in light/dark */
-.math-text .katex {
-  color: inherit;
-}
-
-/* Short inline math inside wrapping sentences (MixedMathLine) */
-.math-text--inline {
-  display: inline !important;
-  vertical-align: baseline;
-  max-width: 100%;
-}
-.math-text--inline .katex {
-  display: inline-block;
-  font-size: 1em;
-}
-
 /* No margin/padding so content goes edge-to-edge (no white border) */
 html {
   margin: 0;
@@ -37,9 +21,9 @@ body {
   min-height: 100%;
 }
 
-/* Math Lab: fixed sidebar sits below sticky top bar (desktop) */
+/* Math Lab / Office Hours: desktop top bar height (py-4 + 40px logo row + border) */
 :root {
-  --mathlab-header-height: 5.5rem;
+  --mathlab-header-height: 4.5rem;
 }
 
 /* Scrollbar: thin and subtle (not a bright white bar) */
@@ -907,52 +891,4 @@ body {
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
   background-size: 200% 100%;
   animation: services-shimmer 3s ease-in-out infinite;
-}
-
-/* Study session: full-screen star earned burst — one root opacity so backdrop + star + text exit together */
-@keyframes study-star-burst-root {
-  0% {
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  82% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-.study-star-burst-root {
-  animation: study-star-burst-root 2.5s ease forwards;
-}
-
-/* Pop uses scale only — opacity is handled by .study-star-burst-root so outline + fill never fade separately */
-@keyframes study-star-burst-pop {
-  0% {
-    transform: scale(0.2);
-  }
-  55% {
-    transform: scale(1.08);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-.study-star-burst-pop {
-  animation: study-star-burst-pop 0.85s cubic-bezier(0.34, 1.45, 0.64, 1) 0.1s both;
-}
-
-@keyframes study-star-fill-up {
-  0% {
-    clip-path: inset(100% 0 0 0);
-  }
-  100% {
-    clip-path: inset(0 0 0 0);
-  }
-}
-.study-star-fill-up {
-  clip-path: inset(100% 0 0 0);
-  animation: study-star-fill-up 1.05s cubic-bezier(0.33, 1, 0.68, 1) 0.2s forwards;
 }

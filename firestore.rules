@@ -36,6 +36,10 @@
       function isValidMathLabRole(role) {
         return role in ['', 'tutor', 'student'];
       }
+
+      function isValidWritingCenterRole(role) {
+        return role in ['', 'tutor'];
+      }
       
       function isValidCourse(course) {
         return course in ['Algebra 1', 'Algebra 2', 'Algebra 2 Trig', 'Functions', 'Trig with Adv Alg', 'Geometry'];
@@ -69,12 +73,26 @@
           : '';
       }
 
+      function writingCenterRoleField() {
+        return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+              ('writingCenterRole' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.writingCenterRole is string
+          ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.writingCenterRole
+          : '';
+      }
+
       function isAnyAdmin() {
         return isAdminByEmail() || isFirestoreAdmin();
       }
 
       function mathLabRoleValue(data) {
         return ('mathLabRole' in data && data.mathLabRole is string) ? data.mathLabRole : '';
+      }
+
+      function writingCenterRoleValue(data) {
+        return ('writingCenterRole' in data && data.writingCenterRole is string)
+          ? data.writingCenterRole
+          : '';
       }
 
       function pendingTeamDocPath(email) {
@@ -88,18 +106,33 @@
               get(pendingTeamDocPath(normalizeEmail(request.resource.data.email))).data.grantType == 'admin';
       }
 
-      function hasPendingTutorGrant() {
+      function pendingTutorServicesInclude(tutorService) {
         return isAuthenticated() &&
               request.resource.data.email is string &&
               exists(pendingTeamDocPath(normalizeEmail(request.resource.data.email))) &&
-              get(pendingTeamDocPath(normalizeEmail(request.resource.data.email))).data.grantType == 'tutor';
+              get(pendingTeamDocPath(normalizeEmail(request.resource.data.email))).data.grantType == 'tutor' &&
+              (
+                // Legacy pending tutor docs without services → Math Lab only
+                (!(('services' in get(pendingTeamDocPath(normalizeEmail(request.resource.data.email))).data)) &&
+                  tutorService == 'mathlab') ||
+                (get(pendingTeamDocPath(normalizeEmail(request.resource.data.email))).data.services is list &&
+                  tutorService in get(pendingTeamDocPath(normalizeEmail(request.resource.data.email))).data.services)
+              );
+      }
+
+      function hasPendingTeacherGrant() {
+        return isAuthenticated() &&
+              request.resource.data.email is string &&
+              exists(pendingTeamDocPath(normalizeEmail(request.resource.data.email))) &&
+              get(pendingTeamDocPath(normalizeEmail(request.resource.data.email))).data.grantType == 'teacher';
       }
 
       function protectedAdminTeamFieldsUnchanged() {
         return !('email' in resource.data) ||
               !isProtectedAdminEmail(resource.data.email) ||
               (request.resource.data.role == resource.data.role &&
-                mathLabRoleValue(request.resource.data) == mathLabRoleValue(resource.data));
+                mathLabRoleValue(request.resource.data) == mathLabRoleValue(resource.data) &&
+                writingCenterRoleValue(request.resource.data) == writingCenterRoleValue(resource.data));
       }
       
       // Helper function to check if user is a Math Lab tutor
@@ -107,7 +140,6 @@
         return isAuthenticated() && 
               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
               (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.mathLabRole == 'tutor' ||
-                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tutor' ||
                 get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' ||
                 get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
                 isAdminByEmail());
@@ -117,6 +149,8 @@
         return isAuthenticated() && (
           resource.data.studentId == request.auth.uid ||
           resource.data.status == 'pending' ||
+          // Tutors can see the lab-wide active board (accepted sessions)
+          (isTutor() && resource.data.status == 'accepted') ||
           (isTutor() && resource.data.tutorId == request.auth.uid) ||
           isTeacherOrAdmin() ||
           isAdminByEmail()
@@ -141,8 +175,13 @@
       
       // Users collection - Contains user profile data
       match /users/{userId} {
-        // Allow read: Own document or admins can read all
-        allow read: if isAuthenticated() && (isOwner(userId) || isAnyAdmin());
+        // Own profile, admins, or public teacher directory (for receipt sharing)
+        allow read: if isAuthenticated() && (
+                          isOwner(userId) ||
+                          isAnyAdmin() ||
+                          (resource.data.role is string &&
+                            resource.data.role in ['teacher', 'TEACHER'])
+                        );
         
         // Allow create: During signup process
         allow create: if isAuthenticated() && 
@@ -163,16 +202,25 @@
                         request.resource.data.email is string &&
                         request.resource.data.email == normalizeEmail(request.resource.data.email) &&
                         emailsMatch(request.resource.data.email, request.auth.token.email) &&
-                        // Allow admin role for built-in admins, pending grants, or default student
+                        // Allow admin/teacher via pending grants, built-in admins, or default student
                         (isAdminByEmail() ||
                           request.resource.data.role == 'student' ||
-                          (request.resource.data.role == 'admin' && hasPendingAdminGrant())) &&
-                        // mathLabRole on signup: empty, or tutor when pre-approved
+                          (request.resource.data.role == 'admin' && hasPendingAdminGrant()) ||
+                          (request.resource.data.role == 'teacher' && hasPendingTeacherGrant())) &&
+                        // mathLabRole on signup: empty, or tutor when pre-approved for Math Lab
                         (!('mathLabRole' in request.resource.data) ||
                           (request.resource.data.mathLabRole is string &&
                             isValidMathLabRole(request.resource.data.mathLabRole) &&
                             (request.resource.data.mathLabRole == '' ||
-                              (request.resource.data.mathLabRole == 'tutor' && hasPendingTutorGrant()))));
+                              (request.resource.data.mathLabRole == 'tutor' &&
+                                pendingTutorServicesInclude('mathlab'))))) &&
+                        // writingCenterRole on signup: empty, or tutor when pre-approved for WC
+                        (!('writingCenterRole' in request.resource.data) ||
+                          (request.resource.data.writingCenterRole is string &&
+                            isValidWritingCenterRole(request.resource.data.writingCenterRole) &&
+                            (request.resource.data.writingCenterRole == '' ||
+                              (request.resource.data.writingCenterRole == 'tutor' &&
+                                pendingTutorServicesInclude('writing-center')))));
         
         // Allow update: Own document with restrictions, or admin updates
         allow update: if isAuthenticated() && (
@@ -190,10 +238,15 @@
                           request.resource.data.updatedAt is timestamp &&
                           // Only allow role changes by admins or prevent role escalation
                           (isAdminByEmail() || request.resource.data.role == resource.data.role) &&
+                          // writingCenterRole is admin-managed only (owners cannot self-grant)
+                          writingCenterRoleValue(request.resource.data) == writingCenterRoleValue(resource.data) &&
                           // Validate optional fields if present
                           (!('mathLabRole' in request.resource.data) || 
                             (request.resource.data.mathLabRole is string && 
                             isValidMathLabRole(request.resource.data.mathLabRole))) &&
+                          (!('writingCenterRole' in request.resource.data) ||
+                            (request.resource.data.writingCenterRole is string &&
+                            isValidWritingCenterRole(request.resource.data.writingCenterRole))) &&
                           (!('photoURL' in request.resource.data) || 
                             (request.resource.data.photoURL is string && 
                             request.resource.data.photoURL.size() <= 500))) ||
@@ -386,10 +439,14 @@
                                 request.resource.data.email is string &&
                                 normalizeEmail(request.resource.data.email) == normalizeEmail(emailKey) &&
                                 isValidEmail(request.resource.data.email) &&
-                                request.resource.data.grantType in ['tutor', 'admin'] &&
+                                request.resource.data.grantType in ['tutor', 'admin', 'teacher'] &&
                                 request.resource.data.createdAt is timestamp &&
                                 request.resource.data.updatedAt is timestamp &&
-                                !isProtectedAdminEmail(request.resource.data.email);
+                                !isProtectedAdminEmail(request.resource.data.email) &&
+                                (request.resource.data.grantType != 'tutor' ||
+                                  (request.resource.data.services is list &&
+                                    request.resource.data.services.size() >= 1 &&
+                                    request.resource.data.services.size() <= 2));
         allow delete: if isAnyAdmin() ||
                         (isAuthenticated() && emailsMatch(request.auth.token.email, emailKey));
       }
@@ -441,7 +498,10 @@
       function isWritingCenterTutor() {
         return isAuthenticated() &&
               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-              writingCenterUserRole() in ['tutor', 'TUTOR', 'teacher', 'TEACHER', 'admin', 'ADMIN'];
+              (
+                writingCenterRoleField() == 'tutor' ||
+                writingCenterUserRole() in ['tutor', 'TUTOR', 'teacher', 'TEACHER', 'admin', 'ADMIN']
+              );
       }
 
       // Writing Center sessions
@@ -482,6 +542,42 @@
                             request.resource.data.tutorId == request.auth.uid) ||
                           isAnyAdmin()
                         );
+
+        allow delete: if isAuthenticated() && (
+                          resource.data.studentId == request.auth.uid ||
+                          isAnyAdmin()
+                        );
+      }
+
+      // Writing Center receipts shared with teachers
+      match /writingCenterReceiptShares/{shareId} {
+        allow read: if isAuthenticated() && (
+                          resource.data.teacherId == request.auth.uid ||
+                          resource.data.studentId == request.auth.uid ||
+                          isAnyAdmin()
+                        );
+
+        allow create, update: if isAuthenticated() &&
+                                request.resource.data.keys().hasAll([
+                                  'sessionId', 'studentId', 'teacherId',
+                                  'sessionReportUrl', 'sharedAt', 'sharedBy'
+                                ]) &&
+                                request.resource.data.studentId == request.auth.uid &&
+                                request.resource.data.sharedBy == request.auth.uid &&
+                                request.resource.data.sessionId is string &&
+                                request.resource.data.sessionId.size() > 0 &&
+                                request.resource.data.teacherId is string &&
+                                request.resource.data.teacherId.size() > 0 &&
+                                request.resource.data.sessionReportUrl is string &&
+                                request.resource.data.sessionReportUrl.size() > 0 &&
+                                request.resource.data.sharedAt is timestamp &&
+                                // Must be sharing their own completed session with a report
+                                exists(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)) &&
+                                get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.studentId == request.auth.uid &&
+                                get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.status == 'COMPLETED' &&
+                                // Destination must be a teacher account
+                                exists(/databases/$(database)/documents/users/$(request.resource.data.teacherId)) &&
+                                get(/databases/$(database)/documents/users/$(request.resource.data.teacherId)).data.role in ['teacher', 'TEACHER'];
 
         allow delete: if isAuthenticated() && (
                           resource.data.studentId == request.auth.uid ||
@@ -618,6 +714,64 @@
                           isTeacherOrAdmin() ||
                           isAdminByEmail()
                         );
+      }
+
+      // Club Hub editable page copy
+      match /clubHubPages/{slug} {
+        allow read: if true;
+        allow create, update: if isAnyAdmin() &&
+                                request.resource.data.keys().hasAll([
+                                  'slug', 'about', 'updatedAt', 'updatedBy'
+                                ]) &&
+                                request.resource.data.slug == slug &&
+                                request.resource.data.slug is string &&
+                                request.resource.data.slug.size() > 0 &&
+                                request.resource.data.slug.size() <= 120 &&
+                                request.resource.data.about is string &&
+                                request.resource.data.about.size() > 0 &&
+                                request.resource.data.about.size() <= 4000 &&
+                                request.resource.data.updatedAt is timestamp &&
+                                request.resource.data.updatedBy == request.auth.uid &&
+                                (!('resourcesUrl' in request.resource.data) ||
+                                  (request.resource.data.resourcesUrl is string &&
+                                    request.resource.data.resourcesUrl.size() <= 500)) &&
+                                (!('resourcesLabel' in request.resource.data) ||
+                                  (request.resource.data.resourcesLabel is string &&
+                                    request.resource.data.resourcesLabel.size() <= 80)) &&
+                                (!('clubLeaders' in request.resource.data) ||
+                                  (request.resource.data.clubLeaders is string &&
+                                    request.resource.data.clubLeaders.size() <= 500)) &&
+                                (!('facultyAdvisor' in request.resource.data) ||
+                                  (request.resource.data.facultyAdvisor is string &&
+                                    request.resource.data.facultyAdvisor.size() <= 500)) &&
+                                (!('contactEmails' in request.resource.data) ||
+                                  (request.resource.data.contactEmails is string &&
+                                    request.resource.data.contactEmails.size() <= 1000)) &&
+                                (!('meetingFrequency' in request.resource.data) ||
+                                  (request.resource.data.meetingFrequency is string &&
+                                    request.resource.data.meetingFrequency.size() <= 200)) &&
+                                (!('memberCount' in request.resource.data) ||
+                                  (request.resource.data.memberCount is string &&
+                                    request.resource.data.memberCount.size() <= 40)) &&
+                                (!('activities' in request.resource.data) ||
+                                  (request.resource.data.activities is string &&
+                                    request.resource.data.activities.size() <= 4000));
+        allow delete: if isAnyAdmin();
+      }
+
+      // Seating chart — one chart document per user (doc id = uid)
+      match /seatingCharts/{userId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow create, update: if isAuthenticated() &&
+                                request.auth.uid == userId &&
+                                request.resource.data.ownerId == request.auth.uid &&
+                                request.resource.data.chartName is string &&
+                                request.resource.data.chartName.size() <= 64 &&
+                                request.resource.data.students is list &&
+                                request.resource.data.furniture is list &&
+                                request.resource.data.restrictions is list &&
+                                request.resource.data.updatedAt is timestamp;
+        allow delete: if isAuthenticated() && request.auth.uid == userId;
       }
 
       match /{document=**} {

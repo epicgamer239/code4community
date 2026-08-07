@@ -2,10 +2,10 @@
 import { useAuth } from "@/utils/AuthContext";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from "react";
-import DashboardTopBar from "@/components/DashboardTopBar";
-import MathLabSidebar from "@/components/MathLabSidebar";
-import LoadingSpinner from "@/components/LoadingSpinner";
-import { AppCardSkeleton, RequestCardSkeleton } from "@/components/SkeletonLoader";
+import DashboardTopBar from "@/components/layout/DashboardTopBar";
+import MathLabSidebar from "@/components/mathlab/MathLabSidebar";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
+import { AppCardSkeleton, RequestCardSkeleton } from "@/components/common/SkeletonLoader";
 import {
   doc,
   updateDoc,
@@ -13,21 +13,28 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   addDoc,
-  onSnapshot,
+  setDoc,
   deleteDoc,
   serverTimestamp,
+  runTransaction,
 } from "firebase/firestore";
 import { firestore } from "@/firebase";
 import { firestoreToDate, formatRequestTime, formatRequestDateTime } from "@/lib/firestoreDates";
 import { MathLabCache, UserCache } from "@/utils/cache";
-import { useMathLabDisplayUser } from "@/utils/useMathLabDisplayUser";
-import { MATHLAB_COURSES } from "@/lib/mathlabCourses";
+import { useMathLabDisplayUser } from "@/lib/mathlab/useDisplayUser";
+import { MATHLAB_COURSES } from "@/lib/mathlab/courses";
 import { resolveDisplayName, getInitials } from "@/lib/profile";
 import { invalidateOnDataChange } from "@/utils/cacheInvalidation";
 import { assertClientRateLimit } from "@/utils/clientRateLimit";
 import { canAccess, isTutorOrHigher, isAdminUser } from "@/utils/authorization";
-import { mathlabLoginPath } from "@/utils/mathlabGuest";
+import { mathlabLoginPath } from "@/lib/mathlab/guest";
+import {
+  mathLabPendingListener,
+  mathLabAcceptedListener,
+} from "@/lib/mathlab/liveQueueStore";
+import { subscribeWhileVisible } from "@/lib/firestore/sharedQueryListener";
 import Image from "next/image";
 
 // Component for live updating session timer
@@ -86,11 +93,14 @@ function MathLabPageContent() {
   const [roleChangeMessage, setRoleChangeMessage] = useState("");
   const [sessionStatus, setSessionStatus] = useState(null); // 'accepted', 'started', 'ended'
   const [sessionEndData, setSessionEndData] = useState(null); // Data for session over screen
+  const [acceptingRequestId, setAcceptingRequestId] = useState(null);
+  const [isEndingSession, setIsEndingSession] = useState(false);
   
   // Use refs to avoid dependency issues
   const studentRequestRef = useRef(studentRequest);
   const previousStudentRequestRef = useRef(previousStudentRequest);
   const sessionDurationRef = useRef(sessionDuration);
+  const endingSessionRef = useRef(false);
   
   // Update refs when values change
   useEffect(() => {
@@ -220,13 +230,11 @@ function MathLabPageContent() {
     return userData && user && isAdminUser(userData.role, user.email);
   }, [userData, user]);
 
-  // Function to fetch pending requests for tutors
-  // Optimized fetchPendingRequests with intelligent caching
+  // Shared pending-queue listener (one wire for all tutor tabs; pauses when hidden)
   const fetchPendingRequests = useCallback(() => {
     if (!isTutor) {
-      return () => {}; // Return empty cleanup function
-    }    
-    // Try to load from cache first, but always refresh for real-time data
+      return () => {};
+    }
     const cachedRequests = MathLabCache.getRequests();
     if (cachedRequests && cachedRequests.length >= 0) {
       setPendingRequests(cachedRequests);
@@ -234,113 +242,41 @@ function MathLabPageContent() {
     } else {
       setIsLoadingRequests(true);
     }
-    
-    try {
-      const q = query(
-        collection(firestore, "tutoringRequests"),
-        where("status", "==", "pending")
-      );
-      
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const requests = snapshot.docs.map((docSnap) => {
-            const data = docSnap.data();
-            return {
-              id: docSnap.id,
-              ...data,
-              createdAt: firestoreToDate(data.createdAt),
-              acceptedAt: firestoreToDate(data.acceptedAt),
-            };
-          });
 
-          MathLabCache.setRequests(requests);
-          setPendingRequests(requests);
-          setIsLoadingRequests(false);        },
-        (err) => {
-          setIsLoadingRequests(false);        }
-      );
-
-      return unsubscribe;
-    } catch (error) {
-      setIsLoadingRequests(false);      return () => {}; // Return empty cleanup function on error
-    }
+    return mathLabPendingListener.subscribe((requests) => {
+      setPendingRequests(Array.isArray(requests) ? requests : []);
+      setIsLoadingRequests(false);
+    });
   }, [isTutor]);
 
-  // Function to fetch all active sessions for admins with real-time updates
+  // Shared active-sessions listener (status == accepted only)
   const fetchActiveSessions = useCallback(() => {
-    if (!isAdmin) {
-      return () => {}; // Return empty cleanup function
+    if (!isTutor) {
+      return () => {};
     }
-    
+
     setIsLoadingActiveSessions(true);
-    
-    try {
-      // Check cache first for initial load
-      const cachedActiveSessions = MathLabCache.getActiveSessions();
-      if (cachedActiveSessions && cachedActiveSessions.length >= 0) {
-        setActiveSessions(cachedActiveSessions);
-        setIsLoadingActiveSessions(false);
-      }
-
-      // Query all tutoring requests with status 'accepted' (active sessions)
-      const activeSessionsQuery = query(
-        collection(firestore, "tutoringRequests"),
-        where("status", "==", "accepted")
-      );
-
-      // Use real-time listener for live updates
-      const unsubscribe = onSnapshot(activeSessionsQuery, (snapshot) => {
-        const sessions = [];
-        
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const sessionStartTime = data.sessionStartedAt?.toDate 
-            ? data.sessionStartedAt.toDate() 
-            : (data.sessionStartedAt ? new Date(data.sessionStartedAt) : (data.acceptedAt?.toDate ? data.acceptedAt.toDate() : new Date()));
-          
-          sessions.push({
-            id: doc.id,
-            tutorId: data.tutorId,
-            tutorName: data.tutorName || 'Unknown Tutor',
-            tutorEmail: data.tutorEmail || '',
-            studentId: data.studentId,
-            studentName: data.studentName || 'Unknown Student',
-            studentEmail: data.studentEmail || '',
-            course: data.course || 'Unknown',
-            sessionStartedAt: sessionStartTime,
-            acceptedAt: data.acceptedAt?.toDate ? data.acceptedAt.toDate() : (data.acceptedAt ? new Date(data.acceptedAt) : new Date()),
-            isStarted: !!data.sessionStartedAt
-          });
-        });
-
-        // Sort by start time (most recent first)
-        sessions.sort((a, b) => b.sessionStartedAt - a.sessionStartedAt);
-        
-        // Cache the results (will be updated by real-time listener)
-        MathLabCache.setActiveSessions(sessions);
-        setActiveSessions(sessions);
-        setIsLoadingActiveSessions(false);
-      }, (error) => {
-        setIsLoadingActiveSessions(false);
-      });
-
-      return unsubscribe;
-    } catch (error) {
+    const cachedActiveSessions = MathLabCache.getActiveSessions();
+    if (cachedActiveSessions && cachedActiveSessions.length >= 0) {
+      setActiveSessions(cachedActiveSessions);
       setIsLoadingActiveSessions(false);
-      return () => {}; // Return empty cleanup function on error
     }
-  }, [isAdmin]);
 
-  // Fetch active sessions for admins with real-time updates
+    return mathLabAcceptedListener.subscribe((sessions) => {
+      setActiveSessions(Array.isArray(sessions) ? sessions : []);
+      setIsLoadingActiveSessions(false);
+    });
+  }, [isTutor]);
+
+  // Fetch active sessions for tutors/admins with real-time updates
   useEffect(() => {
-    if (isAdmin) {
+    if (isTutor) {
       const unsubscribe = fetchActiveSessions();
       return () => {
         if (unsubscribe) unsubscribe();
       };
     }
-  }, [isAdmin, fetchActiveSessions]);
+  }, [isTutor, fetchActiveSessions]);
 
   // Check authorization for Math Lab access
   const isAuthorized = user && userData && canAccess(userData.role, 'mathlab', userData.mathLabRole);
@@ -353,16 +289,15 @@ function MathLabPageContent() {
       // Also check for active sessions
       const checkActiveSessions = async () => {
         try {
-          // Avoid composite index by querying by tutorId first, then filter status client-side
           const q = query(
             collection(firestore, "tutoringRequests"),
-            where("tutorId", "==", displayUser?.uid)
+            where("tutorId", "==", displayUser?.uid),
+            where("status", "==", "accepted"),
           );
           const snapshot = await getDocs(q);
           if (!snapshot.empty) {
             const accepted = snapshot.docs
-              .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
-              .find(d => d.status === 'accepted');
+              .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))[0];
             if (accepted) {
               setActiveSession({
                 requestId: accepted.id,
@@ -430,10 +365,10 @@ function MathLabPageContent() {
 
       const checkStudentRequest = async () => {
         try {
-          // Use a simple query to get student's requests
           const q = query(
             collection(firestore, "tutoringRequests"),
-            where("studentId", "==", displayUser?.uid)
+            where("studentId", "==", displayUser?.uid),
+            where("status", "in", ["pending", "accepted"]),
           );
           
           const snapshot = await getDocs(q);
@@ -505,76 +440,81 @@ function MathLabPageContent() {
       
       // Check immediately
       checkStudentRequest();
-      
-      // Set up real-time listener for instant updates
-      const q = query(
-        collection(firestore, "tutoringRequests"),
-        where("studentId", "==", displayUser?.uid)
-      );
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
-          const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-          const match = docs.find(d => d.status === 'pending' || d.status === 'accepted');
-          
-          if (match && match.status === 'pending') {
-            setStudentRequest({
-              id: match.id,
-              course: match.course,
-              status: match.status,
-              createdAt: firestoreToDate(match.createdAt) || new Date(),
-            });
-            setPreviousStudentRequest(null);
-          } else if (match && match.status === 'accepted') {
-            const sessionStartedAt = firestoreToDate(match.sessionStartedAt);
-            
-            setStudentRequest({
-              id: match.id,
-              course: match.course,
-              status: match.status,
-              createdAt: firestoreToDate(match.createdAt),
-              tutorName: match.tutorName,
-              acceptedAt: firestoreToDate(match.acceptedAt) || new Date(),
-              sessionStartedAt: sessionStartedAt
-            });
-            setPreviousStudentRequest(null);
-            
-            if (sessionStartedAt) {
-              setSessionStatus('started');
-              setSessionStartTime(sessionStartedAt);
-              const now = new Date();
-              const duration = Math.floor((now - sessionStartedAt) / 1000);
-              setSessionDuration(duration);
-            } else {
-              setSessionStatus('accepted');
+
+      let pollInterval = null;
+      // Live listener for this student's active requests only; pauses when tab hidden
+      const unsubscribe = subscribeWhileVisible(
+        () =>
+          query(
+            collection(firestore, "tutoringRequests"),
+            where("studentId", "==", displayUser?.uid),
+            where("status", "in", ["pending", "accepted"]),
+          ),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+            const match = docs.find((d) => d.status === "pending" || d.status === "accepted");
+
+            if (match && match.status === "pending") {
+              setStudentRequest({
+                id: match.id,
+                course: match.course,
+                status: match.status,
+                createdAt: firestoreToDate(match.createdAt) || new Date(),
+              });
+              setPreviousStudentRequest(null);
+            } else if (match && match.status === "accepted") {
+              const sessionStartedAt = firestoreToDate(match.sessionStartedAt);
+
+              setStudentRequest({
+                id: match.id,
+                course: match.course,
+                status: match.status,
+                createdAt: firestoreToDate(match.createdAt),
+                tutorName: match.tutorName,
+                acceptedAt: firestoreToDate(match.acceptedAt) || new Date(),
+                sessionStartedAt: sessionStartedAt,
+              });
+              setPreviousStudentRequest(null);
+
+              if (sessionStartedAt) {
+                setSessionStatus("started");
+                setSessionStartTime(sessionStartedAt);
+                const now = new Date();
+                const duration = Math.floor((now - sessionStartedAt) / 1000);
+                setSessionDuration(duration);
+              } else {
+                setSessionStatus("accepted");
+              }
             }
+          } else {
+            const requestToCheck = studentRequestRef.current || previousStudentRequestRef.current;
+            if (requestToCheck && requestToCheck.status === "accepted") {
+              setSessionEndData({
+                studentName: resolveDisplayName(displayUser, "Student"),
+                studentEmail: displayUser?.email || "",
+                course: requestToCheck.course,
+                startTime: requestToCheck.sessionStartedAt || requestToCheck.acceptedAt,
+                endTime: new Date(),
+                duration: sessionDurationRef.current,
+              });
+              setSessionStatus("ended");
+            }
+
+            if (studentRequest) {
+              setPreviousStudentRequest(studentRequest);
+            }
+            setStudentRequest(null);
           }
-        } else {
-          const requestToCheck = studentRequestRef.current || previousStudentRequestRef.current;
-          if (requestToCheck && requestToCheck.status === 'accepted') {
-            setSessionEndData({
-              studentName: resolveDisplayName(displayUser, "Student"),
-              studentEmail: displayUser?.email || '',
-              course: requestToCheck.course,
-              startTime: requestToCheck.sessionStartedAt || requestToCheck.acceptedAt,
-              endTime: new Date(),
-              duration: sessionDurationRef.current
-            });
-            setSessionStatus('ended');
-          }
-          
-          if (studentRequest) {
-            setPreviousStudentRequest(studentRequest);
-          }
-          setStudentRequest(null);
-        }
-      }, (error) => {
-        const pollInterval = setInterval(checkStudentRequest, 2000);
-        return () => clearInterval(pollInterval);
-      });
-      
+        },
+        () => {
+          if (!pollInterval) pollInterval = setInterval(checkStudentRequest, 2000);
+        },
+      );
+
       return () => {
         unsubscribe();
+        if (pollInterval) clearInterval(pollInterval);
       };
   }, [displayUser?.uid, displayUser?.displayName, displayUser?.email]);
 
@@ -734,70 +674,97 @@ function MathLabPageContent() {
     }
   };
 
-  // Function to end tutoring session - now saves completed session and deletes the request
+  // End session — idempotent (requestId doc id) + in-flight lock against double-click
   const handleEndSession = async () => {
-    if (!activeSession) return;
-    
+    if (!activeSession || endingSessionRef.current) return;
+    endingSessionRef.current = true;
+    setIsEndingSession(true);
+
+    const session = activeSession;
+    const requestId = session.requestId;
+    const startedAt = sessionStartTime;
+
     try {
       assertClientRateLimit(
         "tutoringRequestUpdate",
         displayUser?.uid
       );
       const endTime = new Date();
-      const sessionDuration = Math.floor((endTime - sessionStartTime) / 1000);
-      
-      // Save completed session to history
-      const completedSessionData = {
-        studentId: activeSession.studentId, // Use the student ID from activeSession
-        studentName: activeSession.studentName,
-        studentEmail: activeSession.studentEmail || '',
-        tutorId: displayUser?.uid, // Tutor's ID
-        tutorName: resolveDisplayName(displayUser, user?.email || "Anonymous Tutor"),
-        tutorEmail: displayUser?.email || '',
-        course: activeSession.course,
-        startTime: sessionStartTime,
-        endTime: endTime,
-        duration: sessionDurationRef.current || sessionDuration,
-        completedAt: endTime,
-        status: 'completed'
-      };
+      const elapsed = startedAt
+        ? Math.floor((endTime - startedAt) / 1000)
+        : 0;
+      // Rules require duration > 0
+      const durationSecs = Math.max(1, sessionDurationRef.current || elapsed);
 
-      await addDoc(collection(firestore, "completedSessions"), completedSessionData);
+      const completedRef = doc(firestore, "completedSessions", requestId);
+      const existing = await getDoc(completedRef);
 
-      // Delete the original request from the database
-      await deleteDoc(doc(firestore, "tutoringRequests", activeSession.requestId));
-      
-      // Clear cache to reflect the changes
+      if (!existing.exists()) {
+        await setDoc(completedRef, {
+          studentId: session.studentId,
+          studentName: session.studentName,
+          studentEmail: session.studentEmail || "",
+          tutorId: displayUser?.uid,
+          tutorName: resolveDisplayName(displayUser, user?.email || "Anonymous Tutor"),
+          tutorEmail: displayUser?.email || "",
+          course: session.course,
+          requestId,
+          startTime: startedAt || endTime,
+          endTime,
+          duration: durationSecs,
+          completedAt: endTime,
+          status: "completed",
+        });
+      }
+
+      try {
+        await deleteDoc(doc(firestore, "tutoringRequests", requestId));
+      } catch {
+        // Request may already be gone from a previous end attempt
+      }
+
       MathLabCache.clearAll();
-      invalidateOnDataChange('tutoring_session', 'ended');
-      
-      // Also clear session history cache since we added a new completed session
-      MathLabCache.setSessions([]); // Clear session history cache
+      invalidateOnDataChange("tutoring_session", "ended");
+      MathLabCache.setSessions([]);
 
-      // Set session end data for session over screen
-      // For tutors, show student info
       setSessionEndData({
-        studentName: activeSession.studentName,
-        studentEmail: activeSession.studentEmail,
+        studentName: session.studentName,
+        studentEmail: session.studentEmail,
         tutorName: resolveDisplayName(displayUser, user?.email || "Anonymous Tutor"),
-        tutorEmail: displayUser?.email || '',
-        course: activeSession.course,
-        startTime: sessionStartTime,
-        endTime: endTime,
-        duration: sessionDurationRef.current || sessionDuration
+        tutorEmail: displayUser?.email || "",
+        course: session.course,
+        startTime: startedAt,
+        endTime,
+        duration: durationSecs,
       });
-      setSessionStatus('ended');
-      
-      // Clear active session but keep end data for display
+      setSessionStatus("ended");
       setActiveSession(null);
       setSessionStartTime(null);
       setSessionDuration(0);
     } catch (error) {
-      alert("Failed to end session. Please try again.");
+      // If another click already created the completed doc, finish cleanup instead of erroring
+      if (error?.code === "permission-denied" && requestId) {
+        try {
+          await deleteDoc(doc(firestore, "tutoringRequests", requestId));
+        } catch {
+          /* ignore */
+        }
+        MathLabCache.clearAll();
+        MathLabCache.setSessions([]);
+        setSessionStatus("ended");
+        setActiveSession(null);
+        setSessionStartTime(null);
+        setSessionDuration(0);
+      } else {
+        alert("Failed to end session. Please try again.");
+      }
+    } finally {
+      endingSessionRef.current = false;
+      setIsEndingSession(false);
     }
   };
 
-  // Function for tutors to accept requests
+  // Function for tutors to accept requests (transactional — only one tutor can claim)
   const handleAcceptRequest = async (requestId, studentId, course) => {
     // Check authorization - only tutors and higher can accept requests
     if (!isTutorOrHigher(userData.role, userData.mathLabRole)) {
@@ -805,38 +772,75 @@ function MathLabPageContent() {
       return;
     }
 
+    if (acceptingRequestId) return;
+
     try {
       assertClientRateLimit(
         "tutoringRequestUpdate",
         displayUser?.uid
       );
-      // Find the request details
+
       const request = pendingRequests.find(req => req.id === requestId);
       if (!request) {
-        throw new Error("Request not found");
+        alert("That request is no longer available.");
+        return;
       }
 
-      // Update the request status to accepted
-      await updateDoc(doc(firestore, "tutoringRequests", requestId), {
-        status: 'accepted',
-        tutorId: displayUser?.uid,
-        tutorName: resolveDisplayName(displayUser, user?.email || "Anonymous Tutor"),
-        tutorEmail: displayUser?.email,
-        acceptedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      if (activeSession) {
+        alert("Finish your current session before accepting another request.");
+        return;
+      }
+
+      setAcceptingRequestId(requestId);
+
+      const tutorName = resolveDisplayName(displayUser, user?.email || "Anonymous Tutor");
+      const tutorEmail = displayUser?.email || "";
+      const tutorUid = displayUser?.uid;
+
+      await runTransaction(firestore, async (tx) => {
+        const requestRef = doc(firestore, "tutoringRequests", requestId);
+        const snap = await tx.get(requestRef);
+        if (!snap.exists()) {
+          throw new Error("GONE");
+        }
+        const data = snap.data();
+        if (data.status !== "pending") {
+          throw new Error("TAKEN");
+        }
+        tx.update(requestRef, {
+          status: "accepted",
+          tutorId: tutorUid,
+          tutorName,
+          tutorEmail,
+          acceptedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
       });
 
-      // Set active session for tutor (but not started yet)
+      setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
       setActiveSession({
         requestId,
         studentId: request.studentId,
         studentName: request.studentName,
         studentEmail: request.studentEmail,
-        course: request.course
+        course: request.course,
       });
-      setSessionStatus('accepted');
+      setSessionStatus("accepted");
     } catch (error) {
-      alert("Failed to accept request. Please try again.");
+      if (error?.message === "TAKEN") {
+        alert("Another tutor already accepted this request.");
+        setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
+      } else if (error?.message === "GONE") {
+        alert("That request was cancelled or removed.");
+        setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
+      } else if (error?.code === "permission-denied") {
+        alert("Another tutor already accepted this request.");
+        setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
+      } else {
+        alert("Failed to accept request. Please try again.");
+      }
+    } finally {
+      setAcceptingRequestId(null);
     }
   };
 
@@ -1127,7 +1131,7 @@ function MathLabPageContent() {
     // If session is started, show the same detailed screen as tutor
     if (sessionStatus === 'started') {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <div className="h-dvh max-h-dvh overflow-hidden bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col">
           <DashboardTopBar 
             title="BRHS Math Lab" 
           />
@@ -1135,27 +1139,27 @@ function MathLabPageContent() {
           <MathLabSidebar />
         </Suspense>
 
-          <div className="flex-1 flex items-center justify-center px-4 py-12 ml-0 md:ml-16 pb-16 md:pb-12">
+          <div className="flex-1 min-h-0 flex items-center justify-center px-4 py-6 ml-0 md:ml-16 overflow-hidden">
             <div className="max-w-4xl w-full">
               {/* Session Header */}
-              <div className="text-center mb-12">
-                <div className="inline-flex items-center justify-center w-24 h-24 bg-primary/10 rounded-full mb-6">
-                  <svg className="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-full mb-4">
+                  <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                 </div>
                 
-                <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
                   Tutoring Session Active
                 </h1>
                 
-                <p className="text-xl text-gray-600 max-w-lg mx-auto leading-relaxed">
+                <p className="text-lg md:text-xl text-gray-600 max-w-lg mx-auto leading-relaxed">
                   You are currently being tutored by {studentRequest.tutorName} in {studentRequest.course}
                 </p>
               </div>
 
               {/* Session Info Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 {/* Tutor Info */}
                 <div className="bg-white rounded-2xl border-2 border-primary/20 p-6 text-center">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1487,7 +1491,7 @@ function MathLabPageContent() {
     const isSessionStarted = sessionStatus === 'started';
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="h-dvh max-h-dvh overflow-hidden bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col">
         <DashboardTopBar 
           title="BRHS Math Lab" 
         />
@@ -1495,21 +1499,21 @@ function MathLabPageContent() {
           <MathLabSidebar />
         </Suspense>
 
-        <div className="flex-1 flex items-center justify-center px-4 py-12 ml-0 md:ml-16 pb-16 md:pb-12">
+        <div className="flex-1 min-h-0 flex items-center justify-center px-4 py-6 ml-0 md:ml-16 overflow-hidden">
           <div className="max-w-4xl w-full">
             {/* Session Header */}
-            <div className="text-center mb-12">
-              <div className="inline-flex items-center justify-center w-24 h-24 bg-primary/10 rounded-full mb-6">
-                <svg className="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-full mb-4">
+                <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
               </div>
               
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
                 {isSessionStarted ? 'Tutoring Session Active' : 'Session Ready to Start'}
               </h1>
               
-              <p className="text-xl text-gray-600 max-w-lg mx-auto leading-relaxed">
+              <p className="text-lg md:text-xl text-gray-600 max-w-lg mx-auto leading-relaxed">
                 {isSessionStarted 
                   ? `You are currently tutoring ${activeSession.studentName} in ${activeSession.course}`
                   : `You have accepted ${activeSession.studentName}'s request for ${activeSession.course}. Ready to begin?`
@@ -1518,7 +1522,7 @@ function MathLabPageContent() {
             </div>
 
             {/* Session Info Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               {/* Student Info */}
               <div className="bg-white rounded-2xl border-2 border-primary/20 p-6 text-center">
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1576,14 +1580,16 @@ function MathLabPageContent() {
               {isSessionStarted ? (
                 <>
                   <button
+                    type="button"
                     onClick={handleEndSession}
-                    className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30"
+                    disabled={isEndingSession}
+                    className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 disabled:opacity-60 disabled:pointer-events-none disabled:transform-none"
                   >
                     <div className="flex items-center justify-center">
                       <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
-                      End Session
+                      {isEndingSession ? "Ending…" : "End Session"}
                     </div>
                   </button>
                   
@@ -1644,8 +1650,14 @@ function MathLabPageContent() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center ml-0 md:ml-16 pb-16 md:pb-0" style={{ minHeight: 'calc(100vh - 80px)' }}>
-        {!isGuest && isTutor && !isStudentViewRoute ? (
+      <div
+        className={`flex-1 flex justify-center ml-0 md:ml-16 pb-16 md:pb-8 ${
+          !isGuest && isTutor && !isStudentViewRoute
+            ? "items-start pt-8 md:pt-10"
+            : "items-center"
+        }`}
+        style={{ minHeight: "calc(100vh - 80px)" }}
+      >        {!isGuest && isTutor && !isStudentViewRoute ? (
           // Tutor Dashboard - Redesigned with Horizontal Grid
           <div className="max-w-7xl w-full mx-4">
             {/* Header Section */}
@@ -1729,14 +1741,20 @@ function MathLabPageContent() {
 
                       {/* Action Button */}
                       <button
+                        type="button"
+                        disabled={Boolean(acceptingRequestId) || Boolean(activeSession)}
                         onClick={() => handleAcceptRequest(request.id, request.studentId, request.course)}
-                        className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-primary/25 transform hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-primary/25 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none disabled:transform-none"
                       >
                         <div className="flex items-center justify-center space-x-2">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span>Accept Request</span>
+                          <span>
+                            {acceptingRequestId === request.id
+                              ? "Accepting…"
+                              : "Accept Request"}
+                          </span>
                         </div>
                       </button>
                     </div>
@@ -1745,8 +1763,8 @@ function MathLabPageContent() {
               )}
             </div>
 
-            {/* Active Sessions Section - Only for Admins */}
-            {isAdmin && (
+            {/* Active Sessions Section — tutors and admins (read-only overview) */}
+            {isTutor && (
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-2xl font-bold text-foreground">Active Tutoring Sessions</h3>

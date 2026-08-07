@@ -1,4 +1,9 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
+/**
+ * Client Firebase SDK entry — kept at repo root so Turbopack/webpack
+ * `./keys.dev.js` → `tempkeys.dev.js` aliases in next.config.mjs keep working.
+ * Shared config helpers live in `@/lib/firebase/*`.
+ */
 import {
   getAuth,
   GoogleAuthProvider,
@@ -22,7 +27,7 @@ import { getStorage } from "firebase/storage";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 import { firebaseConfig as devFirebaseConfig, recaptchaSiteKey as devRecaptchaSiteKey } from "./keys.dev.js";
-import { getPublicFirebaseConfig, getRecaptchaSiteKey } from "@/lib/firebaseConfig";
+import { getPublicFirebaseConfig, getRecaptchaSiteKey } from "@/lib/firebase/config";
 
 const isDev = process.env.NODE_ENV === "development";
 /** `npm run preview:local` — production build against c4cdev (keys.dev.js), not code4community26. */

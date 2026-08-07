@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
       <CenteredMain className="py-12">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-8">
-            <Image src="/c4c.png" alt="Code4Community" width={56} height={56} />
+            <Image src="/brand/c4c.png" alt="Code4Community" width={56} height={56} />
           </div>
           <h1 className="text-2xl font-bold text-foreground text-center mb-2">Reset password</h1>
           <p className="text-muted-foreground text-center text-sm mb-8">

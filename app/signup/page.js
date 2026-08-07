@@ -7,7 +7,7 @@ import Image from "next/image";
 import { AppPageLayout, CenteredMain } from "@/components/common/AppPageLayout";
 import FullPageLoading from "@/components/common/FullPageLoading";
 import { useAuth } from "@/utils/AuthContext";
-import { lookupBroadRunName } from "@/lib/broadRunRoster";
+import { lookupBroadRunName } from "@/lib/club-hub/broadRunRoster";
 import { normalizeEmail } from "@/lib/email";
 import {
   auth,
@@ -120,7 +120,7 @@ export default function SignupPage() {
       <CenteredMain className="py-8 min-h-0">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-4">
-            <Image src="/c4c.png" alt="Code4Community" width={48} height={48} />
+            <Image src="/brand/c4c.png" alt="Code4Community" width={48} height={48} />
           </div>
           <h1 className="text-xl font-bold text-foreground text-center mb-1">Get started</h1>
           <p className="text-muted-foreground text-center text-sm mb-5">

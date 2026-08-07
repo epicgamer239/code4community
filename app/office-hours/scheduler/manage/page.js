@@ -2,12 +2,12 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import DashboardTopBar from "@/components/DashboardTopBar";
+import DashboardTopBar from "@/components/layout/DashboardTopBar";
 import OfficeHoursSidebar from "@/components/office-hours/OfficeHoursSidebar";
 import OfficeHoursLoginPrompt from "@/components/office-hours/OfficeHoursLoginPrompt";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import SchedulerManageView from "@/components/mathlab/SchedulerManageView";
-import { OFFICE_HOURS_SCHEDULER } from "@/lib/schedulerConfig";
+import { OFFICE_HOURS_SCHEDULER } from "@/lib/mathlab/schedulerConfig";
 import { useAuth } from "@/utils/AuthContext";
 import { isAdminUser, isTeacherOrAdmin, isTutorOrHigher } from "@/utils/authorization";
 

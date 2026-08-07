@@ -2,9 +2,9 @@
 import { useAuth } from "@/utils/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
-import DashboardTopBar from "@/components/DashboardTopBar";
-import MathLabSidebar from "@/components/MathLabSidebar";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import DashboardTopBar from "@/components/layout/DashboardTopBar";
+import MathLabSidebar from "@/components/mathlab/MathLabSidebar";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { firestore } from "@/firebase";
 import { MathLabCache } from "@/utils/cache";
@@ -13,7 +13,7 @@ import {
   formatIntervalDuration,
 } from "@/lib/firestoreDates";
 import { isAdminUser } from "@/utils/authorization";
-import MathLabLoginPrompt from "@/components/MathLabLoginPrompt";
+import MathLabLoginPrompt from "@/components/mathlab/MathLabLoginPrompt";
 
 function MathLabHistoryPageContent() {
   const { user, userData } = useAuth();
@@ -25,7 +25,6 @@ function MathLabHistoryPageContent() {
 
   const displayUser = userData;
   const userId = user?.uid;
-  const userRole = userData?.mathLabRole || "student";
 
   const fetchSessionHistory = useCallback(async (forceRefresh = false) => {
     if (!userId || !userData) return;
@@ -41,24 +40,63 @@ function MathLabHistoryPageContent() {
       if (!forceRefresh) {
         const cachedHistory = MathLabCache.getSessions();
         if (cachedHistory?.length > 0) {
-          setSessionHistory(cachedHistory.map(hydrateCompletedSession));
-          setIsLoading(false);
-          return;
+          // Cache may be from an older student-only query — only use if it
+          // already includes at least one session where this user was tutor or student.
+          const looksComplete = cachedHistory.some(
+            (s) => s.studentId === userId || s.tutorId === userId,
+          );
+          if (looksComplete) {
+            setSessionHistory(cachedHistory.map(hydrateCompletedSession));
+            setIsLoading(false);
+            return;
+          }
         }
       }
 
-      const sessionsQuery = query(
-        collection(firestore, "completedSessions"),
-        where(userRole === "student" ? "studentId" : "tutorId", "==", userId),
-        limit(50),
-      );
+      // Admins/tutors may have sessions as either role; always load both.
+      const [asStudentSnap, asTutorSnap] = await Promise.all([
+        getDocs(
+          query(
+            collection(firestore, "completedSessions"),
+            where("studentId", "==", userId),
+            limit(50),
+          ),
+        ),
+        getDocs(
+          query(
+            collection(firestore, "completedSessions"),
+            where("tutorId", "==", userId),
+            limit(50),
+          ),
+        ),
+      ]);
 
-      const snapshot = await getDocs(sessionsQuery);
-      const sessions = snapshot.docs.map((docSnap) =>
-        hydrateCompletedSession({ id: docSnap.id, ...docSnap.data() }),
-      );
+      const byId = new Map();
+      for (const snap of [asStudentSnap, asTutorSnap]) {
+        for (const docSnap of snap.docs) {
+          byId.set(
+            docSnap.id,
+            hydrateCompletedSession({ id: docSnap.id, ...docSnap.data() }),
+          );
+        }
+      }
 
-      sessions.sort((a, b) => b.completedAt - a.completedAt);
+      const sessions = [...byId.values()]
+        .sort((a, b) => b.completedAt - a.completedAt)
+        // Collapse near-duplicates from double-clicked "End Session" (same people/course/duration)
+        .filter((session, index, list) => {
+          const t = session.completedAt?.getTime?.() ?? 0;
+          return !list.slice(0, index).some((earlier) => {
+            const et = earlier.completedAt?.getTime?.() ?? 0;
+            return (
+              earlier.tutorId === session.tutorId &&
+              earlier.studentId === session.studentId &&
+              earlier.course === session.course &&
+              earlier.duration === session.duration &&
+              Math.abs(et - t) < 120_000
+            );
+          });
+        });
       MathLabCache.setSessions(sessions);
       setSessionHistory(sessions);
     } catch (err) {
@@ -71,7 +109,7 @@ function MathLabHistoryPageContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [userId, userData, userRole]);
+  }, [userId, userData]);
 
   useEffect(() => {
     if (userData) fetchSessionHistory();
@@ -112,19 +150,20 @@ function MathLabHistoryPageContent() {
     );
   }
 
-  const isTutor = displayUser.mathLabRole === "tutor";
   const isAdmin = userData && user && isAdminUser(userData.role, user.email);
-  const filterOptions = [
-    { id: "all", label: "All Sessions" },
-    { id: "student", label: "As Student" },
-  ];
-  if (isTutor || isAdmin) {
-    filterOptions.push({ id: "tutor", label: "As Tutor" });
-  }
+  // Admins often tutor without mathLabRole === "tutor"
+  const showRoleFilters = isAdmin || displayUser.mathLabRole === "tutor";
+  const filterOptions = showRoleFilters
+    ? [
+        { id: "all", label: "All Sessions" },
+        { id: "student", label: "As Student" },
+        { id: "tutor", label: "As Tutor" },
+      ]
+    : [];
 
   return (
     <div className="min-h-screen bg-background " style={{ overscrollBehavior: "none" }}>
-      <DashboardTopBar title="Math Lab History" />
+      <DashboardTopBar title="BRHS Math Lab" />
       <Suspense fallback={null}>
         <MathLabSidebar />
       </Suspense>
@@ -139,23 +178,25 @@ function MathLabHistoryPageContent() {
               </p>
             </div>
 
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex space-x-1 bg-muted/30 p-1 rounded-lg w-fit">
-                {filterOptions.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setFilter(tab.id)}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                      filter === tab.id
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+            {showRoleFilters ? (
+              <div className="mb-6 flex items-center justify-between">
+                <div className="flex space-x-1 bg-muted/30 p-1 rounded-lg w-fit">
+                  {filterOptions.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setFilter(tab.id)}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                        filter === tab.id
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : null}
 
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
