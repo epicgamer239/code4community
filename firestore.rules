@@ -42,11 +42,66 @@
       }
       
       function isValidCourse(course) {
-        return course in ['Algebra 1', 'Algebra 2', 'Algebra 2 Trig', 'Functions', 'Trig with Adv Alg', 'Geometry'];
+        return course in [
+          // Current Math Lab courses
+          'Precalculus (any level)',
+          'AP Calc AB',
+          'AP Calc BC',
+          'DE Multivariable Calc',
+          // Legacy names (existing requests / completed sessions)
+          'Precalc',
+          'Calc AB',
+          'Calc BC',
+          'Multivariable Calc',
+          'Algebra 1',
+          'Algebra 2',
+          'Algebra 2 Trig',
+          'Functions',
+          'Trig with Adv Alg',
+          'Geometry'
+        ];
       }
       
       function isValidRequestStatus(status) {
         return status in ['pending', 'accepted', 'completed', 'cancelled'];
+      }
+
+      function isValidMathLabRequestType(value) {
+        return value in ['now', 'scheduled'];
+      }
+
+      // 7:00–9:10 /10min + 9:15; 16:20–18:00 /10min
+      function isValidScheduledTime(value) {
+        return value in [
+          '07:00', '07:10', '07:20', '07:30', '07:40', '07:50',
+          '08:00', '08:10', '08:20', '08:30', '08:40', '08:50',
+          '09:00', '09:10', '09:15',
+          '16:20', '16:30', '16:40', '16:50',
+          '17:00', '17:10', '17:20', '17:30', '17:40', '17:50',
+          '18:00'
+        ];
+      }
+
+      function isValidScheduledDate(value) {
+        return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      }
+
+      function mathLabScheduleFieldsValid(data) {
+        return (!('requestType' in data) || isValidMathLabRequestType(data.requestType)) &&
+          (
+            !('requestType' in data) ||
+            data.requestType != 'scheduled' ||
+            (
+              isValidScheduledTime(data.scheduledTime) &&
+              isValidScheduledDate(data.scheduledDate)
+            )
+          );
+      }
+
+      function mathLabScheduleFieldsUnchanged() {
+        return request.resource.data.get('requestType', 'now') == resource.data.get('requestType', 'now') &&
+          request.resource.data.get('scheduledTime', '') == resource.data.get('scheduledTime', '') &&
+          request.resource.data.get('scheduledDate', '') == resource.data.get('scheduledDate', '');
       }
       
       function isAdminByEmail() {
@@ -93,6 +148,12 @@
         return ('writingCenterRole' in data && data.writingCenterRole is string)
           ? data.writingCenterRole
           : '';
+      }
+
+      function studyHallBlocksValue(data) {
+        return ('studyHallBlocks' in data && data.studyHallBlocks is list)
+          ? data.studyHallBlocks
+          : [];
       }
 
       function pendingTeamDocPath(email) {
@@ -142,7 +203,8 @@
               (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.mathLabRole == 'tutor' ||
                 get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' ||
                 get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-                isAdminByEmail());
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
+                isAnyAdmin());
       }
 
       function canReadTutoringRequest() {
@@ -168,9 +230,10 @@
       
       // Helper function to check if user is teacher or admin
       function isTeacherOrAdmin() {
-        return isAuthenticated() && 
+        return isAnyAdmin() ||
+              (isAuthenticated() && 
               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['teacher', 'admin'];
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['teacher', 'admin', 'ADMIN', 'TEACHER']);
       }
       
       // Users collection - Contains user profile data
@@ -240,6 +303,8 @@
                           (isAdminByEmail() || request.resource.data.role == resource.data.role) &&
                           // writingCenterRole is admin-managed only (owners cannot self-grant)
                           writingCenterRoleValue(request.resource.data) == writingCenterRoleValue(resource.data) &&
+                          // studyHallBlocks is admin-managed only
+                          studyHallBlocksValue(request.resource.data) == studyHallBlocksValue(resource.data) &&
                           // Validate optional fields if present
                           (!('mathLabRole' in request.resource.data) || 
                             (request.resource.data.mathLabRole is string && 
@@ -281,6 +346,7 @@
                         request.resource.data.status == 'pending' &&
                         request.resource.data.createdAt is timestamp &&
                         request.resource.data.updatedAt is timestamp &&
+                        mathLabScheduleFieldsValid(request.resource.data) &&
                         // Validate optional fields if present
                         (!('tutorId' in request.resource.data) || 
                         (request.resource.data.tutorId is string && 
@@ -311,7 +377,8 @@
                           request.resource.data.description is string &&
                           request.resource.data.description.size() > 0 &&
                           request.resource.data.description.size() <= 1000 &&
-                          request.resource.data.updatedAt is timestamp) ||
+                          request.resource.data.updatedAt is timestamp &&
+                          mathLabScheduleFieldsUnchanged()) ||
                           // Tutors can update pending requests (to accept them)
                           (isTutor() && 
                           resource.data.status == 'pending' &&
@@ -323,6 +390,7 @@
                           request.resource.data.description == resource.data.description &&
                           request.resource.data.createdAt == resource.data.createdAt &&
                           request.resource.data.updatedAt is timestamp &&
+                          mathLabScheduleFieldsUnchanged() &&
                           // Validate new fields for accepted status
                           request.resource.data.tutorId is string &&
                           request.resource.data.tutorId == request.auth.uid &&
@@ -340,9 +408,9 @@
                           request.resource.data.tutorId == resource.data.tutorId &&
                           request.resource.data.studentId == resource.data.studentId &&
                           request.resource.data.course == resource.data.course &&
-                          request.resource.data.description == resource.data.description &&
                           request.resource.data.createdAt == resource.data.createdAt &&
                           request.resource.data.updatedAt is timestamp &&
+                          mathLabScheduleFieldsUnchanged() &&
                           // Validate optional fields
                           (!('acceptedAt' in request.resource.data) || 
                             (request.resource.data.acceptedAt is timestamp)) &&
@@ -353,7 +421,7 @@
                           // Teachers and admins can update any request
                           isTeacherOrAdmin() ||
                           // Admins can update any request
-                          isAdminByEmail()
+                          isAnyAdmin()
                         );
         
         // Allow delete: 
@@ -369,8 +437,7 @@
                           resource.data.tutorId == request.auth.uid) ||
                           // Teachers and admins can delete any request
                           isTeacherOrAdmin() ||
-                          // Admins can delete any request
-                          isAdminByEmail()
+                          isAnyAdmin()
                         );
       }
       
@@ -427,7 +494,7 @@
         allow update: if isTeacherOrAdmin() || isAdminByEmail();
         
         // Allow delete: Only teachers/admins can delete completed sessions
-        allow delete: if isTeacherOrAdmin() || isAdminByEmail();
+        allow delete: if isTeacherOrAdmin() || isAnyAdmin();
       }
 
       // Pre-signup tutor/admin grants (document id = normalized email)
@@ -665,6 +732,14 @@
         return blockId is int && blockId >= 1 && blockId <= 8;
       }
 
+      // Empty / missing studyHallBlocks = unrestricted (legacy). Otherwise block must be listed.
+      function studentMayClaimLibraryBlock(blockId) {
+        let allowed = studyHallBlocksValue(
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        );
+        return allowed.size() == 0 || blockId in allowed;
+      }
+
       function libraryPassSettingsData() {
         return get(/databases/$(database)/documents/libraryPassSettings/config).data;
       }
@@ -701,6 +776,7 @@
                         request.resource.data.date is string &&
                         request.resource.data.date.size() == 10 &&
                         isValidLibraryBlockId(request.resource.data.blockId) &&
+                        studentMayClaimLibraryBlock(request.resource.data.blockId) &&
                         request.resource.data.studentName is string &&
                         request.resource.data.studentName.size() > 0 &&
                         request.resource.data.studentName.size() <= 100 &&

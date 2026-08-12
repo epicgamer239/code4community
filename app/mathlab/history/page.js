@@ -11,6 +11,7 @@ import { MathLabCache } from "@/utils/cache";
 import {
   hydrateCompletedSession,
   formatIntervalDuration,
+  firestoreToDate,
 } from "@/lib/firestoreDates";
 import { isAdminUser } from "@/utils/authorization";
 import MathLabLoginPrompt from "@/components/mathlab/MathLabLoginPrompt";
@@ -37,51 +38,56 @@ function MathLabHistoryPageContent() {
     }
 
     try {
-      if (!forceRefresh) {
-        const cachedHistory = MathLabCache.getSessions();
-        if (cachedHistory?.length > 0) {
-          // Cache may be from an older student-only query — only use if it
-          // already includes at least one session where this user was tutor or student.
-          const looksComplete = cachedHistory.some(
-            (s) => s.studentId === userId || s.tutorId === userId,
-          );
-          if (looksComplete) {
-            setSessionHistory(cachedHistory.map(hydrateCompletedSession));
-            setIsLoading(false);
-            return;
-          }
-        }
-      }
-
       // Admins/tutors may have sessions as either role; always load both.
-      const [asStudentSnap, asTutorSnap] = await Promise.all([
-        getDocs(
-          query(
-            collection(firestore, "completedSessions"),
-            where("studentId", "==", userId),
-            limit(50),
+      const [asStudentSnap, asTutorSnap, activeAsStudentSnap, activeAsTutorSnap] =
+        await Promise.all([
+          getDocs(
+            query(
+              collection(firestore, "completedSessions"),
+              where("studentId", "==", userId),
+              limit(50),
+            ),
           ),
-        ),
-        getDocs(
-          query(
-            collection(firestore, "completedSessions"),
-            where("tutorId", "==", userId),
-            limit(50),
+          getDocs(
+            query(
+              collection(firestore, "completedSessions"),
+              where("tutorId", "==", userId),
+              limit(50),
+            ),
           ),
-        ),
-      ]);
+          getDocs(
+            query(
+              collection(firestore, "tutoringRequests"),
+              where("studentId", "==", userId),
+              where("status", "==", "accepted"),
+              limit(20),
+            ),
+          ),
+          getDocs(
+            query(
+              collection(firestore, "tutoringRequests"),
+              where("tutorId", "==", userId),
+              where("status", "==", "accepted"),
+              limit(20),
+            ),
+          ),
+        ]);
 
       const byId = new Map();
       for (const snap of [asStudentSnap, asTutorSnap]) {
         for (const docSnap of snap.docs) {
           byId.set(
             docSnap.id,
-            hydrateCompletedSession({ id: docSnap.id, ...docSnap.data() }),
+            hydrateCompletedSession({
+              id: docSnap.id,
+              ...docSnap.data(),
+              kind: "completed",
+            }),
           );
         }
       }
 
-      const sessions = [...byId.values()]
+      const completed = [...byId.values()]
         .sort((a, b) => b.completedAt - a.completedAt)
         // Collapse near-duplicates from double-clicked "End Session" (same people/course/duration)
         .filter((session, index, list) => {
@@ -97,7 +103,37 @@ function MathLabHistoryPageContent() {
             );
           });
         });
-      MathLabCache.setSessions(sessions);
+
+      const activeById = new Map();
+      for (const snap of [activeAsStudentSnap, activeAsTutorSnap]) {
+        for (const docSnap of snap.docs) {
+          const data = docSnap.data();
+          const startedAt =
+            firestoreToDate(data.sessionStartedAt) ||
+            firestoreToDate(data.acceptedAt) ||
+            firestoreToDate(data.createdAt) ||
+            new Date();
+          activeById.set(docSnap.id, {
+            id: `active-${docSnap.id}`,
+            kind: "in_progress",
+            course: data.course || "Math",
+            studentId: data.studentId,
+            studentName: data.studentName || "Student",
+            tutorId: data.tutorId,
+            tutorName: data.tutorName || "Tutor",
+            startTime: startedAt,
+            endTime: startedAt,
+            completedAt: startedAt,
+            duration: 0,
+          });
+        }
+      }
+
+      const sessions = [...activeById.values(), ...completed].sort(
+        (a, b) => (b.completedAt?.getTime?.() || 0) - (a.completedAt?.getTime?.() || 0),
+      );
+
+      MathLabCache.setSessions(completed);
       setSessionHistory(sessions);
     } catch (err) {
       if (err.code === "failed-precondition" || err.message?.includes("index")) {
@@ -236,53 +272,61 @@ function MathLabHistoryPageContent() {
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredSessions.map((session) => (
-                  <div key={session.id} className="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground">{session.course}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {session.studentName} {session.tutorName && `• ${session.tutorName}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-foreground">
-                          {formatIntervalDuration(session.startTime, session.endTime)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {session.completedAt.toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
+                {filteredSessions.map((session) => {
+                  const inProgress = session.kind === "in_progress";
+                  const iAmTutor = session.tutorId === userId;
+                  const iAmStudent = session.studentId === userId;
+                  const peopleLine = iAmTutor
+                    ? `Tutee: ${session.studentName || "Student"}`
+                    : iAmStudent
+                      ? `Tutor: ${session.tutorName || "Tutor"}`
+                      : `${session.studentName || "Student"}${session.tutorName ? ` • ${session.tutorName}` : ""}`;
 
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <div className="flex items-center space-x-4">
-                        <span className="flex items-center">
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {session.completedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                        <span className="flex items-center">
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Completed
-                        </span>
+                  return (
+                    <div key={session.id} className="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                            <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-foreground">{session.course}</h3>
+                            <p className="text-sm text-muted-foreground">{peopleLine}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-foreground">
+                            {inProgress
+                              ? "—"
+                              : formatIntervalDuration(session.startTime, session.endTime)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {session.completedAt.toLocaleDateString()}
+                          </div>
+                        </div>
                       </div>
-                      <div className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                        Success
+
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center space-x-4">
+                          <span className="flex items-center">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {session.completedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          <span className="flex items-center">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {inProgress ? "In progress" : "Completed"}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

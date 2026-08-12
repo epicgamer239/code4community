@@ -12,6 +12,7 @@ import {
   LIBRARY_PASS_FIRST_YMD,
   LIBRARY_PASS_LAST_YMD,
   resolveDayType,
+  studentCanUseLibraryBlock,
   toYmd,
 } from "@/lib/library-pass/libraryPass";
 import {
@@ -168,8 +169,13 @@ export default function StudentDashboard() {
           const full = used >= capacity;
           const isMyBlock =
             hasAnyPass && Number(myPass.blockId) === block.id;
+          const allowedForStudyHall = studentCanUseLibraryBlock(userData, block.id);
           const disabled =
-            !passesOpen || full || hasAnyPass || busyBlock === block.id;
+            !passesOpen ||
+            full ||
+            hasAnyPass ||
+            busyBlock === block.id ||
+            !allowedForStudyHall;
 
           return (
             <div
@@ -182,6 +188,9 @@ export default function StudentDashboard() {
                   <p className="text-sm text-gray-500 mt-1">
                     {used} / {capacity} passes taken
                   </p>
+                  {!allowedForStudyHall && (
+                    <p className="text-xs text-amber-700 mt-1">Not your study hall block</p>
+                  )}
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -201,7 +210,9 @@ export default function StudentDashboard() {
               >
                 {isMyBlock
                   ? "Pass held"
-                  : hasAnyPass
+                  : !allowedForStudyHall
+                    ? "Study hall only"
+                    : hasAnyPass
                     ? "One pass at a time"
                     : busyBlock === block.id
                       ? "Getting pass…"

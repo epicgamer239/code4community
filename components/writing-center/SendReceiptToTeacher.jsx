@@ -146,7 +146,6 @@ export function SendReceiptToTeacherButton({
                       return (
                         <option key={t.id} value={t.id}>
                           {resolveDisplayName(t)}
-                          {t.email ? ` (${t.email})` : ""}
                           {sent ? " — already sent" : ""}
                         </option>
                       );

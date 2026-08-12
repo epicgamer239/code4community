@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   collection,
   getDocs,
@@ -27,13 +27,34 @@ import {
   pendingTeamDocId,
 } from "@/lib/mathlab/teamPending";
 import {
+  MATHLAB_COURSES,
+  normalizeEligibleCourses,
+  eligibleCoursesLabel,
+} from "@/lib/mathlab/courses";
+import {
+  LIBRARY_PASS_BLOCKS,
+  normalizeStudyHallBlocks,
+} from "@/lib/library-pass/libraryPass";
+import {
   TUTOR_SERVICE,
   TUTOR_SERVICE_OPTIONS,
   normalizeTutorServices,
   tutorServicesLabel,
   tutorServiceProfileUpdate,
   hasAnyTutorService,
+  hasMathLabTutorAccess,
 } from "@/lib/tutorServices";
+import MathLabSuperModePanel from "@/components/mathlab/MathLabSuperModePanel";
+
+/** Single study hall block (1–8), or null if unset. */
+function normalizeStudyHallBlock(value) {
+  if (Array.isArray(value)) {
+    return normalizeStudyHallBlocks(value)[0] ?? null;
+  }
+  const id = Number(value);
+  if (!Number.isInteger(id) || id < 1 || id > 8) return null;
+  return id;
+}
 
 function ServiceBadges({ services }) {
   const labels = TUTOR_SERVICE_OPTIONS.filter((o) => (services || []).includes(o.id));
@@ -109,6 +130,20 @@ export default function MathLabAdminDashboard() {
   const [teachers, setTeachers] = useState([]);
   const [tutors, setTutors] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const [adminTab, setAdminTab] = useState("team"); // team | courses | super
+  const [courseDrafts, setCourseDrafts] = useState({}); // userId -> string[]
+  const [courseBaseline, setCourseBaseline] = useState({}); // last saved
+  const [studyHallDrafts, setStudyHallDrafts] = useState({}); // userId -> number|null
+  const [studyHallBaseline, setStudyHallBaseline] = useState({}); // last saved
+  const [savingCourses, setSavingCourses] = useState(false);
+
+  const canUseSuperMode = isProtectedAdminEmail(authUser?.email);
+
+  useEffect(() => {
+    if (!canUseSuperMode && adminTab === "super") {
+      setAdminTab("team");
+    }
+  }, [canUseSuperMode, adminTab]);
 
   const toggleTutorService = (serviceId) => {
     setTutorServices((prev) => {
@@ -164,6 +199,20 @@ export default function MathLabAdminDashboard() {
       setAppointedAdmins(parts.appointedAdmins);
       setTeachers(parts.teachers);
       setTutors(parts.tutors);
+      const drafts = {};
+      const hallDrafts = {};
+      for (const tutor of parts.tutors) {
+        if (tutor.pending) continue;
+        if (!hasMathLabTutorAccess(tutor) && !(tutor.services || []).includes(TUTOR_SERVICE.MATH_LAB)) {
+          continue;
+        }
+        drafts[tutor.id] = normalizeEligibleCourses(tutor.mathLabEligibleCourses);
+        hallDrafts[tutor.id] = normalizeStudyHallBlock(tutor.studyHallBlocks);
+      }
+      setCourseDrafts(drafts);
+      setCourseBaseline(drafts);
+      setStudyHallDrafts(hallDrafts);
+      setStudyHallBaseline(hallDrafts);
     } catch (err) {
       setError(err.message || "Failed to load team list.");
     } finally {
@@ -366,6 +415,132 @@ export default function MathLabAdminDashboard() {
     }
   };
 
+  const mathLabTutors = tutors.filter(
+    (t) =>
+      !t.pending &&
+      (hasMathLabTutorAccess(t) || (t.services || []).includes(TUTOR_SERVICE.MATH_LAB)),
+  );
+
+  const coursesDirty = useMemo(() => {
+    const ids = new Set([
+      ...Object.keys(courseDrafts),
+      ...Object.keys(courseBaseline),
+    ]);
+    for (const id of ids) {
+      const a = normalizeEligibleCourses(courseDrafts[id]).slice().sort().join("\0");
+      const b = normalizeEligibleCourses(courseBaseline[id]).slice().sort().join("\0");
+      if (a !== b) return true;
+    }
+    return false;
+  }, [courseDrafts, courseBaseline]);
+
+  const studyHallDirty = useMemo(() => {
+    const ids = new Set([
+      ...Object.keys(studyHallDrafts),
+      ...Object.keys(studyHallBaseline),
+    ]);
+    for (const id of ids) {
+      if (normalizeStudyHallBlock(studyHallDrafts[id]) !== normalizeStudyHallBlock(studyHallBaseline[id])) {
+        return true;
+      }
+    }
+    return false;
+  }, [studyHallDrafts, studyHallBaseline]);
+
+  const eligibilityDirty = coursesDirty || studyHallDirty;
+
+  const toggleCourseDraft = (tutorId, course) => {
+    setCourseDrafts((prev) => {
+      const current = normalizeEligibleCourses(prev[tutorId]);
+      const next = current.includes(course)
+        ? current.filter((c) => c !== course)
+        : [...current, course];
+      return { ...prev, [tutorId]: next };
+    });
+  };
+
+  const setStudyHallDraft = (tutorId, blockId) => {
+    setStudyHallDrafts((prev) => ({
+      ...prev,
+      [tutorId]: normalizeStudyHallBlock(blockId),
+    }));
+  };
+
+  const confirmLeaveCourses = () => {
+    if (!eligibilityDirty) return true;
+    return window.confirm(
+      "You have unsaved eligibility changes. Are you sure you want to leave without saving?",
+    );
+  };
+
+  const switchAdminTab = (tab) => {
+    if (tab === adminTab) return;
+    if (tab === "super" && !canUseSuperMode) return;
+    if (adminTab === "courses" && tab !== "courses" && !confirmLeaveCourses()) return;
+    setAdminTab(tab);
+  };
+
+  useEffect(() => {
+    if (!eligibilityDirty || adminTab !== "courses") return undefined;
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [eligibilityDirty, adminTab]);
+
+  const saveAllEligibility = async () => {
+    setMessage("");
+    setError("");
+    if (!eligibilityDirty) {
+      setMessage("No changes to save.");
+      return;
+    }
+    setSavingCourses(true);
+    try {
+      assertClientRateLimit("profileWrite", authUser?.uid);
+      const ids = mathLabTutors.map((t) => t.id);
+      const dirtyIds = ids.filter((id) => {
+        const coursesChanged =
+          normalizeEligibleCourses(courseDrafts[id]).slice().sort().join("\0") !==
+          normalizeEligibleCourses(courseBaseline[id]).slice().sort().join("\0");
+        const hallChanged =
+          normalizeStudyHallBlock(studyHallDrafts[id]) !==
+          normalizeStudyHallBlock(studyHallBaseline[id]);
+        return coursesChanged || hallChanged;
+      });
+      await Promise.all(
+        dirtyIds.map((id) => {
+          const payload = { updatedAt: serverTimestamp() };
+          if (
+            normalizeEligibleCourses(courseDrafts[id]).slice().sort().join("\0") !==
+            normalizeEligibleCourses(courseBaseline[id]).slice().sort().join("\0")
+          ) {
+            payload.mathLabEligibleCourses = normalizeEligibleCourses(courseDrafts[id]);
+          }
+          if (
+            normalizeStudyHallBlock(studyHallDrafts[id]) !==
+            normalizeStudyHallBlock(studyHallBaseline[id])
+          ) {
+            const block = normalizeStudyHallBlock(studyHallDrafts[id]);
+            payload.studyHallBlocks = block == null ? [] : [block];
+          }
+          return updateDoc(doc(firestore, "users", id), payload);
+        }),
+      );
+      for (const id of dirtyIds) {
+        window.dispatchEvent(new CustomEvent("userRoleChanged", { detail: { userId: id } }));
+      }
+      setMessage("Saved eligibility changes.");
+      await loadTeam();
+    } catch (err) {
+      setError(err.message || "Failed to save eligibility changes.");
+    } finally {
+      setSavingCourses(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -379,10 +554,153 @@ export default function MathLabAdminDashboard() {
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
         <p className="text-muted-foreground">
-          Add or remove tutors, teachers, and appointed admins. Built-in admins cannot be changed here.
+          Manage the Math Lab team and which courses each tutor can take.
         </p>
       </div>
 
+      <div className="flex flex-wrap space-x-1 bg-muted/30 p-1 rounded-lg w-fit">
+        <button
+          type="button"
+          onClick={() => switchAdminTab("team")}
+          className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+            adminTab === "team"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Team
+        </button>
+        <button
+          type="button"
+          onClick={() => switchAdminTab("courses")}
+          className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+            adminTab === "courses"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Course eligibility
+        </button>
+        {canUseSuperMode && (
+          <button
+            type="button"
+            onClick={() => switchAdminTab("super")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              adminTab === "super"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Super mode
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+      {message && (
+        <p className="text-sm text-green-700 dark:text-green-400" role="status">
+          {message}
+        </p>
+      )}
+
+      {adminTab === "super" && canUseSuperMode ? (
+        <MathLabSuperModePanel authUid={authUser?.uid} />
+      ) : adminTab === "courses" ? (
+        <div className="space-y-4">
+          <div className="card-elevated p-6 rounded-xl">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground mb-1">
+                  Tutor course eligibility
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Choose which courses each Math Lab tutor can accept. Leave all unchecked for every
+                  course (default). Set study hall for Library Pass.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={savingCourses || !eligibilityDirty || mathLabTutors.length === 0}
+                onClick={() => void saveAllEligibility()}
+                className="shrink-0 px-5 py-2.5 bg-foreground text-background font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
+              >
+                {savingCourses ? "Saving…" : "Save"}
+              </button>
+            </div>
+            {mathLabTutors.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No Math Lab tutors to configure yet.</p>
+            ) : (
+              <ul className="space-y-5">
+                {mathLabTutors.map((tutor) => {
+                  const selected = normalizeEligibleCourses(courseDrafts[tutor.id]);
+                  const studyHall = normalizeStudyHallBlock(studyHallDrafts[tutor.id]);
+                  return (
+                    <li
+                      key={tutor.id}
+                      className="rounded-lg border border-border p-4 space-y-3"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate">
+                            {tutor.displayName || tutor.email || "Tutor"}
+                          </p>
+                          <p className="text-sm text-muted-foreground truncate">{tutor.email}</p>
+                        </div>
+                        <label className="flex items-center gap-2 shrink-0 text-sm text-foreground">
+                          <span className="text-muted-foreground whitespace-nowrap">Study hall:</span>
+                          <select
+                            className="select"
+                            value={studyHall ?? ""}
+                            onChange={(e) =>
+                              setStudyHallDraft(
+                                tutor.id,
+                                e.target.value === "" ? null : Number(e.target.value),
+                              )
+                            }
+                            aria-label={`Study hall block for ${tutor.displayName || tutor.email || "tutor"}`}
+                          >
+                            <option value="">Not set</option>
+                            {LIBRARY_PASS_BLOCKS.map((block) => (
+                              <option key={block.id} value={block.id}>
+                                {block.label} ({block.dayType} day)
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {MATHLAB_COURSES.map((course) => {
+                          const checked = selected.includes(course);
+                          return (
+                            <button
+                              key={course}
+                              type="button"
+                              aria-pressed={checked}
+                              onClick={() => toggleCourseDraft(tutor.id, course)}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                                checked
+                                  ? "bg-foreground text-background border-foreground"
+                                  : "bg-background text-foreground border-border hover:bg-muted"
+                              }`}
+                            >
+                              {course}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
       <form onSubmit={handleAdd} className="card-elevated p-6 rounded-xl space-y-4">
         <h2 className="text-lg font-semibold text-foreground">Add team member</h2>
         <p className="text-sm text-muted-foreground">
@@ -445,17 +763,6 @@ export default function MathLabAdminDashboard() {
           </fieldset>
         )}
       </form>
-
-      {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      )}
-      {message && (
-        <p className="text-sm text-green-700 dark:text-green-400" role="status">
-          {message}
-        </p>
-      )}
 
       <section className="card-elevated rounded-xl overflow-hidden">
         <h2 className="text-lg font-semibold text-foreground px-6 pt-6 pb-2">Built-in admins</h2>
@@ -544,7 +851,7 @@ export default function MathLabAdminDashboard() {
                 subtitle={
                   user.pending
                     ? `Has not signed up yet${user.services?.length ? ` · ${tutorServicesLabel(user.services)}` : ""}`
-                    : undefined
+                    : eligibleCoursesLabel(user.mathLabEligibleCourses)
                 }
                 onRemove={() => removeTutor(user)}
                 removeLabel="Remove"
@@ -554,6 +861,8 @@ export default function MathLabAdminDashboard() {
           )}
         </ul>
       </section>
+        </>
+      )}
     </div>
   );
 }
