@@ -37,7 +37,12 @@ steps:
       - -c
       - |
         set -euo pipefail
-        npx -y firebase-tools@latest deploy --only hosting --project code4community26 --non-interactive
+        if command -v npx >/dev/null 2>&1 && npx -y firebase-tools@latest deploy --only hosting --project code4community26 --non-interactive; then
+          echo "Hosting deployed via firebase CLI"
+        else
+          echo "Firebase CLI unavailable — using Hosting REST API"
+          bash scripts/deploy-hosting-rest.sh
+        fi
 
 options:
   logging: CLOUD_LOGGING_ONLY
