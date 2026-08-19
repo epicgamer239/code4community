@@ -4,7 +4,7 @@ Students submit **async** help requests through the club Google Form. Tutors sti
 
 ## Form
 
-https://docs.google.com/forms/d/e/1FAIpQLScQJ_8c3mRYa1HKmGuViEkuRaOayLAbyPJlHt64LrAAIRws8A/viewform
+https://docs.google.com/forms/d/e/1FAIpQLSexnk7JBt-4KZfoAkl4EOBFHhZ05U-WGNlBH9Z9czOE3RVnCg/viewform
 
 The form should collect at least:
 

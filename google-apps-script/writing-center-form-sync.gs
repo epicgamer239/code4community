@@ -289,7 +289,7 @@ function authorizeFormsApiAccess() {
 }
 
 function pickEmailFromFields_(fields) {
-  var keys = ["email", "email address", "lcps email", "your email", "student email", "school email"];
+  var keys = ["lcps email", "school email", "student email", "email address", "your email", "email"];
   for (var i = 0; i < keys.length; i++) {
     for (var title in fields) {
       if (!fields.hasOwnProperty(title)) continue;
