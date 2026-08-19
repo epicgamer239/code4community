@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Lato } from "next/font/google";
 import { AppPageLayout } from "@/components/common/AppPageLayout";
 import AboutTeamSection from "@/components/about/AboutTeamSection";
-import { ABOUT_HERO_IMAGE, leadership, members } from "@/lib/aboutTeam";
+import { ABOUT_HERO_IMAGE, leadership, activeMembers } from "@/lib/aboutTeam";
 
 const lato = Lato({
   subsets: ["latin"],
@@ -110,7 +110,7 @@ export default function AboutPageContent() {
         </div>
       </div>
 
-      <AboutTeamSection leadership={leadership} members={members} />
+      <AboutTeamSection leadership={leadership} members={activeMembers} />
     </AppPageLayout>
   );
 }

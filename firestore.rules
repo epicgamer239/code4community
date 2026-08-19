@@ -550,12 +550,38 @@
           request.resource.data.subject is string &&
           request.resource.data.subject.size() > 0 &&
           request.resource.data.notes is string &&
+          request.resource.data.tutorIds is list &&
+          request.resource.data.tutorIds.size() > 0 &&
+          request.resource.data.tutorIds.size() <= 30 &&
           request.resource.data.tutorId is string &&
           request.resource.data.tutorId.size() > 0 &&
           request.resource.data.tutorName is string &&
           request.resource.data.tutorName.size() > 0 &&
+          request.resource.data.teacherId is string &&
+          request.resource.data.teacherId.size() > 0 &&
+          request.resource.data.teacherName is string &&
+          request.resource.data.teacherName.size() > 0 &&
           isWritingCenterTimestamp(request.resource.data.createdAt) &&
           isWritingCenterTimestamp(request.resource.data.updatedAt);
+      }
+
+      function isMiniLessonOverseeingTeacher() {
+        return isAuthenticated() &&
+          resource.data.sessionType == 'MINI_LESSON' &&
+          resource.data.teacherId == request.auth.uid;
+      }
+
+      function isMiniLessonTeacherReportUpdate() {
+        return isMiniLessonOverseeingTeacher() &&
+          request.resource.data.sessionType == resource.data.sessionType &&
+          request.resource.data.teacherId == resource.data.teacherId &&
+          request.resource.data.tutorId == resource.data.tutorId &&
+          request.resource.data.tutorIds == resource.data.tutorIds &&
+          request.resource.data.status == resource.data.status &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'sessionReportUrl', 'sessionReportStoragePath', 'sessionReportFileName',
+            'sessionReportUploadedAt', 'sessionReportUploadedBy', 'updatedAt'
+          ]);
       }
 
       function isValidWritingCenterStatus(s) {
@@ -576,6 +602,9 @@
         allow read: if isAuthenticated() && (
                         resource.data.studentId == request.auth.uid ||
                         resource.data.tutorId == request.auth.uid ||
+                        (resource.data.tutorIds is list &&
+                          request.auth.uid in resource.data.tutorIds) ||
+                        resource.data.teacherId == request.auth.uid ||
                         resource.data.status == 'PENDING' ||
                         isWritingCenterTutor() ||
                         isAnyAdmin()
@@ -603,10 +632,12 @@
                           (resource.data.studentId == request.auth.uid &&
                             request.resource.data.studentId == resource.data.studentId) ||
                           (resource.data.tutorId == request.auth.uid &&
-                            request.resource.data.tutorId == resource.data.tutorId) ||
+                            request.resource.data.tutorId == resource.data.tutorId &&
+                            resource.data.sessionType != 'MINI_LESSON') ||
                           (isWritingCenterTutor() &&
                             resource.data.status == 'PENDING' &&
                             request.resource.data.tutorId == request.auth.uid) ||
+                          isMiniLessonTeacherReportUpdate() ||
                           isAnyAdmin()
                         );
 

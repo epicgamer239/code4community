@@ -17,7 +17,7 @@ import {
   WC_LIVE_STATUSES,
 } from "@/lib/writing-center/sessionQueries";
 import { useWritingCenterLiveSessions } from "@/lib/writing-center/useLiveSessions";
-import { isMiniLessonSession } from "@/lib/writing-center/miniLesson";
+import { isMiniLessonSession, miniLessonIncludesTutor } from "@/lib/writing-center/miniLesson";
 import { assertClientRateLimit } from "@/utils/clientRateLimit";
 import { WritingCenterCache } from "@/utils/cache";
 import { hydrateLiveList } from "@/utils/liveFirestoreCache";
@@ -242,7 +242,7 @@ export default function TutorDashboard({ preview = false, asUser = null }) {
   );
   const mySessions = sessions.filter(
     (s) =>
-      s.tutorId === user?.uid &&
+      (s.tutorId === user?.uid || miniLessonIncludesTutor(s, user?.uid)) &&
       (s.status === "ACCEPTED" || s.status === "COMPLETED" || s.status === "IN_PROGRESS"),
   );
 
@@ -257,7 +257,9 @@ export default function TutorDashboard({ preview = false, asUser = null }) {
 
   const renderActions = (session) => {
     if (preview) return null;
-    const isMine = session.tutorId === user?.uid;
+    const isMine =
+      session.tutorId === user?.uid ||
+      miniLessonIncludesTutor(session, user?.uid);
 
     if (isMiniLessonSession(session)) {
       return null;

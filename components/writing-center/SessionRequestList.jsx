@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment } from "react";
-import { formatSessionDate, sortSessionsNewestFirst } from "@/lib/firestoreDates";
+import { formatWritingCenterSessionDateTime, sortSessionsNewestFirst } from "@/lib/firestoreDates";
 import { getGoogleFormResponseUrl } from "@/lib/writing-center/form";
 
 function getStatusColor(status) {
@@ -52,6 +52,11 @@ function tutorDisplayName(session) {
   return name || "Not assigned";
 }
 
+function overseeingTeacherDisplayName(session) {
+  const name = session.teacherName?.trim();
+  return name || "Not assigned";
+}
+
 function StatusPill({ status }) {
   return (
     <span
@@ -77,6 +82,17 @@ export function SessionRequestList({
   emptyMessage = "No sessions found",
   showStudent = true,
   showTutor = true,
+  showOverseeingTeacher = false,
+  showStatus = true,
+  showType = true,
+  studentHeader = "Student",
+  tutorHeader = "Tutor",
+  overseeingTeacherHeader = "Teacher",
+  dateHeader = "Date/time",
+  actionsHeader = "Actions",
+  formatStudent,
+  formatTutor,
+  formatDate,
   renderActions,
   expandedSessionId,
   onToggleExpand,
@@ -96,7 +112,10 @@ export function SessionRequestList({
   const colCount =
     (showStudent ? 1 : 0) +
     (showTutor ? 1 : 0) +
-    3 +
+    (showOverseeingTeacher ? 1 : 0) +
+    (showStatus ? 1 : 0) +
+    (showType ? 1 : 0) +
+    1 +
     (showActionsCol ? 1 : 0);
 
   return (
@@ -105,17 +124,24 @@ export function SessionRequestList({
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
             {showStudent && (
-              <th className="px-3 py-2.5 font-semibold w-[18%]">Student</th>
+              <th className="px-3 py-2.5 font-semibold w-[18%]">{studentHeader}</th>
             )}
             {showTutor && (
-              <th className="px-3 py-2.5 font-semibold w-[18%]">Tutor</th>
+              <th className="px-3 py-2.5 font-semibold w-[18%]">{tutorHeader}</th>
             )}
-            <th className="px-3 py-2.5 font-semibold w-[7.5rem]">Status</th>
-            <th className="px-3 py-2.5 font-semibold w-[7rem]">Type</th>
-            <th className="px-3 py-2.5 font-semibold w-[11rem]">Date/time</th>
+            {showOverseeingTeacher && (
+              <th className="px-3 py-2.5 font-semibold w-[18%]">{overseeingTeacherHeader}</th>
+            )}
+            {showStatus && (
+              <th className="px-3 py-2.5 font-semibold w-[7.5rem]">Status</th>
+            )}
+            {showType && (
+              <th className="px-3 py-2.5 font-semibold w-[7rem]">Type</th>
+            )}
+            <th className="px-3 py-2.5 font-semibold w-[13.5rem] shrink-0">{dateHeader}</th>
             {showActionsCol && (
               <th className="px-3 py-2.5 font-semibold text-right w-[12rem]">
-                {hasActions ? "Actions" : ""}
+                {hasActions ? actionsHeader : ""}
               </th>
             )}
           </tr>
@@ -132,22 +158,35 @@ export function SessionRequestList({
                 <tr className="align-middle hover:bg-gray-50/80">
                   {showStudent && (
                     <td className="px-3 py-2.5 text-sm text-gray-900 truncate">
-                      {session.studentName || "—"}
+                      {formatStudent
+                        ? formatStudent(session)
+                        : session.studentName || "—"}
                     </td>
                   )}
                   {showTutor && (
                     <td className="px-3 py-2.5 text-sm text-gray-600 truncate">
-                      {tutorDisplayName(session)}
+                      {formatTutor ? formatTutor(session) : tutorDisplayName(session)}
                     </td>
                   )}
-                  <td className="px-3 py-2.5">
-                    <StatusPill status={session.status} />
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <TypePill sessionType={session.sessionType} />
-                  </td>
+                  {showOverseeingTeacher && (
+                    <td className="px-3 py-2.5 text-sm text-gray-600 truncate">
+                      {overseeingTeacherDisplayName(session)}
+                    </td>
+                  )}
+                  {showStatus && (
+                    <td className="px-3 py-2.5">
+                      <StatusPill status={session.status} />
+                    </td>
+                  )}
+                  {showType && (
+                    <td className="px-3 py-2.5">
+                      <TypePill sessionType={session.sessionType} />
+                    </td>
+                  )}
                   <td className="px-3 py-2.5 text-sm text-gray-500 tabular-nums whitespace-nowrap">
-                    {formatSessionDate(session.createdAt)}
+                    {formatDate
+                      ? formatDate(session)
+                      : formatWritingCenterSessionDateTime(session)}
                   </td>
                   {showActionsCol && (
                     <td className="px-3 py-2.5 text-right">

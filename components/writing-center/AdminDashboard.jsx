@@ -18,6 +18,8 @@ import {
   MINI_LESSON_STUDENT_NAME,
   miniLessonDateToDate,
   isMiniLessonSession,
+  formatMiniLessonTutors,
+  miniLessonIncludesTutor,
 } from "@/lib/writing-center/miniLesson";
 import {
   fetchWritingCenterHistorySessions,
@@ -33,7 +35,7 @@ import { WritingCenterPreviewBanner } from "./WritingCenterPreviewBanner";
 import { AdminSessionExpandedPanel } from "./AdminSessionExpandedPanel";
 import { SessionReportLink } from "./SessionReportLink";
 import { getSessionReportUrl } from "@/lib/writing-center/sessionReport";
-import { sortSessionsNewestFirst } from "@/lib/firestoreDates";
+import { sortSessionsNewestFirst, formatSessionDateOnly } from "@/lib/firestoreDates";
 import { assertClientRateLimit } from "@/utils/clientRateLimit";
 import { WritingCenterCache } from "@/utils/cache";
 import { hydrateLiveList } from "@/utils/liveFirestoreCache";
@@ -60,11 +62,13 @@ export default function AdminDashboard() {
   const [selectedTutor, setSelectedTutor] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedTutorFilter, setSelectedTutorFilter] = useState('ALL');
+  const [miniLessonTutorFilter, setMiniLessonTutorFilter] = useState('ALL');
   const [tutorReportFilter, setTutorReportFilter] = useState('ALL');
   const [showMiniLessonModal, setShowMiniLessonModal] = useState(false);
   const [miniLessonTitle, setMiniLessonTitle] = useState('');
   const [miniLessonDate, setMiniLessonDate] = useState('');
-  const [miniLessonTutorId, setMiniLessonTutorId] = useState('');
+  const [miniLessonTutorIds, setMiniLessonTutorIds] = useState([]);
+  const [miniLessonTeacherId, setMiniLessonTeacherId] = useState('');
   const [miniLessonError, setMiniLessonError] = useState('');
   const [miniLessonSaving, setMiniLessonSaving] = useState(false);
   const [simulateUser, setSimulateUser] = useState(null);
@@ -77,11 +81,12 @@ export default function AdminDashboard() {
   );
 
   const recomputeStats = useCallback((allSessions) => {
+    const regular = allSessions.filter((s) => !isMiniLessonSession(s));
     setStats({
-      total: allSessions.length,
-      completed: allSessions.filter((s) => s.status === "COMPLETED").length,
-      pending: allSessions.filter((s) => s.status === "PENDING").length,
-      asyncPending: allSessions.filter(
+      total: regular.length,
+      completed: regular.filter((s) => s.status === "COMPLETED").length,
+      pending: regular.filter((s) => s.status === "PENDING").length,
+      asyncPending: regular.filter(
         (s) => s.status === "PENDING" && s.sessionType === "ASYNC",
       ).length,
     });
@@ -155,7 +160,8 @@ export default function AdminDashboard() {
   const openMiniLessonModal = () => {
     setMiniLessonTitle('');
     setMiniLessonDate(new Date().toISOString().slice(0, 10));
-    setMiniLessonTutorId('');
+    setMiniLessonTutorIds([]);
+    setMiniLessonTeacherId('');
     setMiniLessonError('');
     setShowMiniLessonModal(true);
   };
@@ -173,14 +179,23 @@ export default function AdminDashboard() {
       setMiniLessonError('Select a date.');
       return;
     }
-    if (!miniLessonTutorId) {
-      setMiniLessonError('Select a tutor.');
+    if (miniLessonTutorIds.length === 0) {
+      setMiniLessonError('Select at least one tutor.');
+      return;
+    }
+    if (!miniLessonTeacherId) {
+      setMiniLessonError('Select an overseeing teacher.');
       return;
     }
 
-    const tutorUser = users.find((u) => u.id === miniLessonTutorId);
-    if (!tutorUser) {
-      setMiniLessonError('Tutor not found.');
+    const selectedTutors = tutors.filter((t) => miniLessonTutorIds.includes(t.id));
+    if (selectedTutors.length !== miniLessonTutorIds.length) {
+      setMiniLessonError('One or more tutors could not be found.');
+      return;
+    }
+    const teacherUser = users.find((u) => u.id === miniLessonTeacherId);
+    if (!teacherUser) {
+      setMiniLessonError('Teacher not found.');
       return;
     }
 
@@ -190,6 +205,14 @@ export default function AdminDashboard() {
     try {
       assertClientRateLimit("miniLessonCreate", user?.uid);
       const lessonDate = miniLessonDateToDate(miniLessonDate);
+      const assignedTutors = selectedTutors.map((tutor) => ({
+        id: tutor.id,
+        name: resolveDisplayName(tutor) || tutor.email,
+        email: tutor.email || "",
+      }));
+      const tutorIds = assignedTutors.map((t) => t.id);
+      const primaryTutor = assignedTutors[0];
+
       await addDoc(collection(firestore, 'sessions'), {
         studentId: MINI_LESSON_STUDENT_ID,
         studentName: MINI_LESSON_STUDENT_NAME,
@@ -199,9 +222,14 @@ export default function AdminDashboard() {
         sessionType: 'MINI_LESSON',
         status: 'COMPLETED',
         source: 'admin_mini_lesson',
-        tutorId: miniLessonTutorId,
-        tutorName: resolveDisplayName(tutorUser) || tutorUser.email,
-        tutorEmail: tutorUser.email || '',
+        tutorId: primaryTutor.id,
+        tutorName: assignedTutors.map((t) => t.name).join(", "),
+        tutorEmail: primaryTutor.email,
+        tutorIds,
+        assignedTutors,
+        teacherId: miniLessonTeacherId,
+        teacherName: resolveDisplayName(teacherUser) || teacherUser.email,
+        teacherEmail: teacherUser.email || '',
         createdAt: Timestamp.fromDate(lessonDate),
         updatedAt: serverTimestamp(),
         sessionEndTime: lessonDate.toISOString(),
@@ -216,18 +244,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'ACCEPTED': return 'bg-blue-100 text-blue-800';
-      case 'COMPLETED': return 'bg-green-100 text-green-800';
-      case 'CANCELLED': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const filteredSessions = sortSessionsNewestFirst(
     sessions.filter((session) => {
+      if (isMiniLessonSession(session)) return false;
       if (statusFilter !== "ALL" && session.status !== statusFilter) return false;
       if (typeFilter !== "ALL" && session.sessionType !== typeFilter) return false;
       return true;
@@ -237,23 +256,40 @@ export default function AdminDashboard() {
   const tutors = users.filter(
     (u) => hasWritingCenterTutorAccess(u) && resolveWritingCenterViewRole(u) === "TUTOR",
   );
-  const simulateCandidates = useMemo(() => {
+  const teachers = users.filter(
+    (u) => resolveWritingCenterViewRole(u) === "TEACHER",
+  );
+  const simulateCandidateGroups = useMemo(() => {
     const q = simulateSearch.trim().toLowerCase();
-    const list = users.filter((u) => {
-      const view = resolveWritingCenterViewRole(u);
-      if (view === "ADMIN") return false;
-      if (!q) return true;
-      const name = resolveDisplayName(u).toLowerCase();
-      const email = (u.email || "").toLowerCase();
-      return name.includes(q) || email.includes(q);
-    });
-    return list
-      .sort((a, b) =>
+    const byRole = {
+      TUTOR: [],
+      TEACHER: [],
+      STUDENT: [],
+    };
+
+    for (const user of users) {
+      const view = resolveWritingCenterViewRole(user);
+      if (view === "ADMIN") continue;
+      if (q) {
+        const name = resolveDisplayName(user).toLowerCase();
+        const email = (user.email || "").toLowerCase();
+        if (!name.includes(q) && !email.includes(q)) continue;
+      }
+      byRole[view]?.push(user);
+    }
+
+    const sortPeople = (list) =>
+      list.sort((a, b) =>
         resolveDisplayName(a).localeCompare(resolveDisplayName(b), undefined, {
           sensitivity: "base",
         }),
-      )
-      .slice(0, 40);
+      );
+
+    return [
+      { role: "TUTOR", label: "Tutors", people: sortPeople(byRole.TUTOR) },
+      { role: "TEACHER", label: "Teachers", people: sortPeople(byRole.TEACHER) },
+      { role: "STUDENT", label: "Students", people: sortPeople(byRole.STUDENT) },
+    ].filter((group) => group.people.length > 0);
   }, [users, simulateSearch]);
 
   const tutorSessions = useMemo(() => {
@@ -261,6 +297,7 @@ export default function AdminDashboard() {
       selectedTutorFilter === "ALL"
         ? sessions
         : sessions.filter((s) => s.tutorId === selectedTutorFilter);
+    list = list.filter((s) => s.status !== "CANCELLED" && !isMiniLessonSession(s));
     if (tutorReportFilter === "NO_REPORT") {
       list = list.filter(
         (s) => s.status === "COMPLETED" && !getSessionReportUrl(s),
@@ -268,6 +305,14 @@ export default function AdminDashboard() {
     }
     return sortSessionsNewestFirst(list);
   }, [sessions, selectedTutorFilter, tutorReportFilter]);
+
+  const miniLessonSessions = useMemo(() => {
+    let list = sessions.filter((s) => isMiniLessonSession(s));
+    if (miniLessonTutorFilter !== "ALL") {
+      list = list.filter((s) => miniLessonIncludesTutor(s, miniLessonTutorFilter));
+    }
+    return sortSessionsNewestFirst(list);
+  }, [sessions, miniLessonTutorFilter]);
 
   const tabClass = (tab) =>
     `whitespace-nowrap py-2 px-3 rounded-md text-sm font-medium transition-colors ${
@@ -291,6 +336,13 @@ export default function AdminDashboard() {
               className={tabClass("tutor-assignments")}
             >
               Tutor Assignments
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("mini-lessons")}
+              className={tabClass("mini-lessons")}
+            >
+              Mini Lessons
             </button>
           </nav>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -335,8 +387,57 @@ export default function AdminDashboard() {
               <option value="ALL">All Types</option>
               <option value="IN_PERSON">In-Person</option>
               <option value="ASYNC">Async</option>
-              <option value="MINI_LESSON">Mini lesson</option>
             </select>
+          </div>
+        )}
+        {activeTab === "tutor-assignments" && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 lg:ml-auto lg:justify-end">
+            <select
+              value={selectedTutorFilter}
+              onChange={(e) => setSelectedTutorFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
+              aria-label="Filter by tutor"
+            >
+              <option value="ALL">All Tutors</option>
+              {tutors.map((tutor) => (
+                <option key={tutor.id} value={tutor.id}>
+                  {resolveDisplayName(tutor) || tutor.email}
+                </option>
+              ))}
+            </select>
+            <select
+              value={tutorReportFilter}
+              onChange={(e) => setTutorReportFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
+              aria-label="Filter by report status"
+            >
+              <option value="ALL">All sessions</option>
+              <option value="NO_REPORT">No report yet</option>
+            </select>
+          </div>
+        )}
+        {activeTab === "mini-lessons" && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 lg:ml-auto lg:justify-end">
+            <select
+              value={miniLessonTutorFilter}
+              onChange={(e) => setMiniLessonTutorFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
+              aria-label="Filter mini lessons by tutor"
+            >
+              <option value="ALL">All tutors</option>
+              {tutors.map((tutor) => (
+                <option key={tutor.id} value={tutor.id}>
+                  {resolveDisplayName(tutor) || tutor.email}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={openMiniLessonModal}
+              className="shrink-0 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700"
+            >
+              Assign mini lesson
+            </button>
           </div>
         )}
       </header>
@@ -371,7 +472,6 @@ export default function AdminDashboard() {
               showActions
               expandedSessionId={expandedSession}
               onToggleExpand={(id) => setExpandedSession(id)}
-              isRowExpandable={(session) => !isMiniLessonSession(session)}
               renderExpanded={(session, formResponseUrl) => (
                 <AdminSessionExpandedPanel session={session} formResponseUrl={formResponseUrl} />
               )}
@@ -398,42 +498,44 @@ export default function AdminDashboard() {
                 className="mt-4 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 autoFocus
               />
-              <ul className="mt-3 max-h-80 overflow-y-auto divide-y divide-gray-100 rounded-md border border-gray-200">
-                {simulateCandidates.length === 0 ? (
-                  <li className="px-3 py-6 text-center text-sm text-gray-500">
+              <div className="mt-3 max-h-80 overflow-y-auto rounded-md border border-gray-200">
+                {simulateCandidateGroups.length === 0 ? (
+                  <p className="px-3 py-6 text-center text-sm text-gray-500">
                     {users.length === 0 ? "Loading users…" : "No matches."}
-                  </li>
+                  </p>
                 ) : (
-                  simulateCandidates.map((person) => {
-                    const view = resolveWritingCenterViewRole(person);
-                    return (
-                      <li key={person.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSimulateUser(person)}
-                          className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-indigo-50"
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-gray-900">
-                              {resolveDisplayName(person)}
-                            </span>
-                            <span className="block truncate text-xs text-gray-500">
-                              {person.email || "—"}
-                            </span>
-                          </span>
-                          <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                            {view === "TUTOR"
-                              ? "Tutor"
-                              : view === "TEACHER"
-                                ? "Teacher"
-                                : "Student"}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })
+                  simulateCandidateGroups.map((group) => (
+                    <section key={group.role}>
+                      <h3 className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {group.label}
+                        <span className="ml-1.5 font-normal normal-case tracking-normal text-gray-400">
+                          ({group.people.length})
+                        </span>
+                      </h3>
+                      <ul className="divide-y divide-gray-100">
+                        {group.people.map((person) => (
+                          <li key={person.id}>
+                            <button
+                              type="button"
+                              onClick={() => setSimulateUser(person)}
+                              className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-indigo-50"
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-medium text-gray-900">
+                                  {resolveDisplayName(person)}
+                                </span>
+                                <span className="block truncate text-xs text-gray-500">
+                                  {person.email || "—"}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))
                 )}
-              </ul>
+              </div>
               <button
                 type="button"
                 onClick={() => setActiveTab("sessions")}
@@ -468,103 +570,63 @@ export default function AdminDashboard() {
             })()
           )}
         </div>
-      ) : activeTab === 'tutor-assignments' ? (
+      ) : activeTab === "mini-lessons" ? (
         <div className="w-full">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm font-medium text-gray-700">Filter by Tutor:</label>
-              <select
-                value={selectedTutorFilter}
-                onChange={(e) => setSelectedTutorFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
-                aria-label="Filter by tutor"
-              >
-                <option value="ALL">All Tutors</option>
-                {tutors.map((tutor) => (
-                  <option key={tutor.id} value={tutor.id}>
-                    {resolveDisplayName(tutor) || tutor.email}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={tutorReportFilter}
-                onChange={(e) => setTutorReportFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
-                aria-label="Filter by report status"
-              >
-                <option value="ALL">All sessions</option>
-                <option value="NO_REPORT">No report yet</option>
-              </select>
-            </div>
-            <button
-              type="button"
-              onClick={openMiniLessonModal}
-              className="shrink-0 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700"
-            >
-              Assign mini lesson
-            </button>
-          </div>
-
-          <div className="bg-white shadow overflow-hidden sm:rounded-md w-full">
-            <table className="w-full min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Tutor</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {tutorSessions.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
-                      {tutorReportFilter === "NO_REPORT"
-                        ? "No completed sessions missing a tutor report for this filter."
-                        : "No sessions for this filter."}
-                    </td>
-                  </tr>
+          <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden w-full">
+            <SessionRequestList
+              sessions={miniLessonSessions}
+              emptyMessage="No mini lessons yet. Assign one to track tutor work."
+              studentHeader="Title"
+              formatStudent={(session) => session.subject || "Mini lesson"}
+              tutorHeader="Tutors"
+              formatTutor={(session) => formatMiniLessonTutors(session)}
+              showOverseeingTeacher
+              overseeingTeacherHeader="Overseeing teacher"
+              showStatus={false}
+              showType={false}
+              dateHeader="Date"
+              formatDate={(session) => formatSessionDateOnly(session.createdAt)}
+              actionsHeader="Report"
+              renderActions={(session) =>
+                getSessionReportUrl(session) ? (
+                  <SessionReportLink session={session} label="View summary (PDF)" />
                 ) : (
-                tutorSessions.map((session) => (
-                  <tr key={session.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {isMiniLessonSession(session) ? "—" : session.studentName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {isMiniLessonSession(session) ? "Mini lesson" : session.sessionType}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(session.status)}`}>
-                        {session.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{session.tutorName || 'Unassigned'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {session.status === "PENDING" && (
-                        <button
-                          type="button"
-                          onClick={() => openAssignModal(session)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          Assign Tutor
-                        </button>
-                      )}
-                      {session.status === "COMPLETED" &&
-                        (getSessionReportUrl(session) ? (
-                          <SessionReportLink
-                            session={session}
-                            label="View summary (PDF)"
-                          />
-                        ) : (
-                          <span className="text-gray-400">No report yet</span>
-                        ))}
-                    </td>
-                  </tr>
-                ))
-                )}
-              </tbody>
-            </table>
+                  <span className="text-gray-400 text-sm">No report yet</span>
+                )
+              }
+            />
+          </div>
+        </div>
+      ) : activeTab === "tutor-assignments" ? (
+        <div className="w-full">
+          <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden w-full">
+            <SessionRequestList
+              sessions={tutorSessions}
+              emptyMessage={
+                tutorReportFilter === "NO_REPORT"
+                  ? "No completed sessions missing a tutor report for this filter."
+                  : "No sessions for this filter."
+              }
+              renderActions={(session) => (
+                <>
+                  {session.status === "PENDING" && (
+                    <button
+                      type="button"
+                      onClick={() => openAssignModal(session)}
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-900"
+                    >
+                      Assign Tutor
+                    </button>
+                  )}
+                  {session.status === "COMPLETED" &&
+                    (getSessionReportUrl(session) ? (
+                      <SessionReportLink session={session} label="View summary (PDF)" />
+                    ) : (
+                      <span className="text-gray-400 text-sm">No report yet</span>
+                    ))}
+                </>
+              )}
+            />
           </div>
         </div>
       ) : null}
@@ -574,8 +636,8 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Assign mini lesson</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Creates a completed session on the tutor&apos;s list for tracking (not tied to a
-              student account).
+              Creates a completed mini lesson for the tutor&apos;s record. The overseeing
+              teacher uploads the tutor rating PDF — not the tutor.
             </p>
             {miniLessonError && (
               <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -611,20 +673,59 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label htmlFor="mini-lesson-tutor" className="block text-sm font-medium text-gray-700">
-                  Tutor
+                <fieldset>
+                  <legend className="block text-sm font-medium text-gray-700 mb-2">
+                    Tutors
+                  </legend>
+                  <div className="max-h-44 overflow-y-auto rounded-md border border-gray-300 p-2 space-y-1">
+                    {tutors.length === 0 ? (
+                      <p className="px-2 py-3 text-sm text-gray-500">No tutors available.</p>
+                    ) : (
+                      tutors.map((tutor) => {
+                        const checked = miniLessonTutorIds.includes(tutor.id);
+                        return (
+                          <label
+                            key={tutor.id}
+                            className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                setMiniLessonTutorIds((prev) =>
+                                  e.target.checked
+                                    ? [...prev, tutor.id]
+                                    : prev.filter((id) => id !== tutor.id),
+                                );
+                              }}
+                              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-sm text-gray-900">
+                              {resolveDisplayName(tutor) || tutor.email}
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">Select one or more tutors.</p>
+                </fieldset>
+              </div>
+              <div>
+                <label htmlFor="mini-lesson-teacher" className="block text-sm font-medium text-gray-700">
+                  Overseeing teacher
                 </label>
                 <select
-                  id="mini-lesson-tutor"
+                  id="mini-lesson-teacher"
                   required
-                  value={miniLessonTutorId}
-                  onChange={(e) => setMiniLessonTutorId(e.target.value)}
+                  value={miniLessonTeacherId}
+                  onChange={(e) => setMiniLessonTeacherId(e.target.value)}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
                 >
-                  <option value="">Select a tutor</option>
-                  {tutors.map((tutor) => (
-                    <option key={tutor.id} value={tutor.id}>
-                      {resolveDisplayName(tutor) || tutor.email}
+                  <option value="">Select a teacher</option>
+                  {teachers.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {resolveDisplayName(teacher) || teacher.email}
                     </option>
                   ))}
                 </select>

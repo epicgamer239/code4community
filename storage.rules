@@ -71,9 +71,18 @@ service firebase.storage {
         );
     }
 
+    function isSessionOverseeingTeacher(sessionId) {
+      return isSignedIn() &&
+        sessionExists(sessionId) &&
+        sessionDoc(sessionId).sessionType == 'MINI_LESSON' &&
+        sessionDoc(sessionId).teacherId == request.auth.uid;
+    }
+
     function canWriteSessionReport(sessionId) {
-      // Only the assigned tutor may upload the report for that session
-      return isSessionTutor(sessionId);
+      return (sessionExists(sessionId) &&
+        sessionDoc(sessionId).sessionType != 'MINI_LESSON' &&
+        isSessionTutor(sessionId)) ||
+        isSessionOverseeingTeacher(sessionId);
     }
 
     match /writing-center/sessions/{sessionId}/{fileName} {

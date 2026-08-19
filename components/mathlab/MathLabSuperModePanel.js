@@ -20,6 +20,7 @@ import {
   setMathLabSuperModeEnabled,
   subscribeMathLabSuperMode,
 } from "@/lib/mathlab/superMode";
+import WritingCenterSuperModeSection from "@/components/writing-center/WritingCenterSuperModeSection";
 
 function formatCompletedWhen(value) {
   const d = firestoreToDate(value);
@@ -98,7 +99,7 @@ export default function MathLabSuperModePanel({ authUid }) {
       return;
     }
     const ok = window.confirm(
-      "Turn on Super mode? You can delete live requests, active sessions, and completed history. This cannot be undone.",
+      "Turn on Super mode? You can delete Math Lab and Writing Center live requests, active sessions, and history. This cannot be undone.",
     );
     if (!ok) return;
     setMathLabSuperModeEnabled(true);
@@ -201,8 +202,9 @@ export default function MathLabSuperModePanel({ authUid }) {
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-1">Super mode</h2>
             <p className="text-sm text-muted-foreground">
-              Destructive cleanup for stuck live requests, active sessions, and completed history.
-              Stays on for this browser tab until you turn it off.
+              Destructive cleanup for Math Lab and Writing Center — stuck live requests,
+              active sessions, and completed history. Stays on for this browser tab until
+              you turn it off.
             </p>
           </div>
           <button
@@ -231,7 +233,7 @@ export default function MathLabSuperModePanel({ authUid }) {
 
       {!enabled ? (
         <p className="text-sm text-muted-foreground px-1">
-          Enable Super mode to load and delete Math Lab queue/session data.
+          Enable Super mode to load and delete Math Lab and Writing Center session data.
         </p>
       ) : (
         <>
@@ -287,7 +289,7 @@ export default function MathLabSuperModePanel({ authUid }) {
 
           <section className="card-elevated rounded-xl overflow-hidden">
             <div className="px-6 pt-5 pb-3">
-              <h3 className="text-base font-semibold text-foreground">Live queue & sessions</h3>
+              <h3 className="text-base font-semibold text-foreground">Math Lab — live queue & sessions</h3>
               <p className="text-sm text-muted-foreground">
                 Pending requests and accepted/in-progress sessions ({liveRequests.length})
               </p>
@@ -330,7 +332,7 @@ export default function MathLabSuperModePanel({ authUid }) {
 
           <section className="card-elevated rounded-xl overflow-hidden">
             <div className="px-6 pt-5 pb-3">
-              <h3 className="text-base font-semibold text-foreground">Completed sessions</h3>
+              <h3 className="text-base font-semibold text-foreground">Math Lab — completed sessions</h3>
               <p className="text-sm text-muted-foreground">
                 Most recent {completed.length} (max 100 loaded)
               </p>
@@ -364,6 +366,15 @@ export default function MathLabSuperModePanel({ authUid }) {
               </ul>
             )}
           </section>
+
+          <WritingCenterSuperModeSection
+            enabled={enabled}
+            authUid={authUid}
+            busyId={busyId}
+            setBusyId={setBusyId}
+            setError={setError}
+            setMessage={setMessage}
+          />
         </>
       )}
     </div>
