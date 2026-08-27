@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAllClubSlugs } from '@/lib/club-hub/broadRunClubDirectory';
+import { getAllPostSlugs, getPostBySlug } from '@/lib/blog/posts';
 
 export async function GET() {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://code4community26.web.app';
@@ -96,6 +97,21 @@ export async function GET() {
       changeFrequency: 'monthly',
       priority: 0.8,
     },
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.75,
+    },
+    ...getAllPostSlugs().map((slug) => {
+      const post = getPostBySlug(slug);
+      return {
+        url: `${baseUrl}/blog/${slug}`,
+        lastModified: post?.date ? new Date(`${post.date}T12:00:00`) : new Date(),
+        changeFrequency: 'monthly',
+        priority: 0.7,
+      };
+    }),
     {
       url: `${baseUrl}/privacy`,
       lastModified: new Date(),

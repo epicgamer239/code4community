@@ -12,6 +12,7 @@ Allow: /yearbook-formatting
 Allow: /seating-chart
 Allow: /about
 Allow: /contact
+Allow: /blog
 Allow: /privacy
 Allow: /terms
 
