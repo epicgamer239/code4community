@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getEditableClubSlugsForUser } from "@/lib/club-hub/access";
+import {
+  canAccessClubHubAdminDashboard,
+  getEditableClubSlugsForUser,
+} from "@/lib/club-hub/access";
 import { clubNameToSlug } from "@/lib/club-hub/broadRunClubDirectory";
 
 describe("getEditableClubSlugsForUser", () => {
@@ -24,6 +27,16 @@ describe("getEditableClubSlugsForUser", () => {
     expect(slugs).toContain("advanced-leadership-program-alp");
   });
 
+  it("returns all slugs for club coordinator", () => {
+    const slugs = getEditableClubSlugsForUser({
+      email: "brhsc4c@gmail.com",
+      userData: { role: "student" },
+      accessRecord: { isCoordinator: true, manualClubSlugs: {}, directoryClubSlugs: {} },
+      sponsorOverrides: null,
+    });
+    expect(slugs.length).toBeGreaterThan(50);
+  });
+
   it("merges manual and directory access maps", () => {
     const slugs = getEditableClubSlugsForUser({
       email: "editor@lcps.org",
@@ -35,5 +48,17 @@ describe("getEditableClubSlugsForUser", () => {
       sponsorOverrides: null,
     });
     expect(slugs).toEqual(["chess-club", "robotics"]);
+  });
+});
+
+describe("canAccessClubHubAdminDashboard", () => {
+  it("allows club coordinators without site admin role", () => {
+    expect(
+      canAccessClubHubAdminDashboard({
+        email: "brhsc4c@gmail.com",
+        userData: { role: "student" },
+        accessRecord: { isCoordinator: true },
+      }),
+    ).toBe(true);
   });
 });

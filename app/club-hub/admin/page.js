@@ -2,16 +2,24 @@
 
 import { useMemo } from "react";
 import { useAuth } from "@/utils/AuthContext";
-import { canManageClubHubRoles } from "@/lib/club-hub/access";
+import { canAccessClubHubAdminDashboard } from "@/lib/club-hub/access";
+import { useClubHubAccess } from "@/lib/club-hub/useClubHubAccess";
 import ClubHubProtectedPage from "@/components/club-hub/ClubHubProtectedPage";
 import ClubHubAdminDashboard from "@/components/club-hub/ClubHubAdminDashboard";
 
 export default function ClubHubAdminPage() {
   const { user, userData } = useAuth();
+  const { accessRecord, loading: accessLoading } = useClubHubAccess();
 
   const allowed = useMemo(
-    () => !!user && !!userData && canManageClubHubRoles(user.email, userData),
-    [user, userData],
+    () =>
+      !!user &&
+      canAccessClubHubAdminDashboard({
+        email: user.email,
+        userData,
+        accessRecord,
+      }),
+    [user, userData, accessRecord],
   );
 
   return (
@@ -19,8 +27,9 @@ export default function ClubHubAdminPage() {
       active="admin"
       loginRedirect="/club-hub/admin"
       title="Club Hub admin"
-      loginMessage="Sign in with a site admin account to manage Club Hub roles."
+      loginMessage="Sign in with a site admin or club coordinator account."
       allowed={allowed}
+      accessLoading={accessLoading}
     >
       <ClubHubAdminDashboard />
     </ClubHubProtectedPage>

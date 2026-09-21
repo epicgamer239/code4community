@@ -12,9 +12,11 @@ import {
 } from "@/lib/club-hub/broadRunClubDirectory";
 import {
   PROTECTED_CLUB_HUB_COORDINATOR_EMAIL,
+  canManageClubHubRoles,
   clubSlugsToMap,
   isProtectedClubHubCoordinator,
 } from "@/lib/club-hub/access";
+import { useClubHubAccess } from "@/lib/club-hub/useClubHubAccess";
 import {
   fetchAllClubHubAccessRecords,
   setClubHubCoordinator,
@@ -42,8 +44,10 @@ function slugLabels(slugMap) {
 }
 
 export default function ClubHubAdminDashboard() {
-  const { user } = useAuth();
-  const [tab, setTab] = useState("access");
+  const { user, userData } = useAuth();
+  const { accessRecord } = useClubHubAccess();
+  const canManageAccess = canManageClubHubRoles(user?.email, userData);
+  const [tab, setTab] = useState(() => (canManageAccess ? "access" : "rosters"));
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -262,14 +266,16 @@ export default function ClubHubAdminDashboard() {
         <p className="mt-2 text-sm leading-relaxed text-neutral-600">
           Manage access, sponsors, and view club rosters across the directory.
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={() => setTab("access")} className={tabBtn(tab === "access")}>
-            Access
-          </button>
-          <button type="button" onClick={() => setTab("rosters")} className={tabBtn(tab === "rosters")}>
-            Rosters &amp; metrics
-          </button>
-        </div>
+        {canManageAccess ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setTab("access")} className={tabBtn(tab === "access")}>
+              Access
+            </button>
+            <button type="button" onClick={() => setTab("rosters")} className={tabBtn(tab === "rosters")}>
+              Rosters &amp; metrics
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {tab === "rosters" ? (

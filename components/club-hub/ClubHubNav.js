@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/utils/AuthContext";
 import { logClientError } from "@/lib/auth/logClientError";
 import {
+  canAccessClubHubAdminDashboard,
   canAccessClubHubSponsorDashboard,
   canManageClubHubRoles,
 } from "@/lib/club-hub/access";
@@ -25,10 +26,17 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
   const dropdownRef = useRef(null);
 
   const showAdminLink =
-    !!user && !!userData && canManageClubHubRoles(user.email, userData);
+    !!user &&
+    canAccessClubHubAdminDashboard({
+      email: user.email,
+      userData,
+      accessRecord,
+    });
+  const adminNavLabel = canManageClubHubRoles(user?.email, userData)
+    ? "Admin"
+    : "Rosters";
   const showSponsorLink =
     !!user &&
-    !!userData &&
     canAccessClubHubSponsorDashboard({
       email: user.email,
       userData,
@@ -88,10 +96,10 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
         ) : null}
         {showAdminLink ? (
           active === "admin" ? (
-            <span className={linkClass(true)}>Admin</span>
+            <span className={linkClass(true)}>{adminNavLabel}</span>
           ) : (
             <Link href="/club-hub/admin" className={linkClass(false)}>
-              Admin
+              {adminNavLabel}
             </Link>
           )
         ) : null}

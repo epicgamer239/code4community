@@ -37,7 +37,7 @@ export default function ClubHubProtectedPage({
     }
   }, [loading, accessLoading, user, userData, allowed, router]);
 
-  if (loading || accessLoading || (user && !userData)) {
+  if (loading || accessLoading) {
     return (
       <div
         className="min-h-screen px-4 py-16 text-center text-neutral-600"

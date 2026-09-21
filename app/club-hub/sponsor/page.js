@@ -13,7 +13,7 @@ export default function ClubHubSponsorPage() {
     useClubHubAccess();
 
   const allowed = useMemo(() => {
-    if (!user || !userData) return false;
+    if (!user) return false;
     return canAccessClubHubSponsorDashboard({
       email: user.email,
       userData,
