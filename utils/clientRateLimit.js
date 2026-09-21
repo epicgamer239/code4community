@@ -20,6 +20,10 @@ export const CLIENT_RATE_LIMITS = {
   libraryPassClaim: { maxRequests: 12, windowMs: 10 * 60_000 },
   libraryPassAdmin: { maxRequests: 40, windowMs: 60_000 },
   seatingChartSave: { maxRequests: 20, windowMs: 60_000 },
+  clubHubPageWrite: { maxRequests: 20, windowMs: 60_000 },
+  clubHubEventWrite: { maxRequests: 30, windowMs: 60_000 },
+  clubHubMembershipWrite: { maxRequests: 20, windowMs: 60_000 },
+  clubHubHeaderUpload: { maxRequests: 15, windowMs: 60 * 60_000 },
 };
 
 function nowMs() {

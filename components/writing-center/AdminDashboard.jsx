@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import { useAuth } from "@/utils/AuthContext";
 import { firestore } from "@/firebase";
 import {
@@ -112,7 +113,7 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (!firestore) return;
 
     hydrateLiveList(() => WritingCenterCache.getSessionsAll(), (cached) => {
@@ -126,7 +127,7 @@ export default function AdminDashboard() {
     loadUsers();
   }, [loadPastSessions, loadUsers, recomputeStats]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     recomputeStats(sessions);
     WritingCenterCache.setSessionsAll(sessions);
   }, [sessions, recomputeStats]);

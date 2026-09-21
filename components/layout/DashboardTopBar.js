@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { useIsClient } from "@/hooks/useIsClient";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
@@ -12,12 +13,8 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [authReady, setAuthReady] = useState(false);
+  const authReady = useIsClient();
   const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    setAuthReady(true);
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(event) {

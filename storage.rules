@@ -92,5 +92,81 @@ service firebase.storage {
         isPdfUpload() &&
         canWriteSessionReport(sessionId);
     }
+
+    // Club Hub page header banners (public read; admin write)
+    function isFirestoreAdminRole() {
+      return isSignedIn() &&
+        firestore.exists(userPath()) &&
+        userDoc().role in ['admin', 'ADMIN'];
+    }
+
+    function clubHubAccessDocPath(email) {
+      return /databases/(default)/documents/clubHubAccess/$(email.lower());
+    }
+
+    function clubHubSlugAllowedInMap(slugMap, slug) {
+      return slugMap is map && slug in slugMap && slugMap[slug] == true;
+    }
+
+    function isProtectedClubHubCoordinator() {
+      return isSignedIn() &&
+        request.auth.token.email is string &&
+        request.auth.token.email.lower() == 'katrice.white@lcps.org';
+    }
+
+    function isClubHubCoordinatorAccess() {
+      return isProtectedClubHubCoordinator() ||
+        (isSignedIn() &&
+          request.auth.token.email is string &&
+          firestore.exists(clubHubAccessDocPath(request.auth.token.email)) &&
+          firestore.get(clubHubAccessDocPath(request.auth.token.email)).data.isCoordinator == true);
+    }
+
+    function canEditClubHubPage(slug) {
+      return isAdminByEmail() ||
+        isFirestoreAdminRole() ||
+        isClubHubCoordinatorAccess() ||
+        (isSignedIn() &&
+          request.auth.token.email is string &&
+          firestore.exists(clubHubAccessDocPath(request.auth.token.email)) &&
+          (
+            clubHubSlugAllowedInMap(
+              firestore.get(clubHubAccessDocPath(request.auth.token.email)).data.get('directoryClubSlugs', {}),
+              slug
+            ) ||
+            clubHubSlugAllowedInMap(
+              firestore.get(clubHubAccessDocPath(request.auth.token.email)).data.get('manualClubSlugs', {}),
+              slug
+            ) ||
+            clubHubSlugAllowedInMap(
+              firestore.get(clubHubAccessDocPath(request.auth.token.email)).data.get('clubSlugs', {}),
+              slug
+            )
+          ));
+    }
+
+    function canUploadClubHeader(slug) {
+      return canEditClubHubPage(slug);
+    }
+
+    function isClubHeaderImage() {
+      return request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType is string &&
+        (
+          request.resource.contentType.matches('image/jpeg.*') ||
+          request.resource.contentType.matches('image/png.*') ||
+          request.resource.contentType.matches('image/webp.*') ||
+          request.resource.contentType == 'image/jpeg' ||
+          request.resource.contentType == 'image/png' ||
+          request.resource.contentType == 'image/webp'
+        );
+    }
+
+    match /club-hub/headers/{slug}/{fileName} {
+      allow read: if true;
+      allow write: if canUploadClubHeader(slug) &&
+        fileName.matches('header\\.(jpg|jpeg|png|webp)') &&
+        isClubHeaderImage();
+    }
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useState, useEffect, useCallback } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import { useRouter } from "next/navigation";
 import { AppPageLayout, ContainerMain } from "@/components/common/AppPageLayout";
 import FullPageLoading from "@/components/common/FullPageLoading";
@@ -47,7 +48,7 @@ export default function SettingsPage() {
     document.title = "Code4Community | Settings";
   }, []);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (authLoading) return;
     if (!user) {
       router.replace("/login");

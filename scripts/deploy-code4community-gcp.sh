@@ -51,7 +51,8 @@ gcloud run deploy "$SERVICE_ID" \
   --max-instances 20 \
   --port 8080 \
   --set-build-env-vars "$BUILD_ENV" \
-  --set-env-vars "$RUNTIME_ENV"
+  --set-env-vars "$RUNTIME_ENV" \
+  --set-secrets "WRITING_CENTER_GOOGLE_FORM_SYNC_SECRET=writing-center-google-form-sync:latest,FIREBASE_SERVICE_ACCOUNT_JSON=firebase-service-account-json:latest"
 
 echo "→ Deploying Firebase Hosting (rewrites to Cloud Run)"
 if npx -y firebase-tools@latest deploy --only hosting --project "$PROJECT_ID" --non-interactive 2>/dev/null; then

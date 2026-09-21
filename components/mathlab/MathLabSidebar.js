@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/utils/AuthContext";
@@ -41,34 +42,17 @@ function SidebarNavEntry({ item, isCollapsed, isMobile, onRequireAuth }) {
 }
 
 export default function MathLabSidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
+  const [desktopCollapsed, setDesktopCollapsed] = useState(true);
+  const isCollapsed = isMobile ? true : desktopCollapsed;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, userData, loading: authLoading } = useAuth();
   const isGuest = !authLoading && !user;
 
-  // Check if mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Auto-collapse on mobile
-  useEffect(() => {
-    if (isMobile) {
-      setIsCollapsed(true);
-    }
-  }, [isMobile]);
-
   const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
+    if (!isMobile) setDesktopCollapsed((prev) => !prev);
   };
 
   const promptLogin = (href) => {

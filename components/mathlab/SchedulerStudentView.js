@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import Link from "next/link";
 import { useAuth } from "@/utils/AuthContext";
 import { MATHLAB_COURSES } from "@/lib/mathlab/courses";
@@ -54,7 +55,7 @@ export default function SchedulerStudentView({
   const [selectedYmd, setSelectedYmd] = useState("");
   const [viewMonth, setViewMonth] = useState(() => new Date());
 
-  useEffect(() => {
+  useRunEffect(() => {
     hydrateLiveList(
       () => SchedulerCache.getOpenSlots(scheduler.slotsCollection),
       setSlots
@@ -62,7 +63,7 @@ export default function SchedulerStudentView({
     return subscribeOpenSlots(setSlots);
   }, [scheduler.slotsCollection, subscribeOpenSlots]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (!user?.uid) return;
     hydrateLiveList(
       () =>
@@ -123,7 +124,7 @@ export default function SchedulerStudentView({
     return availableYmdsFromSlots(bookableSlots);
   }, [bookableSlots, selectedTeacherId]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (availableYmds.size === 0) return;
     if (!selectedYmd || !availableYmds.has(selectedYmd)) {
       const sorted = [...availableYmds].sort((a, b) => a.localeCompare(b));

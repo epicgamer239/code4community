@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { runEffectWork } from "@/hooks/runEffectWork";
 
 export default function ClassManager({ currentClass, onClassSelect, onClassCreate }) {
   const [classes, setClasses] = useState([]);
@@ -14,9 +15,7 @@ export default function ClassManager({ currentClass, onClassSelect, onClassCreat
     }
   };
 
-  useEffect(() => {
-    loadClassesFromStorage();
-  }, []);
+  useEffect(() => runEffectWork(() => loadClassesFromStorage()), []);
 
   useEffect(() => {
     const onSync = () => loadClassesFromStorage();

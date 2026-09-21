@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import { useAuth } from "@/utils/AuthContext";
 import { firestore } from "@/firebase";
 import { fetchReceiptSharesForTeacher } from "@/lib/writing-center/receiptShares";
@@ -92,12 +93,12 @@ export default function TeacherDashboard({ asUser = null }) {
       return new Date(tb) - new Date(ta);
     });
     return rows;
-  }, [user?.uid]);
+  }, [user]);
 
   const loadMiniLessons = useCallback(async () => {
     if (!firestore || !user?.uid) return [];
     return fetchTeacherMiniLessons(firestore, user.uid);
-  }, [user?.uid]);
+  }, [user]);
 
   const refreshAll = useCallback(async () => {
     if (!firestore || !user?.uid) return;
@@ -117,7 +118,7 @@ export default function TeacherDashboard({ asUser = null }) {
     }
   }, [loadTickets, loadMiniLessons, user?.uid]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     refreshAll();
   }, [refreshAll]);
 

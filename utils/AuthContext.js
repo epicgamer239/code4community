@@ -9,117 +9,41 @@ import {
   useMemo,
 } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { assertClientRateLimit } from "@/utils/clientRateLimit";
 import { auth, firestore } from "@/firebase";
 import { UserCache } from "@/utils/cache";
-import { isAdminEmail } from "@/lib/admin";
-import { lookupBroadRunName } from "@/lib/club-hub/broadRunRoster";
-import {
-  applyPendingGrantToProfile,
-  MATHLAB_TEAM_PENDING_COLLECTION,
-  pendingTeamDocId,
-} from "@/lib/mathlab/teamPending";
-import { normalizeEmail } from "@/lib/email";
+import { bootstrapUserProfile } from "@/lib/auth/bootstrapUserProfile";
+import { syncClubHubSponsorAccess } from "@/lib/auth/syncClubHubSponsorAccess";
+import { logClientError } from "@/lib/auth/logClientError";
 
 const AuthContext = createContext({ user: null, userData: null, loading: true });
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
-  const [loading, setLoading] = useState(() => Boolean(auth));
+  const [loading, setLoading] = useState(() => Boolean(auth && firestore));
+
   const fetchUserData = useCallback(async (currentUser, forceRefresh = false) => {
     if (!currentUser || !firestore) {
       return null;
     }
 
-    try {
-      if (!forceRefresh) {
-        const cachedData = UserCache.getUserData();
-        if (cachedData && cachedData.uid === currentUser.uid) {
-          return cachedData;
-        }
+    if (!forceRefresh) {
+      const cachedData = UserCache.getUserData();
+      if (cachedData && cachedData.uid === currentUser.uid) {
+        return cachedData;
       }
-
-      const docRef = doc(firestore, "users", currentUser.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const normalizedEmail = normalizeEmail(data.email || currentUser.email);
-        if (data.email && data.email !== normalizedEmail) {
-          try {
-            assertClientRateLimit("profileWrite", currentUser.uid);
-            await updateDoc(docRef, { email: normalizedEmail, updatedAt: serverTimestamp() });
-            data.email = normalizedEmail;
-          } catch (migrateErr) {
-          }
-        }
-        const userDataWithUid = { ...data, email: normalizedEmail, uid: currentUser.uid };
-        UserCache.setUserData(userDataWithUid);
-        return userDataWithUid;
-      }
-
-      const normalizedEmail = normalizeEmail(currentUser.email);
-      const rosterName = lookupBroadRunName(normalizedEmail);
-      const displayName =
-        rosterName ||
-        (currentUser.displayName && currentUser.displayName.trim()) ||
-        (normalizedEmail && normalizedEmail.split("@")[0]) ||
-        "User";
-      let role = isAdminEmail(normalizedEmail) ? "admin" : "student";
-      let mathLabRole = "";
-      let writingCenterRole = "";
-      const pendingRef = doc(
-        firestore,
-        MATHLAB_TEAM_PENDING_COLLECTION,
-        pendingTeamDocId(normalizedEmail),
-      );
-      const pendingSnap = await getDoc(pendingRef);
-      if (pendingSnap.exists()) {
-        const withPending = applyPendingGrantToProfile(
-          pendingSnap.data(),
-          { role, mathLabRole, writingCenterRole },
-          normalizedEmail,
-        );
-        role = withPending.role;
-        mathLabRole = withPending.mathLabRole;
-        writingCenterRole = withPending.writingCenterRole || "";
-      }
-      const newProfile = {
-        email: normalizedEmail,
-        displayName,
-        photoURL: currentUser.photoURL || "",
-        role,
-        mathLabRole,
-        writingCenterRole,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      assertClientRateLimit("profileWrite", currentUser.uid);
-      await setDoc(docRef, newProfile);
-      if (pendingSnap.exists()) {
-        try {
-          await deleteDoc(pendingRef);
-        } catch (pendingErr) {
-        }
-      }
-      const again = await getDoc(docRef);
-      if (again.exists()) {
-        const userDataWithUid = { ...again.data(), uid: currentUser.uid };
-        UserCache.setUserData(userDataWithUid);
-        return userDataWithUid;
-      }
-
-      return null;
-    } catch {
-      return null;
     }
+
+    const profile = await bootstrapUserProfile(currentUser, firestore);
+    if (profile) {
+      UserCache.setUserData(profile);
+      void syncClubHubSponsorAccess(currentUser);
+    }
+    return profile;
   }, []);
 
   useEffect(() => {
     if (!auth || !firestore) {
-      setLoading(false);
       return;
     }
 
@@ -142,6 +66,7 @@ export function AuthProvider({ children }) {
           UserCache.clearUserData();
         }
       } catch (error) {
+        logClientError("AuthContext.onAuthStateChanged", error);
         const cachedData = UserCache.getUserData();
         if (cachedData) {
           setUserData(cachedData);
@@ -188,7 +113,7 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       userData,
-      loading,
+      loading: !auth || !firestore ? false : loading,
       getRedirectUrl,
       isEmailVerified: true,
     }),

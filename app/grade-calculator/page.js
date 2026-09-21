@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useLayoutEffect } from "react";
 import { AppPageLayout } from "@/components/common/AppPageLayout";
+import { useIsClient } from "@/hooks/useIsClient";
+import { useRunEffect } from "@/hooks/useRunEffect";
 
 export default function GradeCalculator() {
   useLayoutEffect(() => {
@@ -30,7 +32,7 @@ export default function GradeCalculator() {
   });
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showWeightPlanModal, setShowWeightPlanModal] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const isClient = useIsClient();
   const [selectedWeightPlan, setSelectedWeightPlan] = useState("50/40/10");
   const [customWeights, setCustomWeights] = useState({
     "Major Summative": 50,
@@ -75,9 +77,7 @@ export default function GradeCalculator() {
     }
   }, [showFilterMenu]);
 
-  // Show weight plan modal on mount (client-side only to avoid hydration mismatch)
-  useEffect(() => {
-    setIsMounted(true);
+  useRunEffect(() => {
     setShowWeightPlanModal(true);
   }, []);
 
@@ -1213,7 +1213,7 @@ export default function GradeCalculator() {
         </div>
       </div>
 
-      {isMounted && showWeightPlanModal && (
+      {isClient && showWeightPlanModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="mx-4 max-w-2xl rounded-2xl border border-border bg-background p-6 shadow-lg">
             <h2 className="mb-2 text-2xl font-bold text-foreground">Select Weight Plan</h2>

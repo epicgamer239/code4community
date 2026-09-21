@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import { useAuth } from "@/utils/AuthContext";
 import { firestore } from "@/firebase";
 import {
@@ -71,7 +72,7 @@ export default function StudentDashboard({ preview = false, asUser = null }) {
       setPastSessions(history);
     } catch (err) {
     }
-  }, [user?.uid]);
+  }, [user]);
 
   const loadReceiptShares = useCallback(async () => {
     if (!firestore || !user?.uid) return;
@@ -80,9 +81,9 @@ export default function StudentDashboard({ preview = false, asUser = null }) {
       setReceiptShares(shares);
     } catch (err) {
     }
-  }, [user?.uid]);
+  }, [user]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (!user?.uid || !firestore) return;
 
     hydrateLiveList(() => WritingCenterCache.getSessionsForUser(user.uid), (cached) => {
@@ -106,7 +107,7 @@ export default function StudentDashboard({ preview = false, asUser = null }) {
     );
   }, [user?.uid, loadPastSessions, loadReceiptShares]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (!user?.uid || preview) return;
     WritingCenterCache.setSessionsForUser(user.uid, sessions);
   }, [sessions, user?.uid, preview]);

@@ -4,24 +4,37 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/utils/AuthContext";
+import { logClientError } from "@/lib/auth/logClientError";
+import {
+  canAccessClubHubSponsorDashboard,
+  canManageClubHubRoles,
+} from "@/lib/club-hub/access";
+import { useClubHubAccess } from "@/lib/club-hub/useClubHubAccess";
+import { CLUB_HUB_MAROON } from "@/lib/club-hub/theme";
 import { auth, signOut } from "@/firebase";
-
-const MAROON = "#5c1417";
 
 /**
  * Club Hub top nav — same Firebase session as the rest of the site.
- * @param {{ active?: "home" | "directory" | null, loginRedirect?: string }} props
+ * @param {{ active?: "home" | "directory" | "admin" | "sponsor" | null, loginRedirect?: string }} props
  */
 export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" }) {
-  const { user, loading } = useAuth();
+  const { user, userData, loading } = useAuth();
+  const { accessRecord, sponsorOverrides } = useClubHubAccess();
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [authReady, setAuthReady] = useState(false);
   const dropdownRef = useRef(null);
 
-  useEffect(() => {
-    setAuthReady(true);
-  }, []);
+  const showAdminLink =
+    !!user && !!userData && canManageClubHubRoles(user.email, userData);
+  const showSponsorLink =
+    !!user &&
+    !!userData &&
+    canAccessClubHubSponsorDashboard({
+      email: user.email,
+      userData,
+      accessRecord,
+      sponsorOverrides,
+    });
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -39,6 +52,7 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
       await signOut(auth);
       router.refresh();
     } catch (err) {
+      logClientError("ClubHubNav.signOut", err);
     }
   };
 
@@ -51,8 +65,8 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
       : "hover:underline underline-offset-4";
 
   return (
-    <nav className="border-b border-black/10 shadow-md" style={{ backgroundColor: MAROON }}>
-      <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-6 px-4 py-3.5 text-sm font-semibold tracking-wide text-white sm:gap-10 sm:text-base md:gap-12">
+    <nav className="border-b border-black/10 shadow-md" style={{ backgroundColor: CLUB_HUB_MAROON }}>
+      <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-6 px-4 py-[1.006rem] text-sm font-semibold tracking-wide text-white sm:gap-10 sm:text-base md:gap-12">
         <Link href="/club-hub" className={linkClass(active === "home")}>
           Home
         </Link>
@@ -63,8 +77,26 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
             Club Directory
           </Link>
         )}
+        {showSponsorLink ? (
+          active === "sponsor" ? (
+            <span className={linkClass(true)}>My clubs</span>
+          ) : (
+            <Link href="/club-hub/sponsor" className={linkClass(false)}>
+              My clubs
+            </Link>
+          )
+        ) : null}
+        {showAdminLink ? (
+          active === "admin" ? (
+            <span className={linkClass(true)}>Admin</span>
+          ) : (
+            <Link href="/club-hub/admin" className={linkClass(false)}>
+              Admin
+            </Link>
+          )
+        ) : null}
         <div className="relative" ref={dropdownRef} suppressHydrationWarning>
-          {authReady && !loading && user ? (
+          {!loading && user ? (
             <>
               <button
                 type="button"

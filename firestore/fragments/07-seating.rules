@@ -1,0 +1,14 @@
+      // Seating chart — one chart document per user (doc id = uid)
+      match /seatingCharts/{userId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow create, update: if isAuthenticated() &&
+                                request.auth.uid == userId &&
+                                request.resource.data.ownerId == request.auth.uid &&
+                                request.resource.data.chartName is string &&
+                                request.resource.data.chartName.size() <= 64 &&
+                                request.resource.data.students is list &&
+                                request.resource.data.furniture is list &&
+                                request.resource.data.restrictions is list &&
+                                request.resource.data.updatedAt is timestamp;
+        allow delete: if isAuthenticated() && request.auth.uid == userId;
+      }

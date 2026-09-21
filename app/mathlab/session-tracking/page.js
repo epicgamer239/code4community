@@ -1,7 +1,8 @@
 "use client";
 import { useAuth } from "@/utils/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import { useState, useCallback, useMemo, Suspense } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import DashboardTopBar from "@/components/layout/DashboardTopBar";
 import MathLabSidebar from "@/components/mathlab/MathLabSidebar";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
@@ -22,7 +23,7 @@ function SessionTrackingPageContent() {
 
   const isAdmin = userData && user && isAdminUser(userData.role, user.email);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (!loading && userData && !isAdmin) {
       router.push("/mathlab");
     }
@@ -84,7 +85,7 @@ function SessionTrackingPageContent() {
     [isAdmin],
   );
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (isAdmin) fetchSessions();
   }, [fetchSessions, isAdmin]);
 

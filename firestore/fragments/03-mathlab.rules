@@ -1,0 +1,195 @@
+      
+      // TutoringRequests collection - Contains math lab tutoring requests
+      match /tutoringRequests/{requestId} {
+        allow read: if canReadTutoringRequest();
+        
+        // Allow create: Any authenticated user can create requests
+        allow create: if isAuthenticated() &&
+                        // Validate required fields
+                        request.resource.data.keys().hasAll(['studentId', 'studentName', 'course', 'description', 'status', 'createdAt', 'updatedAt']) &&
+                        // Validate field types and values
+                        request.resource.data.studentId is string &&
+                        request.resource.data.studentId == request.auth.uid &&
+                        request.resource.data.studentName is string &&
+                        request.resource.data.studentName.size() > 0 &&
+                        request.resource.data.studentName.size() <= 100 &&
+                        request.resource.data.course is string &&
+                        isValidCourse(request.resource.data.course) &&
+                        request.resource.data.description is string &&
+                        request.resource.data.description.size() > 0 &&
+                        request.resource.data.description.size() <= 1000 &&
+                        request.resource.data.status is string &&
+                        request.resource.data.status == 'pending' &&
+                        request.resource.data.createdAt is timestamp &&
+                        request.resource.data.updatedAt is timestamp &&
+                        mathLabScheduleFieldsValid(request.resource.data) &&
+                        // Validate optional fields if present
+                        (!('tutorId' in request.resource.data) || 
+                        (request.resource.data.tutorId is string && 
+                          request.resource.data.tutorId.size() > 0)) &&
+                        (!('tutorName' in request.resource.data) || 
+                        (request.resource.data.tutorName is string && 
+                          request.resource.data.tutorName.size() <= 100)) &&
+                        (!('acceptedAt' in request.resource.data) || 
+                        (request.resource.data.acceptedAt is timestamp)) &&
+                        (!('completedAt' in request.resource.data) || 
+                        (request.resource.data.completedAt is timestamp));
+        
+        // Allow update: 
+        // - Students can update their own pending requests
+        // - Tutors can update pending requests (to accept them)
+        // - Tutors can update requests they're assigned to (start session, complete)
+        // - Teachers/admins can update any request
+        allow update: if isAuthenticated() && (
+                          // Students can update their own pending requests
+                          (resource.data.studentId == request.auth.uid && 
+                          resource.data.status == 'pending' &&
+                          // Only allow updating description and course
+                          request.resource.data.studentId == resource.data.studentId &&
+                          request.resource.data.status == resource.data.status &&
+                          request.resource.data.createdAt == resource.data.createdAt &&
+                          request.resource.data.course is string &&
+                          isValidCourse(request.resource.data.course) &&
+                          request.resource.data.description is string &&
+                          request.resource.data.description.size() > 0 &&
+                          request.resource.data.description.size() <= 1000 &&
+                          request.resource.data.updatedAt is timestamp &&
+                          mathLabScheduleFieldsUnchanged()) ||
+                          // Tutors can update pending requests (to accept them)
+                          (isTutor() && 
+                          resource.data.status == 'pending' &&
+                          // Allow status change from pending to accepted
+                          request.resource.data.status == 'accepted' &&
+                          // Validate required fields for accepted status
+                          request.resource.data.studentId == resource.data.studentId &&
+                          request.resource.data.course == resource.data.course &&
+                          request.resource.data.description == resource.data.description &&
+                          request.resource.data.createdAt == resource.data.createdAt &&
+                          request.resource.data.updatedAt is timestamp &&
+                          mathLabScheduleFieldsUnchanged() &&
+                          // Validate new fields for accepted status
+                          request.resource.data.tutorId is string &&
+                          request.resource.data.tutorId == request.auth.uid &&
+                          request.resource.data.tutorName is string &&
+                          request.resource.data.tutorName.size() > 0 &&
+                          request.resource.data.tutorName.size() <= 100 &&
+                          request.resource.data.acceptedAt is timestamp) ||
+                          // Tutors can update requests they're assigned to (start session, complete)
+                          (isTutor() && 
+                          resource.data.tutorId == request.auth.uid &&
+                          // Allow status changes: accepted -> completed, or add sessionStartedAt
+                          (request.resource.data.status == 'completed' || 
+                            ('sessionStartedAt' in request.resource.data)) &&
+                          // Validate required fields
+                          request.resource.data.tutorId == resource.data.tutorId &&
+                          request.resource.data.studentId == resource.data.studentId &&
+                          request.resource.data.course == resource.data.course &&
+                          request.resource.data.createdAt == resource.data.createdAt &&
+                          request.resource.data.updatedAt is timestamp &&
+                          mathLabScheduleFieldsUnchanged() &&
+                          // Validate optional fields
+                          (!('acceptedAt' in request.resource.data) || 
+                            (request.resource.data.acceptedAt is timestamp)) &&
+                          (!('sessionStartedAt' in request.resource.data) || 
+                            (request.resource.data.sessionStartedAt is timestamp)) &&
+                          (!('completedAt' in request.resource.data) || 
+                            (request.resource.data.completedAt is timestamp))) ||
+                          // Teachers and admins can update any request
+                          isTeacherOrAdmin() ||
+                          // Admins can update any request
+                          isAnyAdmin()
+                        );
+        
+        // Allow delete: 
+        // - Students can delete their own pending requests
+        // - Tutors can delete requests they're assigned to (when ending sessions)
+        // - Teachers/admins can delete any request
+        allow delete: if isAuthenticated() && (
+                          // Students can delete their own pending requests
+                          (resource.data.studentId == request.auth.uid && 
+                          resource.data.status == 'pending') ||
+                          // Tutors can delete requests they're assigned to (when ending sessions)
+                          (isTutor() && 
+                          resource.data.tutorId == request.auth.uid) ||
+                          // Teachers and admins can delete any request
+                          isTeacherOrAdmin() ||
+                          isAnyAdmin()
+                        );
+      }
+      
+      // CompletedSessions collection - Contains completed tutoring sessions
+      match /completedSessions/{sessionId} {
+        // Allow read: 
+        // - Students can read sessions they participated in
+        // - Tutors can read sessions they conducted
+        // - Teachers/admins can read all sessions
+        allow read: if isAuthenticated() && (
+                        // Students can read sessions they participated in
+                        resource.data.studentId == request.auth.uid ||
+                        // Tutors can read sessions they conducted
+                        (isTutor() && resource.data.tutorId == request.auth.uid) ||
+                        // Teachers and admins can read all sessions
+                        isTeacherOrAdmin() ||
+                        // Admins can read all sessions
+                        isAdminByEmail()
+                      );
+        
+        // Allow create: 
+        // - Tutors can create sessions for requests they accepted
+        // - Teachers/admins can create any session
+        allow create: if isAuthenticated() &&
+                        // Validate required fields
+                        request.resource.data.keys().hasAll(['studentId', 'studentName', 'tutorId', 'tutorName', 'course', 'duration', 'completedAt', 'status']) &&
+                        // Validate field types and values
+                        request.resource.data.studentId is string &&
+                        request.resource.data.studentName is string &&
+                        request.resource.data.studentName.size() > 0 &&
+                        request.resource.data.studentName.size() <= 100 &&
+                        request.resource.data.tutorId is string &&
+                        request.resource.data.tutorName is string &&
+                        request.resource.data.tutorName.size() > 0 &&
+                        request.resource.data.tutorName.size() <= 100 &&
+                        request.resource.data.course is string &&
+                        isValidCourse(request.resource.data.course) &&
+                        request.resource.data.duration is number &&
+                        request.resource.data.duration > 0 &&
+                        request.resource.data.completedAt is timestamp &&
+                        request.resource.data.status is string &&
+                        request.resource.data.status == 'completed' &&
+                        // Validate optional fields if present
+                        (!('studentEmail' in request.resource.data) || 
+                        (request.resource.data.studentEmail is string && 
+                          isValidEmail(request.resource.data.studentEmail))) &&
+                        (!('tutorEmail' in request.resource.data) || 
+                        (request.resource.data.tutorEmail is string && 
+                          isValidEmail(request.resource.data.tutorEmail))) &&
+                        // Allow creation by tutors (for their own sessions) or teachers/admins
+                        (isTutor() || isTeacherOrAdmin() || isAdminByEmail());
+        
+        // Allow update: Only teachers/admins can update completed sessions
+        allow update: if isTeacherOrAdmin() || isAdminByEmail();
+        
+        // Allow delete: Only teachers/admins can delete completed sessions
+        allow delete: if isTeacherOrAdmin() || isAnyAdmin();
+      }
+
+      // Pre-signup tutor/admin grants (document id = normalized email)
+      match /mathLabTeamPending/{emailKey} {
+        allow read: if isAuthenticated() &&
+                      (isAnyAdmin() || emailsMatch(request.auth.token.email, emailKey));
+        allow create, update: if isAnyAdmin() &&
+                                request.resource.data.keys().hasAll(['email', 'grantType', 'createdAt', 'updatedAt']) &&
+                                request.resource.data.email is string &&
+                                normalizeEmail(request.resource.data.email) == normalizeEmail(emailKey) &&
+                                isValidEmail(request.resource.data.email) &&
+                                request.resource.data.grantType in ['tutor', 'admin', 'teacher'] &&
+                                request.resource.data.createdAt is timestamp &&
+                                request.resource.data.updatedAt is timestamp &&
+                                !isProtectedAdminEmail(request.resource.data.email) &&
+                                (request.resource.data.grantType != 'tutor' ||
+                                  (request.resource.data.services is list &&
+                                    request.resource.data.services.size() >= 1 &&
+                                    request.resource.data.services.size() <= 2));
+        allow delete: if isAnyAdmin() ||
+                        (isAuthenticated() && emailsMatch(request.auth.token.email, emailKey));
+      }

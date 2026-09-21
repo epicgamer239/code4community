@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { runEffectWork } from "@/hooks/runEffectWork";
 import StudentRosterManager from "./StudentRosterManager";
 import ConstraintEngine from "./ConstraintEngine";
 import GroupingAlgorithm from "./GroupingAlgorithm";
@@ -34,20 +35,25 @@ export default function GroupGenerator({ embedded = false }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentClass, setCurrentClass] = useState(null);
   const currentClassRef = useRef(null);
-  currentClassRef.current = currentClass;
 
   useEffect(() => {
-    const savedCurrentClass = localStorage.getItem("currentClass");
-    if (savedCurrentClass) {
-      const classData = JSON.parse(savedCurrentClass);
-      setCurrentClass(classData);
+    currentClassRef.current = currentClass;
+  }, [currentClass]);
 
-      const rosterKey = `classRoster-${classData.id}`;
-      const savedRoster = localStorage.getItem(rosterKey);
-      if (savedRoster) {
-        setStudents(JSON.parse(savedRoster));
+  useEffect(() => {
+    return runEffectWork(() => {
+      const savedCurrentClass = localStorage.getItem("currentClass");
+      if (savedCurrentClass) {
+        const classData = JSON.parse(savedCurrentClass);
+        setCurrentClass(classData);
+
+        const rosterKey = `classRoster-${classData.id}`;
+        const savedRoster = localStorage.getItem(rosterKey);
+        if (savedRoster) {
+          setStudents(JSON.parse(savedRoster));
+        }
       }
-    }
+    });
   }, []);
 
   useEffect(() => {

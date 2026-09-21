@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/utils/AuthContext";
@@ -19,22 +20,15 @@ const calendarIcon = (
 );
 
 export default function OfficeHoursSidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
+  const [desktopCollapsed, setDesktopCollapsed] = useState(true);
+  const isCollapsed = isMobile ? true : desktopCollapsed;
+  const setIsCollapsed = (value) => {
+    if (!isMobile) setDesktopCollapsed(value);
+  };
   const router = useRouter();
   const pathname = usePathname();
   const { user, userData, loading: authLoading } = useAuth();
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  useEffect(() => {
-    if (isMobile) setIsCollapsed(true);
-  }, [isMobile]);
 
   const canManage =
     userData &&

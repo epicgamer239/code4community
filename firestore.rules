@@ -3,6 +3,7 @@
 
   service cloud.firestore {
     match /databases/{database}/documents {
+
       
       // Helper functions for authentication and validation
       function isAuthenticated() {
@@ -195,6 +196,7 @@
                 mathLabRoleValue(request.resource.data) == mathLabRoleValue(resource.data) &&
                 writingCenterRoleValue(request.resource.data) == writingCenterRoleValue(resource.data));
       }
+
       
       // Helper function to check if user is a Math Lab tutor
       function isTutor() {
@@ -322,6 +324,7 @@
         // Allow delete: Only admins can delete users
         allow delete: if isAdminByEmail();
       }
+
       
       // TutoringRequests collection - Contains math lab tutoring requests
       match /tutoringRequests/{requestId} {
@@ -517,6 +520,7 @@
         allow delete: if isAnyAdmin() ||
                         (isAuthenticated() && emailsMatch(request.auth.token.email, emailKey));
       }
+
 
       function isSlotHost() {
         return isTutor() || isTeacherOrAdmin() || isAdminByEmail();
@@ -731,6 +735,7 @@
                         resource.data.bookedCount == 0;
       }
 
+
       match /officeHourBookings/{bookingId} {
         function isOwnOfficeHourBookingId() {
           return bookingId is string && bookingId.matches('^.*_' + request.auth.uid + '$');
@@ -823,10 +828,98 @@
                         );
       }
 
+
+      // Club Hub access contract: client UI may use live clubHubSponsors overrides;
+      // Firestore writes require synced clubHubAccess (directoryClubSlugs / manualClubSlugs).
+
+      function isProtectedClubHubCoordinator() {
+        return isAuthenticated() &&
+              request.auth.token.email is string &&
+              normalizeEmail(request.auth.token.email) == 'katrice.white@lcps.org';
+      }
+
+      function clubHubAccessDocPath(email) {
+        return /databases/$(database)/documents/clubHubAccess/$(normalizeEmail(email));
+      }
+
+      function clubHubAccessForAuthUser() {
+        return get(clubHubAccessDocPath(request.auth.token.email)).data;
+      }
+
+      function clubHubSlugAllowedInMap(slugMap, slug) {
+        return slugMap is map &&
+              slug in slugMap &&
+              slugMap[slug] == true;
+      }
+
+      function isClubHubCoordinatorAccess() {
+        return isProtectedClubHubCoordinator() ||
+              (isAuthenticated() &&
+                request.auth.token.email is string &&
+                exists(clubHubAccessDocPath(request.auth.token.email)) &&
+                clubHubAccessForAuthUser().isCoordinator == true);
+      }
+
+      function canEditClubHubPage(slug) {
+        return isAnyAdmin() ||
+              isClubHubCoordinatorAccess() ||
+              (isAuthenticated() &&
+                request.auth.token.email is string &&
+                exists(clubHubAccessDocPath(request.auth.token.email)) &&
+                (
+                  clubHubSlugAllowedInMap(clubHubAccessForAuthUser().get('directoryClubSlugs', {}), slug) ||
+                  clubHubSlugAllowedInMap(clubHubAccessForAuthUser().get('manualClubSlugs', {}), slug) ||
+                  clubHubSlugAllowedInMap(clubHubAccessForAuthUser().get('clubSlugs', {}), slug)
+                ));
+      }
+
+      function isValidClubHubSlugMap(field) {
+        return field is map && field.size() <= 120;
+      }
+
+      function isValidClubHubAccessWrite(emailKey) {
+        return request.resource.data.email is string &&
+              isValidEmail(request.resource.data.email) &&
+              request.resource.data.email == normalizeEmail(request.resource.data.email) &&
+              normalizeEmail(request.resource.data.email) == normalizeEmail(emailKey) &&
+              request.resource.data.isCoordinator is bool &&
+              isValidClubHubSlugMap(request.resource.data.get('manualClubSlugs', {})) &&
+              isValidClubHubSlugMap(request.resource.data.get('directoryClubSlugs', {})) &&
+              request.resource.data.updatedAt is timestamp &&
+              request.resource.data.updatedBy == request.auth.uid;
+      }
+
+      match /clubHubSponsors/{slug} {
+        allow read: if true;
+        allow create, update: if isAnyAdmin() &&
+                                request.resource.data.slug == slug &&
+                                request.resource.data.slug is string &&
+                                request.resource.data.slug.size() > 0 &&
+                                request.resource.data.slug.size() <= 120 &&
+                                request.resource.data.clubName is string &&
+                                request.resource.data.clubName.size() > 0 &&
+                                request.resource.data.clubName.size() <= 120 &&
+                                request.resource.data.sponsors is list &&
+                                request.resource.data.sponsors.size() <= 10 &&
+                                request.resource.data.updatedAt is timestamp &&
+                                request.resource.data.updatedBy == request.auth.uid;
+        allow delete: if isAnyAdmin();
+      }
+
+      match /clubHubAccess/{emailKey} {
+        allow read: if isAuthenticated() && (
+          isAnyAdmin() ||
+          emailsMatch(request.auth.token.email, emailKey)
+        );
+        allow create, update: if isAnyAdmin() && isValidClubHubAccessWrite(emailKey);
+        allow delete: if isAnyAdmin() &&
+                        normalizeEmail(emailKey) != 'katrice.white@lcps.org';
+      }
+
       // Club Hub editable page copy
       match /clubHubPages/{slug} {
         allow read: if true;
-        allow create, update: if isAnyAdmin() &&
+        allow create, update: if canEditClubHubPage(slug) &&
                                 request.resource.data.keys().hasAll([
                                   'slug', 'about', 'updatedAt', 'updatedBy'
                                 ]) &&
@@ -860,9 +953,118 @@
                                 (!('memberCount' in request.resource.data) ||
                                   (request.resource.data.memberCount is string &&
                                     request.resource.data.memberCount.size() <= 40)) &&
-                                (!('activities' in request.resource.data) ||
-                                  (request.resource.data.activities is string &&
-                                    request.resource.data.activities.size() <= 4000));
+                                (!('headerImageUrl' in request.resource.data) ||
+                                  (request.resource.data.headerImageUrl is string &&
+                                    request.resource.data.headerImageUrl.size() <= 2000));
+        allow delete: if isAnyAdmin() || isClubHubCoordinatorAccess();
+      }
+
+      function isValidClubHubEventWrite() {
+        return request.resource.data.clubSlug is string &&
+              request.resource.data.clubSlug.size() > 0 &&
+              request.resource.data.clubSlug.size() <= 120 &&
+              request.resource.data.clubName is string &&
+              request.resource.data.clubName.size() > 0 &&
+              request.resource.data.clubName.size() <= 120 &&
+              request.resource.data.title is string &&
+              request.resource.data.title.size() > 0 &&
+              request.resource.data.title.size() <= 120 &&
+              request.resource.data.date is string &&
+              request.resource.data.date.size() == 10 &&
+              request.resource.data.time is string &&
+              request.resource.data.time.size() > 0 &&
+              request.resource.data.time.size() <= 40 &&
+              (!('description' in request.resource.data) ||
+                (request.resource.data.description is string &&
+                  request.resource.data.description.size() <= 500)) &&
+              (!('location' in request.resource.data) ||
+                (request.resource.data.location is string &&
+                  request.resource.data.location.size() <= 120)) &&
+              request.resource.data.updatedAt is timestamp &&
+              request.resource.data.updatedBy == request.auth.uid;
+      }
+
+      match /clubHubEvents/{eventId} {
+        allow read: if true;
+        allow create: if isAuthenticated() &&
+                        isValidClubHubEventWrite() &&
+                        canEditClubHubPage(request.resource.data.clubSlug) &&
+                        request.resource.data.createdAt is timestamp &&
+                        request.resource.data.createdBy == request.auth.uid;
+        allow update: if isAuthenticated() &&
+                        isValidClubHubEventWrite() &&
+                        canEditClubHubPage(resource.data.clubSlug) &&
+                        request.resource.data.clubSlug == resource.data.clubSlug &&
+                        request.resource.data.createdAt == resource.data.createdAt &&
+                        request.resource.data.createdBy == resource.data.createdBy;
+        allow delete: if isAuthenticated() &&
+                        canEditClubHubPage(resource.data.clubSlug);
+      }
+
+      function isValidClubHubMembershipWrite() {
+        return request.resource.data.clubSlug is string &&
+              request.resource.data.clubSlug.size() > 0 &&
+              request.resource.data.clubSlug.size() <= 120 &&
+              request.resource.data.clubName is string &&
+              request.resource.data.clubName.size() > 0 &&
+              request.resource.data.clubName.size() <= 120 &&
+              request.resource.data.userId is string &&
+              request.resource.data.userId == request.auth.uid &&
+              request.resource.data.userEmail is string &&
+              request.resource.data.userEmail.size() > 0 &&
+              request.resource.data.userEmail.size() <= 128 &&
+              request.resource.data.userEmail == normalizeEmail(request.resource.data.userEmail) &&
+              emailsMatch(request.resource.data.userEmail, request.auth.token.email) &&
+              request.resource.data.displayName is string &&
+              request.resource.data.displayName.size() > 0 &&
+              request.resource.data.displayName.size() <= 100 &&
+              request.resource.data.joinedAt is timestamp;
+      }
+
+      function clubHubMembershipDocIdForWrite() {
+        return request.resource.data.clubSlug + '__' + request.auth.uid;
+      }
+
+      match /clubHubMemberships/{membershipId} {
+        allow read: if isAuthenticated() && (
+          resource.data.userId == request.auth.uid ||
+          isAnyAdmin() ||
+          canEditClubHubPage(resource.data.clubSlug)
+        );
+        allow create: if isAuthenticated() &&
+                        membershipId == clubHubMembershipDocIdForWrite() &&
+                        isValidClubHubMembershipWrite();
+        allow update: if false;
+        allow delete: if isAuthenticated() &&
+                        resource.data.userId == request.auth.uid;
+      }
+
+      function isValidClubHubMembershipCountFields() {
+        return request.resource.data.clubSlug is string &&
+              request.resource.data.clubSlug.size() > 0 &&
+              request.resource.data.clubSlug.size() <= 120 &&
+              request.resource.data.clubName is string &&
+              request.resource.data.clubName.size() > 0 &&
+              request.resource.data.clubName.size() <= 120 &&
+              request.resource.data.memberCount is int &&
+              request.resource.data.memberCount >= 0 &&
+              request.resource.data.memberCount <= 5000 &&
+              request.resource.data.updatedAt is timestamp;
+      }
+
+      match /clubHubMembershipCounts/{slug} {
+        allow read: if true;
+        allow create: if isAuthenticated() &&
+                        request.resource.data.clubSlug == slug &&
+                        isValidClubHubMembershipCountFields() &&
+                        request.resource.data.memberCount == 1;
+        allow update: if isAuthenticated() &&
+                        request.resource.data.clubSlug == slug &&
+                        isValidClubHubMembershipCountFields() &&
+                        (
+                          request.resource.data.memberCount == resource.data.memberCount + 1 ||
+                          request.resource.data.memberCount == resource.data.memberCount - 1
+                        );
         allow delete: if isAnyAdmin();
       }
 

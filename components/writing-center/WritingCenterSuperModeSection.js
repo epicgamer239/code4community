@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import {
   collection,
   deleteDoc,
@@ -115,7 +116,7 @@ export default function WritingCenterSuperModeSection({
     }
   }, [enabled, setError]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (enabled) void loadData();
   }, [enabled, loadData]);
 

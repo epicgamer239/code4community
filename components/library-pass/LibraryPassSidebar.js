@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -57,22 +58,15 @@ function SidebarNavEntry({ item, isCollapsed, isMobile }) {
  * Staff sidebar matching Math Lab layout: collapsible left rail + mobile bottom nav.
  */
 export default function LibraryPassSidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
+  const [desktopCollapsed, setDesktopCollapsed] = useState(true);
+  const isCollapsed = isMobile ? true : desktopCollapsed;
+  const setIsCollapsed = (value) => {
+    if (!isMobile) setDesktopCollapsed(value);
+  };
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const view = searchParams?.get("view") || "active";
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  useEffect(() => {
-    if (isMobile) setIsCollapsed(true);
-  }, [isMobile]);
 
   const onLibraryPass = pathname === "/library-pass";
   const navigationItems = [

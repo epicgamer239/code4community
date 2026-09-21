@@ -27,7 +27,7 @@ steps:
       - --port=8080
       - --set-build-env-vars=${_BUILD_AND_RUNTIME_ENV},NEXT_DEPLOYMENT_ID=$COMMIT_SHA
       - --set-env-vars=${_BUILD_AND_RUNTIME_ENV},NEXT_DEPLOYMENT_ID=$COMMIT_SHA
-      - --set-secrets=WRITING_CENTER_GOOGLE_FORM_SYNC_SECRET=writing-center-google-form-sync:latest
+      - --set-secrets=WRITING_CENTER_GOOGLE_FORM_SYNC_SECRET=writing-center-google-form-sync:latest,FIREBASE_SERVICE_ACCOUNT_JSON=firebase-service-account-json:latest
       - --quiet
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import {
   collection,
   deleteDoc,
@@ -42,7 +43,7 @@ export default function MathLabSuperModePanel({ authUid }) {
   const [liveRequests, setLiveRequests] = useState([]);
   const [completed, setCompleted] = useState([]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     setEnabled(isMathLabSuperModeEnabled());
     return subscribeMathLabSuperMode(setEnabled);
   }, []);
@@ -78,7 +79,7 @@ export default function MathLabSuperModePanel({ authUid }) {
     }
   }, [enabled]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (enabled) void loadData();
   }, [enabled, loadData]);
 

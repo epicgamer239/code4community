@@ -36,7 +36,7 @@ function readApiKeyFromKeysDevSource() {
   }
 }
 
-function useDevFirebaseKeys() {
+function shouldUseDevFirebaseKeys() {
   return (
     process.env.NODE_ENV === "development" ||
     process.env.NEXT_PUBLIC_USE_DEV_FIREBASE === "1"
@@ -58,7 +58,7 @@ async function getFirebaseWebApiKeyFromKeysDev() {
 }
 
 async function getFirebaseWebApiKey() {
-  if (useDevFirebaseKeys()) {
+  if (shouldUseDevFirebaseKeys()) {
     const fromKeys = await getFirebaseWebApiKeyFromKeysDev();
     if (fromKeys) return fromKeys;
   }
@@ -66,7 +66,7 @@ async function getFirebaseWebApiKey() {
   const fromEnv = getFirebaseWebApiKeyFromEnv();
   if (fromEnv) return fromEnv;
 
-  if (!useDevFirebaseKeys()) return undefined;
+  if (!shouldUseDevFirebaseKeys()) return undefined;
 
   return getFirebaseWebApiKeyFromKeysDev();
 }

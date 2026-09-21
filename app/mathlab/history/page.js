@@ -1,7 +1,8 @@
 "use client";
 import { useAuth } from "@/utils/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import { useState, useCallback, useMemo, Suspense } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import DashboardTopBar from "@/components/layout/DashboardTopBar";
 import MathLabSidebar from "@/components/mathlab/MathLabSidebar";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
@@ -147,26 +148,23 @@ function MathLabHistoryPageContent() {
     }
   }, [userId, userData]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (userData) fetchSessionHistory();
   }, [fetchSessionHistory, userData]);
 
-  useEffect(() => {
-    const isTutor = displayUser?.mathLabRole === "tutor";
-    const isAdmin = userData && user && isAdminUser(userData.role, user.email);
-    if (!isTutor && !isAdmin && filter === "tutor") {
-      setFilter("all");
-    }
-  }, [userData, displayUser?.mathLabRole, filter, user]);
+  const isTutorRole = displayUser?.mathLabRole === "tutor";
+  const isAdminRole = Boolean(userData && user && isAdminUser(userData.role, user.email));
+  const activeFilter =
+    !isTutorRole && !isAdminRole && filter === "tutor" ? "all" : filter;
 
   const filteredSessions = useMemo(() => {
-    if (filter === "all") return sessionHistory;
+    if (activeFilter === "all") return sessionHistory;
     return sessionHistory.filter((session) => {
-      if (filter === "student") return session.studentId === userId;
-      if (filter === "tutor") return session.tutorId === userId;
+      if (activeFilter === "student") return session.studentId === userId;
+      if (activeFilter === "tutor") return session.tutorId === userId;
       return true;
     });
-  }, [sessionHistory, filter, userId]);
+  }, [sessionHistory, activeFilter, userId]);
 
   if (!user) {
     return (

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fetchClubEventsInRange, groupEventsByDate } from "@/lib/club-hub/clubEvents";
 
 const RED = "#5c1417";
 
@@ -54,57 +55,11 @@ function sameDay(a, b) {
   return dateKey(a) === dateKey(b);
 }
 
-const DEMO_EVENTS = {
-  "2026-08-03": [
-    { time: "3:15 PM", title: "Chess Club", location: "Library" },
-    { time: "3:15 PM", title: "Book Club", location: "Room 204" },
-  ],
-  "2026-08-04": [
-    { time: "12:00 PM", title: "Gender-Sexuality Alliance", location: "LLC 304/305" },
-    { time: "3:15 PM", title: "Debate & Speech Team", location: "Room 112" },
-    { time: "3:15 PM", title: "Competitive Math Union", location: "RH 200" },
-  ],
-  "2026-08-05": [
-    { time: "3:15 PM", title: "Robotics", location: "Maker Lab" },
-    { time: "3:15 PM", title: "Code4Community", location: "Room 210" },
-  ],
-  "2026-08-06": [
-    { time: "12:30 PM", title: "Key Club", location: "Cafeteria" },
-    { time: "3:15 PM", title: "DECA", location: "Business Wing" },
-  ],
-  "2026-08-07": [
-    { time: "3:15 PM", title: "National Honor Society (NHS)", location: "Library" },
-    { time: "3:15 PM", title: "American Cancer Society", location: "Room 118" },
-  ],
-  "2026-08-10": [
-    { time: "3:15 PM", title: "Baking Club", location: "Foods Lab" },
-    { time: "3:15 PM", title: "Anime Club", location: "Room 156" },
-  ],
-  "2026-08-12": [
-    { time: "3:15 PM", title: "Science Olympiad", location: "Science Wing" },
-    { time: "3:15 PM", title: "Girls Who Code", location: "Computer Lab" },
-  ],
-  "2026-08-14": [
-    { time: "12:00 PM", title: "Student Council Association (SCA)", location: "Main Office Conference" },
-    { time: "3:15 PM", title: "Future Business Leaders of America (FBLA)", location: "Room 230" },
-  ],
-  "2026-08-18": [
-    { time: "3:15 PM", title: "Asian Student Association (ASA)", location: "Room 142" },
-    { time: "3:15 PM", title: "PEER", location: "Counseling Suite" },
-  ],
-  "2026-08-21": [
-    { time: "3:15 PM", title: "Interact", location: "Room 108" },
-    { time: "3:15 PM", title: "Best Buddies", location: "Room 119" },
-  ],
-  "2026-08-25": [
-    { time: "3:15 PM", title: "Robotics", location: "Maker Lab" },
-    { time: "3:15 PM", title: "Technology Student Association (TSA)", location: "Tech Lab" },
-  ],
-  "2026-08-28": [
-    { time: "12:00 PM", title: "Spirit of Spartans (SOS) / Unified Sports", location: "Main Gym" },
-    { time: "3:15 PM", title: "Hiking Club", location: "Front Circle" },
-  ],
-};
+function todayStart() {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return t;
+}
 
 const shortDay = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -159,7 +114,7 @@ function EventBlock({ ev, isSelectedCol }) {
   );
 }
 
-function MonthView({ year, month, selectedDay, onSelectDay }) {
+function MonthView({ year, month, selectedDay, onSelectDay, eventsByDate }) {
   const firstOfMonth = new Date(year, month, 1);
   const startPad = firstOfMonth.getDay();
   const totalDays = daysInMonth(year, month);
@@ -194,7 +149,7 @@ function MonthView({ year, month, selectedDay, onSelectDay }) {
             );
           }
           const key = dateKey(day);
-          const list = DEMO_EVENTS[key] || [];
+          const list = eventsByDate[key] || [];
           const selected = key === selectedKey;
 
           return (
@@ -218,8 +173,11 @@ function MonthView({ year, month, selectedDay, onSelectDay }) {
                   <p
                     key={`${key}-${idx}`}
                     className="truncate rounded-sm bg-neutral-100 px-1 py-0.5 text-[9px] font-medium leading-tight text-neutral-800 sm:text-[10px]"
+                    title={ev.clubName ? `${ev.clubName}: ${ev.title}` : ev.title}
                   >
-                    {ev.title}
+                    {ev.clubName && ev.clubName !== ev.title
+                      ? `${ev.clubName}: ${ev.title}`
+                      : ev.title}
                   </p>
                 ))}
                 {list.length > 3 ? (
@@ -236,14 +194,50 @@ function MonthView({ year, month, selectedDay, onSelectDay }) {
 
 export default function ClubHubWeekCalendar() {
   const [view, setView] = useState("week");
-  const [focusDate, setFocusDate] = useState(() => new Date(2026, 7, 3));
-  const [selectedDay, setSelectedDay] = useState(() => new Date(2026, 7, 3));
+  const [focusDate, setFocusDate] = useState(todayStart);
+  const [selectedDay, setSelectedDay] = useState(todayStart);
+  const [eventsByDate, setEventsByDate] = useState({});
 
   const weekStart = useMemo(() => startOfWeekSunday(focusDate), [focusDate]);
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart],
   );
+
+  const visibleRange = useMemo(() => {
+    if (view === "week") {
+      return {
+        start: dateKey(weekStart),
+        end: dateKey(addDays(weekStart, 6)),
+      };
+    }
+    const year = focusDate.getFullYear();
+    const month = focusDate.getMonth();
+    const firstOfMonth = new Date(year, month, 1);
+    const startPad = firstOfMonth.getDay();
+    const gridStart = addDays(firstOfMonth, -startPad);
+    const totalDays = daysInMonth(year, month);
+    const lastDay = new Date(year, month, totalDays);
+    const cellsCount = startPad + totalDays;
+    const trailing = (7 - (cellsCount % 7)) % 7;
+    const gridEnd = addDays(lastDay, trailing);
+    return { start: dateKey(gridStart), end: dateKey(gridEnd) };
+  }, [view, focusDate, weekStart]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const events = await fetchClubEventsInRange(visibleRange.start, visibleRange.end);
+        if (!cancelled) setEventsByDate(groupEventsByDate(events));
+      } catch {
+        if (!cancelled) setEventsByDate({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleRange.start, visibleRange.end]);
 
   const selectedIndex = days.findIndex((d) => sameDay(d, selectedDay));
 
@@ -344,6 +338,7 @@ export default function ClubHubWeekCalendar() {
               year={focusDate.getFullYear()}
               month={focusDate.getMonth()}
               selectedDay={selectedDay}
+              eventsByDate={eventsByDate}
               onSelectDay={(day) => {
                 setSelectedDay(day);
                 setFocusDate(day);
@@ -365,7 +360,7 @@ export default function ClubHubWeekCalendar() {
                 <div className="grid h-[640px] grid-cols-7 gap-0 border-t border-neutral-200">
                   {days.map((day, colIdx) => {
                     const key = dateKey(day);
-                    const list = DEMO_EVENTS[key] || [];
+                    const list = eventsByDate[key] || [];
                     const isSelected = selectedIndex >= 0 && colIdx === selectedIndex;
                     const dateStr = day.toLocaleDateString("en-US", {
                       month: "short",
@@ -414,7 +409,7 @@ export default function ClubHubWeekCalendar() {
               <div className="flex flex-col gap-0 divide-y divide-neutral-200 border-t border-neutral-200 lg:hidden">
                 {days.map((day) => {
                   const key = dateKey(day);
-                  const list = DEMO_EVENTS[key] || [];
+                  const list = eventsByDate[key] || [];
                   const isSelected = sameDay(day, selectedDay);
                   const dateStr = day.toLocaleDateString("en-US", {
                     weekday: "short",

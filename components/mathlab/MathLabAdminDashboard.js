@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import {
   collection,
   getDocs,
@@ -139,7 +140,7 @@ export default function MathLabAdminDashboard() {
 
   const canUseSuperMode = isProtectedAdminEmail(authUser?.email);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (!canUseSuperMode && adminTab === "super") {
       setAdminTab("team");
     }
@@ -220,7 +221,7 @@ export default function MathLabAdminDashboard() {
     }
   }, []);
 
-  useEffect(() => {
+  useRunEffect(() => {
     loadTeam();
   }, [loadTeam]);
 
@@ -480,7 +481,7 @@ export default function MathLabAdminDashboard() {
     setAdminTab(tab);
   };
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (!eligibilityDirty || adminTab !== "courses") return undefined;
     const onBeforeUnload = (e) => {
       e.preventDefault();

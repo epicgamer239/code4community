@@ -1,16 +1,14 @@
+import { Merriweather } from "next/font/google";
+
+const merriweather = Merriweather({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  display: "swap",
+});
+
 /**
  * Merriweather only on /about — keeps extra stylesheets off every other route.
  */
 export default function AboutLayout({ children }) {
-  return (
-    <>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link
-        href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap"
-        rel="stylesheet"
-      />
-      {children}
-    </>
-  );
+  return <div className={merriweather.className}>{children}</div>;
 }

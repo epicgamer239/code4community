@@ -36,7 +36,7 @@ export default function HomePageSections() {
           <div className="w-full">
             <div className="relative w-full aspect-[4/3] border-[2.5px] border-[#2a2a2a] shadow-[8px_8px_0_0_#2a2a2a] bg-[#2a2a2a]">
               <Image
-                src="/group-pics/IMG_4044.png"
+                src="/group-pics/IMG_4044.jpg"
                 alt="Code4Community team"
                 fill
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -52,7 +52,7 @@ export default function HomePageSections() {
           <div className="w-full order-2 lg:order-1">
             <div className="relative w-full aspect-[4/3] border-[2.5px] border-[#2a2a2a] shadow-[8px_8px_0_0_#2a2a2a] bg-[#2a2a2a]">
               <Image
-                src="/group-pics/IMG_4048.png"
+                src="/group-pics/IMG_4048.jpg"
                 alt="Code4Community members collaborating"
                 fill
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -99,7 +99,7 @@ export default function HomePageSections() {
           <div className="w-full">
             <div className="relative w-full aspect-[4/3] border-[2.5px] border-[#2a2a2a] shadow-[8px_8px_0_0_#2a2a2a] bg-[#2a2a2a]">
               <Image
-                src="/group-pics/IMG_2492.png"
+                src="/group-pics/IMG_2492.jpg"
                 alt="Code4Community students making an impact"
                 fill
                 sizes="(max-width: 1024px) 100vw, 50vw"

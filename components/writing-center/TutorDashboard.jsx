@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import { useAuth } from "@/utils/AuthContext";
 import { firestore } from "@/firebase";
 import { updateDoc, doc, serverTimestamp } from "firebase/firestore";
@@ -60,9 +61,9 @@ export default function TutorDashboard({ preview = false, asUser = null }) {
       setPastSessions(history);
     } catch (err) {
     }
-  }, [user?.uid]);
+  }, [user]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     let interval;
     if (sessionStartTime) {
       interval = setInterval(() => {
@@ -72,7 +73,7 @@ export default function TutorDashboard({ preview = false, asUser = null }) {
     return () => clearInterval(interval);
   }, [sessionStartTime]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (!user?.uid || !firestore) return;
 
     hydrateLiveList(() => WritingCenterCache.getSessionsAll(), (cached) => {
@@ -83,7 +84,7 @@ export default function TutorDashboard({ preview = false, asUser = null }) {
     loadPastSessions();
   }, [user?.uid, loadPastSessions]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     const activeInProgress = liveSessions.find(
       (s) =>
         s.status === "IN_PROGRESS" &&
@@ -100,7 +101,7 @@ export default function TutorDashboard({ preview = false, asUser = null }) {
     }
   }, [liveSessions, user?.uid]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (preview) return;
     WritingCenterCache.setSessionsAll(sessions);
   }, [sessions, preview]);
@@ -139,7 +140,7 @@ export default function TutorDashboard({ preview = false, asUser = null }) {
 
   const handleStartSession = async (session) => {
     setActiveSession(session);
-    setSessionStartTime(Date.now());
+    setSessionStartTime(() => Date.now());
     setElapsedTime(0);
     try {
       assertClientRateLimit("sessionUpdate", user?.uid);

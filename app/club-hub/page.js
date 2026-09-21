@@ -1,25 +1,43 @@
 "use client";
 
-import { useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import LaurelRankSeal from "@/components/club-hub/LaurelRankSeal";
 import ClubHubWeekCalendar from "@/components/club-hub/ClubHubWeekCalendar";
 import ClubHubNav from "@/components/club-hub/ClubHubNav";
-import { CLUB_ENGAGEMENT_RANKINGS } from "@/lib/club-hub/clubHubEngagementRankings";
+import { buildClubHubHomeRankings } from "@/lib/club-hub/clubHubEngagementRankings";
+import { fetchClubSizeRankings } from "@/lib/club-hub/clubMembershipCounts";
+import { logClientError } from "@/lib/auth/logClientError";
+import { CLUB_HUB_MAROON, CLUB_HUB_MAROON_DARK } from "@/lib/club-hub/theme";
 
-const MAROON = "#5c1417";
-const MAROON_DARK = "#3f0e10";
-
-function rankNameClass(rank) {
+function rankNameClass(rank, placeholder) {
+  if (placeholder) return "text-neutral-400 italic";
   if (rank === 1) return "text-[#b45309]";
   if (rank === 2) return "text-slate-500";
   return "text-[#9a3412]";
 }
 
 export default function ClubHubPage() {
+  const [rankings, setRankings] = useState(() => buildClubHubHomeRankings([]));
+
   useLayoutEffect(() => {
     document.title = "Broad Run Club Hub";
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const sizeRows = await fetchClubSizeRankings(3);
+        if (!cancelled) setRankings(buildClubHubHomeRankings(sizeRows));
+      } catch (err) {
+        logClientError("ClubHubPage.rankings", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -50,27 +68,30 @@ export default function ClubHubPage() {
 
       <main id="club-directory" className="mx-auto w-full max-w-7xl px-3 pb-0 pt-6 sm:px-5 sm:pt-8 lg:px-8">
         <div className="grid gap-4 md:grid-cols-3 md:gap-5">
-          {CLUB_ENGAGEMENT_RANKINGS.map((col) => (
+          {rankings.map((col) => (
             <div
               key={col.title}
               className="overflow-hidden rounded-xl border border-neutral-200/90 bg-white shadow-[0_6px_20px_rgba(0,0,0,0.06)]"
             >
               <div
                 className="px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-white sm:text-xs"
-                style={{ backgroundColor: MAROON }}
+                style={{ backgroundColor: CLUB_HUB_MAROON }}
               >
                 {col.title}
+                {col.placeholder ? (
+                  <span className="ml-1 font-normal normal-case opacity-80">(preview)</span>
+                ) : null}
               </div>
               <ul className="space-y-1.5 bg-gradient-to-b from-neutral-50/90 to-white p-2 sm:p-2.5">
                 {col.rows.map((row) => (
                   <li
-                    key={`${col.title}-${row.name}`}
+                    key={`${col.title}-${row.rank}`}
                     className="rounded-md bg-white px-1.5 py-1 shadow-[0_1px_4px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] sm:px-2 sm:py-1.5"
                   >
                     <div className="flex items-center justify-center gap-1 sm:gap-1.5">
                       <LaurelRankSeal rank={row.rank} size="sm" />
                       <span
-                        className={`min-w-0 flex-1 px-0.5 text-center text-xs font-semibold leading-tight sm:text-sm ${rankNameClass(row.rank)}`}
+                        className={`min-w-0 flex-1 px-0.5 text-center text-xs font-semibold leading-tight sm:text-sm ${rankNameClass(row.rank, row.placeholder)}`}
                       >
                         {row.name}
                       </span>
@@ -89,7 +110,7 @@ export default function ClubHubPage() {
       <section
         className="relative border-t border-black/10"
         style={{
-          backgroundColor: MAROON_DARK,
+          backgroundColor: CLUB_HUB_MAROON_DARK,
           backgroundImage:
             "linear-gradient(rgba(40,8,10,0.88), rgba(40,8,10,0.92)), url(/brand/brh.png)",
           backgroundSize: "cover",

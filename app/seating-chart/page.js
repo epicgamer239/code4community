@@ -2,6 +2,7 @@
 
 import { Lexend_Deca, Open_Sans } from "next/font/google";
 import React, { useState, useLayoutEffect, useRef, useCallback, useEffect, useMemo } from "react";
+import { useRunEffect } from "@/hooks/useRunEffect";
 import { useRouter } from "next/navigation";
 import DashboardTopBar from "@/components/layout/DashboardTopBar";
 import { useAuth } from "@/utils/AuthContext";
@@ -196,11 +197,11 @@ export default function SeatingChart() {
     if (rNums.length > 0) restrictionIdCounter = Math.max(...rNums, restrictionIdCounter) + 1;
   }, []);
 
-  useEffect(() => {
+  useRunEffect(() => {
     setHasLoadedFromStorage(false);
   }, [user?.uid]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (hasLoadedFromStorage || authLoading) return;
     let cancelled = false;
 
@@ -238,7 +239,7 @@ export default function SeatingChart() {
     };
   }, [hasLoadedFromStorage, authLoading, user?.uid, applyChartData]);
 
-  useEffect(() => {
+  useRunEffect(() => {
     if (!hasLoadedFromStorage) return;
     setFurnitureOnCanvas((prev) => {
       let changed = false;
@@ -1035,6 +1036,7 @@ export default function SeatingChart() {
         onDragLeave={handleTableDragLeave}
       >
         {def.paletteImage ? (
+          // eslint-disable-next-line @next/next/no-img-element -- canvas furniture sprites, not LCP content
           <img
             src={def.paletteImage}
             alt=""
@@ -1373,6 +1375,7 @@ export default function SeatingChart() {
                               aria-label={def.id.replace(/-/g, " ")}
                             >
                               {def.paletteImage ? (
+                                // eslint-disable-next-line @next/next/no-img-element -- canvas furniture sprites, not LCP content
                                 <img
                                   src={def.paletteImage}
                                   alt=""

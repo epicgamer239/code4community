@@ -64,7 +64,7 @@ export default function SchedulerManageView({
   useEffect(() => {
     if (!user?.uid) return;
     return subscribeHostSlots(user.uid, setSlots);
-  }, [user?.uid]);
+  }, [user?.uid, subscribeHostSlots]);
 
   const upcoming = useMemo(
     () =>

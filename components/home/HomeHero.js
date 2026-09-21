@@ -16,9 +16,9 @@ const heroPhrases = [
 ];
 
 const heroPhotos = [
-  { src: "/group-pics/IMG_4044.png", alt: "Code4Community team on the stairs", position: "top-[2%] left-[4%]" },
-  { src: "/group-pics/IMG_8371.png", alt: "Code4Community team at a hackathon", position: "top-[32%] right-[4%]" },
-  { src: "/group-pics/IMG_0636-2.png", alt: "Code4Community presenting in a classroom", position: "bottom-[2%] left-[4%]" },
+  { src: "/group-pics/IMG_4044.jpg", alt: "Code4Community team on the stairs", position: "top-[2%] left-[4%]" },
+  { src: "/group-pics/IMG_8371.jpg", alt: "Code4Community team at a hackathon", position: "top-[32%] right-[4%]" },
+  { src: "/group-pics/IMG_0636-2.jpg", alt: "Code4Community presenting in a classroom", position: "bottom-[2%] left-[4%]" },
 ];
 
 const TYPE_MS = 70;
