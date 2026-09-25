@@ -8,12 +8,12 @@ import MathLabAdminDashboard from "@/components/mathlab/MathLabAdminDashboard";
 import MathLabLoginPrompt from "@/components/mathlab/MathLabLoginPrompt";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuth } from "@/utils/AuthContext";
-import { isAdminUser } from "@/utils/authorization";
+import { isMathLabAdminUser } from "@/lib/auth/productAdmins";
 
 function MathLabAdminPageContent() {
   const router = useRouter();
   const { user, userData, loading } = useAuth();
-  const isAdmin = user && userData && isAdminUser(userData.role, user.email);
+  const isAdmin = user && userData && isMathLabAdminUser(userData, user.email);
 
   useEffect(() => {
     if (!loading && user && userData && !isAdmin) {

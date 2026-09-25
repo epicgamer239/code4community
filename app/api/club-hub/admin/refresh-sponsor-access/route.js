@@ -1,6 +1,6 @@
 import { getAdminFirestore } from "@/lib/firebase/admin";
 import { refreshSponsorAccessForClubSlug } from "@/lib/club-hub/syncSponsorAccessServer";
-import { isAdminEmail } from "@/lib/admin";
+import { isClubHubAdminEmail } from "@/lib/club-hub/clubHubAdminServer";
 import { normalizeEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +25,8 @@ export async function POST(request) {
     const decoded = await getAuth().verifyIdToken(token);
     const email = normalizeEmail(decoded.email);
     const uid = decoded.uid;
-    if (!email || !uid || !isAdminEmail(email)) {
-      return Response.json({ error: "Admin access required." }, { status: 403 });
+    if (!email || !uid || !(await isClubHubAdminEmail(db, email))) {
+      return Response.json({ error: "Club Hub admin access required." }, { status: 403 });
     }
 
     const body = await request.json().catch(() => ({}));

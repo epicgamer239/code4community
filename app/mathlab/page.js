@@ -14,7 +14,8 @@ import MathLabStudentDashboard from "@/components/mathlab/MathLabStudentDashboar
 import { useMathLabDisplayUser } from "@/lib/mathlab/useDisplayUser";
 import { useMathLabQueue } from "@/lib/mathlab/useMathLabQueue";
 import { useMathLabSession } from "@/lib/mathlab/useMathLabSession";
-import { isAdminUser, isTutorOrHigher } from "@/utils/authorization";
+import { isMathLabAdminUser } from "@/lib/auth/productAdmins";
+import { isTutorOrHigher } from "@/utils/authorization";
 
 function MathLabPageContent() {
   const { user, userData, loading } = useAuth();
@@ -25,12 +26,12 @@ function MathLabPageContent() {
   const isTutor = useMemo(
     () =>
       isTutorOrHigher(displayUser?.role, displayUser?.mathLabRole) ||
-      isAdminUser(displayUser?.role, user?.email),
-    [displayUser?.mathLabRole, displayUser?.role, user?.email],
+      isMathLabAdminUser(displayUser, user?.email),
+    [displayUser, user?.email],
   );
 
   const isAdmin = useMemo(
-    () => Boolean(userData && user && isAdminUser(userData.role, user.email)),
+    () => Boolean(userData && user && isMathLabAdminUser(userData, user.email)),
     [userData, user],
   );
 

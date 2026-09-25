@@ -267,18 +267,25 @@ export default function MathLabAdminDashboard() {
       const existing = await findUserByEmail(normalized);
       if (existing) {
         if (grantRole === "admin") {
-          if (existing.role === "admin") {
-            setMessage("That user is already an admin.");
+          if (existing.mathLabAdmin === true || existing.role === "admin") {
+            setMessage("That user is already a Math Lab admin.");
             return;
           }
+          const nextRole =
+            existing.role === "admin" ? "student" : existing.role || "student";
           await updateDoc(doc(firestore, "users", existing.id), {
-            role: "admin",
+            mathLabAdmin: true,
+            role: nextRole,
             updatedAt: serverTimestamp(),
           });
-          setMessage(`Added admin access for ${existing.displayName || normalized}.`);
+          setMessage(`Added Math Lab admin access for ${existing.displayName || normalized}.`);
         } else if (grantRole === "teacher") {
-          if (existing.role === "teacher" || existing.role === "admin") {
-            setMessage("That user is already a teacher or admin.");
+          if (
+            existing.role === "teacher" ||
+            existing.role === "admin" ||
+            existing.mathLabAdmin === true
+          ) {
+            setMessage("That user is already a teacher or Math Lab admin.");
             return;
           }
           await updateDoc(doc(firestore, "users", existing.id), {
@@ -287,8 +294,12 @@ export default function MathLabAdminDashboard() {
           });
           setMessage(`Added teacher access for ${existing.displayName || normalized}.`);
         } else {
-          if (existing.role === "admin" || existing.role === "teacher") {
-            setMessage("That user is already a teacher or admin.");
+          if (
+            existing.role === "admin" ||
+            existing.role === "teacher" ||
+            existing.mathLabAdmin === true
+          ) {
+            setMessage("That user is already a teacher or Math Lab admin.");
             return;
           }
           const profileUpdate = tutorServiceProfileUpdate(services, existing);
@@ -377,12 +388,13 @@ export default function MathLabAdminDashboard() {
         await deleteDoc(doc(firestore, MATHLAB_TEAM_PENDING_COLLECTION, user.id));
       } else {
         await updateDoc(doc(firestore, "users", user.id), {
-          role: "student",
+          mathLabAdmin: false,
+          role: user.role === "admin" ? "student" : user.role || "student",
           updatedAt: serverTimestamp(),
         });
         window.dispatchEvent(new CustomEvent("userRoleChanged", { detail: { userId: user.id } }));
       }
-      setMessage(`Removed admin access for ${user.displayName || user.email}.`);
+      setMessage(`Removed Math Lab admin access for ${user.displayName || user.email}.`);
       await loadTeam();
     } catch (err) {
       setError(err.message || "Failed to remove admin.");
@@ -724,7 +736,7 @@ export default function MathLabAdminDashboard() {
           >
             <option value="tutor">Tutor</option>
             <option value="teacher">Teacher</option>
-            <option value="admin">Admin</option>
+            <option value="admin">Math Lab admin</option>
           </select>
           <button
             type="submit"
@@ -788,9 +800,9 @@ export default function MathLabAdminDashboard() {
       </section>
 
       <section className="card-elevated rounded-xl overflow-hidden">
-        <h2 className="text-lg font-semibold text-foreground px-6 pt-6 pb-2">Appointed admins</h2>
+        <h2 className="text-lg font-semibold text-foreground px-6 pt-6 pb-2">Math Lab admins</h2>
         <p className="text-sm text-muted-foreground px-6 pb-4">
-          Admins added through this dashboard.
+          Can manage Math Lab team and settings only (not Writing Center or site admin).
         </p>
         <ul className="px-6 pb-4">
           {appointedAdmins.length === 0 ? (

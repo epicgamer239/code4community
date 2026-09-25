@@ -32,7 +32,7 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
       userData,
       accessRecord,
     });
-  const adminNavLabel = canManageClubHubRoles(user?.email, userData)
+  const adminNavLabel = canManageClubHubRoles(user?.email, userData, accessRecord)
     ? "Admin"
     : "Rosters";
   const showSponsorLink =

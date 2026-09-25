@@ -15,7 +15,14 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   updateProfile,
+  deleteUser,
+  signOut,
 } from "@/firebase";
+import { fetchSignupEmailAllowlist } from "@/lib/auth/signupAllowlist";
+import {
+  isSignupEmailAllowed,
+  signupEmailRejectionMessage,
+} from "@/lib/auth/signupEmailPolicy";
 
 async function applyRosterDisplayName(firebaseUser) {
   const rosterName = lookupBroadRunName(normalizeEmail(firebaseUser.email));
@@ -41,6 +48,22 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [externalAllowlist, setExternalAllowlist] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const map = await fetchSignupEmailAllowlist();
+        if (!cancelled) setExternalAllowlist(map);
+      } catch {
+        if (!cancelled) setExternalAllowlist({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useLayoutEffect(() => {
     document.title = "Code4Community | Sign up";
@@ -52,9 +75,23 @@ export default function SignupPage() {
     }
   }, [user, authLoading, router]);
 
+  const ensureSignupEmailAllowed = (address) => {
+    if (externalAllowlist === null) {
+      setError("Still loading signup rules. Try again in a moment.");
+      return false;
+    }
+    const normalized = normalizeEmail(address);
+    if (!isSignupEmailAllowed(normalized, externalAllowlist)) {
+      setError(signupEmailRejectionMessage(normalized, externalAllowlist));
+      return false;
+    }
+    return true;
+  };
+
   const handleEmailSignup = async (e) => {
     e.preventDefault();
     setError("");
+    if (!ensureSignupEmailAllowed(email)) return;
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -90,9 +127,22 @@ export default function SignupPage() {
 
   const handleGoogleSignup = async () => {
     setError("");
+    if (externalAllowlist === null) {
+      setError("Still loading signup rules. Try again in a moment.");
+      return;
+    }
     setLoading(true);
     try {
       const { user: signedInUser } = await signInWithPopup(auth, provider);
+      if (!isSignupEmailAllowed(signedInUser.email, externalAllowlist)) {
+        try {
+          await deleteUser(signedInUser);
+        } catch {
+          await signOut(auth);
+        }
+        setError(signupEmailRejectionMessage(signedInUser.email, externalAllowlist));
+        return;
+      }
       await applyRosterDisplayName(signedInUser);
       router.push(safeRedirectTarget() || "/");
       router.refresh();
@@ -124,7 +174,7 @@ export default function SignupPage() {
           </div>
           <h1 className="text-xl font-bold text-foreground text-center mb-1">Get started</h1>
           <p className="text-muted-foreground text-center text-sm mb-5">
-            Sign up with your school email to get started.
+            Sign up with your <strong>@lcps.org</strong> school email to get started.
           </p>
 
           <form onSubmit={handleEmailSignup} className="space-y-3">
@@ -191,6 +241,9 @@ export default function SignupPage() {
                   </div>
                 );
               })()}
+              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                Use a personal password for this site — not your LCPS / school login password.
+              </p>
             </div>
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-1.5">

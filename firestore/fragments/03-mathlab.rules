@@ -95,9 +95,8 @@
                           (!('completedAt' in request.resource.data) || 
                             (request.resource.data.completedAt is timestamp))) ||
                           // Teachers and admins can update any request
-                          isTeacherOrAdmin() ||
-                          // Admins can update any request
-                          isAnyAdmin()
+                          isMathLabStaff() ||
+                          isMathLabAdmin()
                         );
         
         // Allow delete: 
@@ -112,8 +111,8 @@
                           (isTutor() && 
                           resource.data.tutorId == request.auth.uid) ||
                           // Teachers and admins can delete any request
-                          isTeacherOrAdmin() ||
-                          isAnyAdmin()
+                          isMathLabStaff() ||
+                          isMathLabAdmin()
                         );
       }
       
@@ -129,8 +128,7 @@
                         // Tutors can read sessions they conducted
                         (isTutor() && resource.data.tutorId == request.auth.uid) ||
                         // Teachers and admins can read all sessions
-                        isTeacherOrAdmin() ||
-                        // Admins can read all sessions
+                        isMathLabStaff() ||
                         isAdminByEmail()
                       );
         
@@ -164,20 +162,20 @@
                         (request.resource.data.tutorEmail is string && 
                           isValidEmail(request.resource.data.tutorEmail))) &&
                         // Allow creation by tutors (for their own sessions) or teachers/admins
-                        (isTutor() || isTeacherOrAdmin() || isAdminByEmail());
+                        (isTutor() || isMathLabStaff() || isAdminByEmail());
         
         // Allow update: Only teachers/admins can update completed sessions
-        allow update: if isTeacherOrAdmin() || isAdminByEmail();
+        allow update: if isMathLabStaff() || isAdminByEmail();
         
         // Allow delete: Only teachers/admins can delete completed sessions
-        allow delete: if isTeacherOrAdmin() || isAnyAdmin();
+        allow delete: if isMathLabStaff() || isMathLabAdmin();
       }
 
       // Pre-signup tutor/admin grants (document id = normalized email)
       match /mathLabTeamPending/{emailKey} {
         allow read: if isAuthenticated() &&
-                      (isAnyAdmin() || emailsMatch(request.auth.token.email, emailKey));
-        allow create, update: if isAnyAdmin() &&
+                      (isMathLabAdmin() || emailsMatch(request.auth.token.email, emailKey));
+        allow create, update: if isMathLabAdmin() &&
                                 request.resource.data.keys().hasAll(['email', 'grantType', 'createdAt', 'updatedAt']) &&
                                 request.resource.data.email is string &&
                                 normalizeEmail(request.resource.data.email) == normalizeEmail(emailKey) &&
@@ -190,6 +188,6 @@
                                   (request.resource.data.services is list &&
                                     request.resource.data.services.size() >= 1 &&
                                     request.resource.data.services.size() <= 2));
-        allow delete: if isAnyAdmin() ||
+        allow delete: if isMathLabAdmin() ||
                         (isAuthenticated() && emailsMatch(request.auth.token.email, emailKey));
       }

@@ -43,6 +43,7 @@ import { hydrateLiveList } from "@/utils/liveFirestoreCache";
 import { invalidateOnDataChange } from "@/utils/cacheInvalidation";
 import { resolveDisplayName, resolveWritingCenterViewRole } from "@/lib/profile";
 import { hasWritingCenterTutorAccess } from "@/lib/tutorServices";
+import { WritingCenterAdminTeamPanel } from "./WritingCenterAdminTeamPanel";
 
 function simulateRoleLabel(viewRole) {
   if (viewRole === "TUTOR") return "tutor";
@@ -345,6 +346,9 @@ export default function AdminDashboard() {
             >
               Mini Lessons
             </button>
+            <button type="button" onClick={() => setActiveTab("team")} className={tabClass("team")}>
+              Admins
+            </button>
           </nav>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -443,7 +447,9 @@ export default function AdminDashboard() {
         )}
       </header>
 
-      {activeTab === "sessions" ? (
+      {activeTab === "team" ? (
+        <WritingCenterAdminTeamPanel />
+      ) : activeTab === "sessions" ? (
         <div className="w-full">
           <div className="bg-white shadow rounded-lg mb-6 overflow-hidden w-full">
             <div className="flex flex-col sm:flex-row sm:divide-x divide-gray-200">

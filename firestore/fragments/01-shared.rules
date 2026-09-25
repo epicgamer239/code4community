@@ -110,10 +110,43 @@
         return normalizeEmail(email) in ['1021676@lcps.org', 'shail40926@gmail.com'];
       }
 
+      function authUserDocPath() {
+        return /databases/$(database)/documents/users/$(request.auth.uid);
+      }
+
+      function authUserExists() {
+        return isAuthenticated() && exists(authUserDocPath());
+      }
+
+      function authUserData() {
+        return get(authUserDocPath()).data;
+      }
+
+      /** Config allowlist only — full site super admin. */
+      function isSiteAdmin() {
+        return isAdminByEmail();
+      }
+
+      function isLegacyMathLabAdminRole() {
+        return authUserExists() &&
+              request.auth.token.email is string &&
+              authUserData().role in ['admin', 'ADMIN'] &&
+              !isProtectedAdminEmail(request.auth.token.email);
+      }
+
+      function isMathLabAdmin() {
+        return isSiteAdmin() ||
+              (authUserExists() && authUserData().get('mathLabAdmin', false) == true) ||
+              isLegacyMathLabAdminRole();
+      }
+
+      function isWritingCenterAdmin() {
+        return isSiteAdmin() ||
+              (authUserExists() && authUserData().get('writingCenterAdmin', false) == true);
+      }
+
       function isFirestoreAdmin() {
-        return isAuthenticated() &&
-              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'ADMIN'];
+        return isSiteAdmin();
       }
 
       function writingCenterUserRole() {
@@ -132,7 +165,11 @@
       }
 
       function isAnyAdmin() {
-        return isAdminByEmail() || isFirestoreAdmin();
+        return isSiteAdmin();
+      }
+
+      function boolProfileFieldUnchanged(field) {
+        return request.resource.data.get(field, false) == resource.data.get(field, false);
       }
 
       function mathLabRoleValue(data) {
@@ -183,10 +220,43 @@
               get(pendingTeamDocPath(normalizeEmail(request.resource.data.email))).data.grantType == 'teacher';
       }
 
+      function writingCenterPendingDocPath(email) {
+        return /databases/$(database)/documents/writingCenterTeamPending/$(email);
+      }
+
+      function hasPendingWritingCenterAdminGrant() {
+        return isAuthenticated() &&
+              request.resource.data.email is string &&
+              exists(writingCenterPendingDocPath(normalizeEmail(request.resource.data.email))) &&
+              get(writingCenterPendingDocPath(normalizeEmail(request.resource.data.email))).data.grantType == 'writingCenterAdmin';
+      }
+
       function protectedAdminTeamFieldsUnchanged() {
         return !('email' in resource.data) ||
               !isProtectedAdminEmail(resource.data.email) ||
               (request.resource.data.role == resource.data.role &&
                 mathLabRoleValue(request.resource.data) == mathLabRoleValue(resource.data) &&
-                writingCenterRoleValue(request.resource.data) == writingCenterRoleValue(resource.data));
+                writingCenterRoleValue(request.resource.data) == writingCenterRoleValue(resource.data) &&
+                boolProfileFieldUnchanged('mathLabAdmin') &&
+                boolProfileFieldUnchanged('writingCenterAdmin'));
+      }
+
+      function signupAllowlistDocPath() {
+        return /databases/$(database)/documents/siteConfig/signupAllowlist;
+      }
+
+      function isLcpsSignupEmail(email) {
+        return email is string &&
+              normalizeEmail(email).matches('.*@lcps\\.org$');
+      }
+
+      function isSignupExternalAllowlisted(email) {
+        return email is string &&
+              exists(signupAllowlistDocPath()) &&
+              get(signupAllowlistDocPath()).data.get('emailAllowlist', {}) is map &&
+              normalizeEmail(email) in get(signupAllowlistDocPath()).data.get('emailAllowlist', {});
+      }
+
+      function isAllowedSignupEmail(email) {
+        return isLcpsSignupEmail(email) || isSignupExternalAllowlisted(email);
       }

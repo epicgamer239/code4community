@@ -14,7 +14,7 @@ import {
   formatIntervalDuration,
   firestoreToDate,
 } from "@/lib/firestoreDates";
-import { isAdminUser } from "@/utils/authorization";
+import { isMathLabAdminUser } from "@/lib/auth/productAdmins";
 import MathLabLoginPrompt from "@/components/mathlab/MathLabLoginPrompt";
 
 function MathLabHistoryPageContent() {
@@ -153,7 +153,7 @@ function MathLabHistoryPageContent() {
   }, [fetchSessionHistory, userData]);
 
   const isTutorRole = displayUser?.mathLabRole === "tutor";
-  const isAdminRole = Boolean(userData && user && isAdminUser(userData.role, user.email));
+  const isAdminRole = Boolean(userData && user && isMathLabAdminUser(userData, user.email));
   const activeFilter =
     !isTutorRole && !isAdminRole && filter === "tutor" ? "all" : filter;
 
@@ -184,7 +184,7 @@ function MathLabHistoryPageContent() {
     );
   }
 
-  const isAdmin = userData && user && isAdminUser(userData.role, user.email);
+  const isAdmin = userData && user && isMathLabAdminUser(userData, user.email);
   // Admins often tutor without mathLabRole === "tutor"
   const showRoleFilters = isAdmin || displayUser.mathLabRole === "tutor";
   const filterOptions = showRoleFilters

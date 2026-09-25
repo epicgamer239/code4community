@@ -10,7 +10,7 @@ import { collection, query, getDocs, orderBy } from "firebase/firestore";
 import { firestore } from "@/firebase";
 import { MathLabCache } from "@/utils/cache";
 import { hydrateCompletedSession, formatClockDuration } from "@/lib/firestoreDates";
-import { isAdminUser } from "@/utils/authorization";
+import { isMathLabAdminUser } from "@/lib/auth/productAdmins";
 import MathLabLoginPrompt from "@/components/mathlab/MathLabLoginPrompt";
 
 function SessionTrackingPageContent() {
@@ -21,7 +21,7 @@ function SessionTrackingPageContent() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const isAdmin = userData && user && isAdminUser(userData.role, user.email);
+  const isAdmin = userData && user && isMathLabAdminUser(userData, user.email);
 
   useRunEffect(() => {
     if (!loading && userData && !isAdmin) {

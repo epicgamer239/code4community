@@ -30,9 +30,12 @@
                 clubHubAccessForAuthUser().isCoordinator == true);
       }
 
+      function isClubHubAdmin() {
+        return isSiteAdmin() || isClubHubCoordinatorAccess();
+      }
+
       function canEditClubHubPage(slug) {
-        return isAnyAdmin() ||
-              isClubHubCoordinatorAccess() ||
+        return isClubHubAdmin() ||
               (isAuthenticated() &&
                 request.auth.token.email is string &&
                 exists(clubHubAccessDocPath(request.auth.token.email)) &&
@@ -61,7 +64,7 @@
 
       match /clubHubSponsors/{slug} {
         allow read: if true;
-        allow create, update: if isAnyAdmin() &&
+        allow create, update: if isClubHubAdmin() &&
                                 request.resource.data.slug == slug &&
                                 request.resource.data.slug is string &&
                                 request.resource.data.slug.size() > 0 &&
@@ -73,16 +76,16 @@
                                 request.resource.data.sponsors.size() <= 10 &&
                                 request.resource.data.updatedAt is timestamp &&
                                 request.resource.data.updatedBy == request.auth.uid;
-        allow delete: if isAnyAdmin();
+        allow delete: if isClubHubAdmin();
       }
 
       match /clubHubAccess/{emailKey} {
         allow read: if isAuthenticated() && (
-          isAnyAdmin() ||
+          isClubHubAdmin() ||
           emailsMatch(request.auth.token.email, emailKey)
         );
-        allow create, update: if isAnyAdmin() && isValidClubHubAccessWrite(emailKey);
-        allow delete: if isAnyAdmin() &&
+        allow create, update: if isClubHubAdmin() && isValidClubHubAccessWrite(emailKey);
+        allow delete: if isClubHubAdmin() &&
                         normalizeEmail(emailKey) != 'katrice.white@lcps.org';
       }
 
@@ -126,7 +129,7 @@
                                 (!('headerImageUrl' in request.resource.data) ||
                                   (request.resource.data.headerImageUrl is string &&
                                     request.resource.data.headerImageUrl.size() <= 2000));
-        allow delete: if isAnyAdmin() || isClubHubCoordinatorAccess();
+        allow delete: if isClubHubAdmin();
       }
 
       function isValidClubHubEventWrite() {
@@ -198,7 +201,7 @@
       match /clubHubMemberships/{membershipId} {
         allow read: if isAuthenticated() && (
           resource.data.userId == request.auth.uid ||
-          isAnyAdmin() ||
+          isClubHubAdmin() ||
           canEditClubHubPage(resource.data.clubSlug)
         );
         allow create: if isAuthenticated() &&
@@ -235,5 +238,5 @@
                           request.resource.data.memberCount == resource.data.memberCount + 1 ||
                           request.resource.data.memberCount == resource.data.memberCount - 1
                         );
-        allow delete: if isAnyAdmin();
+        allow delete: if isClubHubAdmin();
       }

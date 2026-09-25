@@ -46,8 +46,8 @@ function slugLabels(slugMap) {
 export default function ClubHubAdminDashboard() {
   const { user, userData } = useAuth();
   const { accessRecord } = useClubHubAccess();
-  const canManageAccess = canManageClubHubRoles(user?.email, userData);
-  const [tab, setTab] = useState(() => (canManageAccess ? "access" : "rosters"));
+  const canManageAccess = canManageClubHubRoles(user?.email, userData, accessRecord);
+  const [tab, setTab] = useState("access");
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -266,16 +266,14 @@ export default function ClubHubAdminDashboard() {
         <p className="mt-2 text-sm leading-relaxed text-neutral-600">
           Manage access, sponsors, and view club rosters across the directory.
         </p>
-        {canManageAccess ? (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={() => setTab("access")} className={tabBtn(tab === "access")}>
-              Access
-            </button>
-            <button type="button" onClick={() => setTab("rosters")} className={tabBtn(tab === "rosters")}>
-              Rosters &amp; metrics
-            </button>
-          </div>
-        ) : null}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" onClick={() => setTab("access")} className={tabBtn(tab === "access")}>
+            Access
+          </button>
+          <button type="button" onClick={() => setTab("rosters")} className={tabBtn(tab === "rosters")}>
+            Rosters &amp; metrics
+          </button>
+        </div>
       </div>
 
       {tab === "rosters" ? (

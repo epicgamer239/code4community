@@ -1,4 +1,9 @@
 // Authorization utility functions
+import {
+  isMathLabAdminUser,
+  isSiteAdminUser,
+  isWritingCenterAdminUser,
+} from "@/lib/auth/productAdmins";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeEmail } from "@/lib/email";
 
@@ -83,17 +88,30 @@ export const canAccess = (userRole, resource, mathLabRole = null) => {
   return false;
 };
 
-function isAdmin(userRole) {
-  return userRole === ROLES.ADMIN;
-}
-
 export const isAdminByEmail = (email) => {
   return isAdminEmail(normalizeEmail(email));
 };
 
-export const isAdminUser = (userRole, email) => {
-  return isAdmin(userRole) || isAdminByEmail(email);
+/** Site super admin (config allowlist). Prefer passing full userData when available. */
+export const isSiteAdmin = (userData, email) => {
+  if (userData && typeof userData === "object" && "role" in userData) {
+    return isSiteAdminUser(userData, email ?? userData.email);
+  }
+  return isAdminByEmail(email);
 };
+
+/** Site super admin only (config allowlist). Math Lab deputies use isMathLabAdmin. */
+export const isAdminUser = (_userRole, email) => isAdminByEmail(email);
+
+export { isMathLabAdminUser, isSiteAdminUser, isWritingCenterAdminUser };
+
+/** Math Lab /mathlab/admin and Math Lab staff elevation (not Writing Center admin). */
+export const isMathLabAdmin = (userData, email) =>
+  isMathLabAdminUser(userData, email ?? userData?.email);
+
+/** Writing Center admin dashboard. */
+export const isWritingCenterAdmin = (userData, email) =>
+  isWritingCenterAdminUser(userData, email ?? userData?.email);
 
 export const isTeacherOrAdmin = (userRole) => {
   return userRole === ROLES.TEACHER || userRole === ROLES.ADMIN;

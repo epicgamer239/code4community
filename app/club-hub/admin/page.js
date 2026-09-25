@@ -27,7 +27,7 @@ export default function ClubHubAdminPage() {
       active="admin"
       loginRedirect="/club-hub/admin"
       title="Club Hub admin"
-      loginMessage="Sign in with a site admin or club coordinator account."
+      loginMessage="Sign in with a Club Hub admin account (site admin or club coordinator)."
       allowed={allowed}
       accessLoading={accessLoading}
     >

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canAccessClubHubAdminDashboard,
+  canManageClubHubRoles,
   getEditableClubSlugsForUser,
 } from "@/lib/club-hub/access";
 import { clubNameToSlug } from "@/lib/club-hub/broadRunClubDirectory";
@@ -60,5 +61,14 @@ describe("canAccessClubHubAdminDashboard", () => {
         accessRecord: { isCoordinator: true },
       }),
     ).toBe(true);
+  });
+});
+
+describe("canManageClubHubRoles", () => {
+  it("allows coordinators to manage Club Hub access like site admins", () => {
+    expect(
+      canManageClubHubRoles("brhsc4c@gmail.com", { role: "student" }, { isCoordinator: true }),
+    ).toBe(true);
+    expect(canManageClubHubRoles("brhsc4c@gmail.com", { role: "student" }, null)).toBe(false);
   });
 });
