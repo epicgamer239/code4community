@@ -86,12 +86,12 @@ export default function Welcome() {
       <div className="px-6 py-2">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-foreground mb-1">Welcome</h2>
+            <h1 className="text-2xl font-bold text-foreground mb-1">Welcome</h1>
             <p className="text-muted-foreground">Choose an app to get started</p>
           </div>
 
           <div className="absolute left-1/2 transform -translate-x-1/2 text-center">
-            <h3 className="text-2xl font-bold text-foreground mb-1">Available Apps</h3>
+            <h2 className="text-2xl font-bold text-foreground mb-1">Available Apps</h2>
             <p className="text-muted-foreground text-sm">
               {searchQuery
                 ? `Found ${filteredApps.length} app${filteredApps.length !== 1 ? "s" : ""}`

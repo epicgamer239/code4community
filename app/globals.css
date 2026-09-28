@@ -77,9 +77,9 @@ body.page-services-dark {
   /* Color Palette - Professional & Refined */
   --background: #ffffff;
   --foreground: #0f172a;
-  --primary: #3b82f6;
+  --primary: #1d4ed8;
   --primary-foreground: #ffffff;
-  --primary-hover: #2563eb;
+  --primary-hover: #1e40af;
   --secondary: #64748b;
   --secondary-foreground: #ffffff;
   --secondary-hover: #475569;
@@ -727,6 +727,19 @@ body {
 .text-foreground { color: var(--foreground); }
 .text-muted-foreground { color: var(--muted-foreground); }
 .text-primary { color: var(--primary); }
+
+/* WCAG: distinguish links from surrounding muted text */
+.text-muted-foreground a.text-primary,
+.text-muted-foreground a[href] {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a.text-primary.hover\:underline,
+a.text-primary {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .text-white { color: #ffffff; }
 .text-destructive { color: var(--destructive); }
 .text-red-700 { color: #b91c1c; }

@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ClubHubLiveMessage from "@/components/club-hub/ClubHubLiveMessage";
+import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { runEffectWork } from "@/hooks/runEffectWork";
 import {
   createClubEvent,
@@ -45,6 +47,7 @@ export default function ClubEventsEditor({
   const [message, setMessage] = useState("");
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
+  const closeButtonRef = useRef(null);
 
   const loadEvents = useCallback(async () => {
     if (!clubSlug) return;
@@ -70,6 +73,19 @@ export default function ClubEventsEditor({
       setError("");
     });
   }, [open, loadEvents]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    closeButtonRef.current?.focus();
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
 
   const sortedEvents = useMemo(
     () => [...events].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)),
@@ -155,7 +171,12 @@ export default function ClubEventsEditor({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -167,35 +188,28 @@ export default function ClubEventsEditor({
             <h2 id="club-events-editor-title" className="text-lg font-bold text-neutral-900">
               Edit meetings &amp; activities
             </h2>
-            <p className="mt-0.5 text-sm text-neutral-600">{clubName}</p>
+            <p className="mt-0.5 text-sm text-neutral-700">{clubName}</p>
           </div>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm font-semibold text-neutral-600 hover:bg-neutral-100"
+            className={`rounded-lg px-2 py-1 text-sm font-semibold text-neutral-700 hover:bg-neutral-100 ${clubHubButtonFocusClass}`}
           >
             Close
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {error ? (
-            <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-              {error}
-            </p>
-          ) : null}
-          {message ? (
-            <p className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              {message}
-            </p>
-          ) : null}
+          <ClubHubLiveMessage message={error} variant="alert" />
+          <ClubHubLiveMessage message={message} />
 
           <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-700">
               {editingId ? "Edit event" : "Add event"}
             </p>
             <div>
-              <label htmlFor="ev-title" className="block text-xs font-semibold text-neutral-600">
+              <label htmlFor="ev-title" className="block text-xs font-semibold text-neutral-700">
                 Title
               </label>
               <input
@@ -209,7 +223,7 @@ export default function ClubEventsEditor({
               />
             </div>
             <div>
-              <label htmlFor="ev-desc" className="block text-xs font-semibold text-neutral-600">
+              <label htmlFor="ev-desc" className="block text-xs font-semibold text-neutral-700">
                 Description (optional)
               </label>
               <textarea
@@ -224,7 +238,7 @@ export default function ClubEventsEditor({
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <label htmlFor="ev-date" className="block text-xs font-semibold text-neutral-600">
+                <label htmlFor="ev-date" className="block text-xs font-semibold text-neutral-700">
                   Date
                 </label>
                 <input
@@ -237,7 +251,7 @@ export default function ClubEventsEditor({
                 />
               </div>
               <div>
-                <label htmlFor="ev-time" className="block text-xs font-semibold text-neutral-600">
+                <label htmlFor="ev-time" className="block text-xs font-semibold text-neutral-700">
                   Time
                 </label>
                 <input
@@ -251,7 +265,7 @@ export default function ClubEventsEditor({
                 />
               </div>
               <div>
-                <label htmlFor="ev-loc" className="block text-xs font-semibold text-neutral-600">
+                <label htmlFor="ev-loc" className="block text-xs font-semibold text-neutral-700">
                   Location
                 </label>
                 <input
@@ -287,13 +301,15 @@ export default function ClubEventsEditor({
           </form>
 
           <div className="mt-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-700">
               Scheduled events
             </p>
             {loading ? (
-              <p className="mt-3 text-sm text-neutral-500">Loading…</p>
+              <p className="mt-3 text-sm text-neutral-700" role="status">
+                Loading…
+              </p>
             ) : sortedEvents.length === 0 ? (
-              <p className="mt-3 text-sm text-neutral-500">No events yet. Add one above.</p>
+              <p className="mt-3 text-sm text-neutral-700">No events yet. Add one above.</p>
             ) : (
               <ul className="mt-3 space-y-2">
                 {sortedEvents.map((ev) => (
@@ -303,7 +319,7 @@ export default function ClubEventsEditor({
                   >
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-neutral-900">{ev.title}</p>
-                      <p className="text-sm text-neutral-600">
+                      <p className="text-sm text-neutral-700">
                         {formatEventDateLabel(ev.date)} · {ev.time}
                         {ev.location ? ` · ${ev.location}` : ""}
                       </p>

@@ -11,6 +11,7 @@ import {
   canManageClubHubRoles,
 } from "@/lib/club-hub/access";
 import { useClubHubAccess } from "@/lib/club-hub/useClubHubAccess";
+import { clubHubNavLinkActiveClass, clubHubNavLinkClass } from "@/lib/club-hub/a11y";
 import { CLUB_HUB_MAROON } from "@/lib/club-hub/theme";
 import { auth, signOut } from "@/firebase";
 
@@ -50,8 +51,15 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
         setDropdownOpen(false);
       }
     }
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setDropdownOpen(false);
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   const handleSignOut = async () => {
@@ -67,67 +75,69 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
   const displayName = user?.displayName || user?.email?.split("@")[0] || "Account";
   const loginHref = `/login?redirectTo=${encodeURIComponent(loginRedirect)}`;
 
-  const linkClass = (isActive) =>
-    isActive
-      ? "underline decoration-white underline-offset-4 opacity-95 cursor-default"
-      : "hover:underline underline-offset-4";
+  const menuId = "club-hub-account-menu";
+
+  function navItem(label, isActive, href) {
+    if (isActive) {
+      return (
+        <span className={clubHubNavLinkActiveClass} aria-current="page">
+          {label}
+        </span>
+      );
+    }
+    return (
+      <Link href={href} className={clubHubNavLinkClass}>
+        {label}
+      </Link>
+    );
+  }
 
   return (
-    <nav className="border-b border-black/10 shadow-md" style={{ backgroundColor: CLUB_HUB_MAROON }}>
+    <nav
+      className="border-b border-black/10 shadow-md"
+      style={{ backgroundColor: CLUB_HUB_MAROON }}
+      aria-label="Club Hub"
+    >
       <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-6 px-4 py-[1.006rem] text-sm font-semibold tracking-wide text-white sm:gap-10 sm:text-base md:gap-12">
-        <Link href="/club-hub" className={linkClass(active === "home")}>
-          Home
-        </Link>
-        {active === "directory" ? (
-          <span className={linkClass(true)}>Club Directory</span>
-        ) : (
-          <Link href="/club-hub/directory" className={linkClass(false)}>
-            Club Directory
-          </Link>
-        )}
-        {showSponsorLink ? (
-          active === "sponsor" ? (
-            <span className={linkClass(true)}>My clubs</span>
-          ) : (
-            <Link href="/club-hub/sponsor" className={linkClass(false)}>
-              My clubs
-            </Link>
-          )
-        ) : null}
-        {showAdminLink ? (
-          active === "admin" ? (
-            <span className={linkClass(true)}>{adminNavLabel}</span>
-          ) : (
-            <Link href="/club-hub/admin" className={linkClass(false)}>
-              {adminNavLabel}
-            </Link>
-          )
-        ) : null}
+        {navItem("Home", active === "home", "/club-hub")}
+        {navItem("Club Directory", active === "directory", "/club-hub/directory")}
+        {showSponsorLink ? navItem("My clubs", active === "sponsor", "/club-hub/sponsor") : null}
+        {showAdminLink ? navItem(adminNavLabel, active === "admin", "/club-hub/admin") : null}
         <div className="relative" ref={dropdownRef} suppressHydrationWarning>
           {!loading && user ? (
             <>
               <button
                 type="button"
+                id="club-hub-account-trigger"
                 onClick={() => setDropdownOpen((o) => !o)}
-                className="hover:underline underline-offset-4 max-w-[10rem] truncate"
+                className={`max-w-[10rem] truncate ${clubHubNavLinkClass}`}
                 aria-expanded={dropdownOpen}
-                aria-haspopup="true"
+                aria-haspopup="menu"
+                aria-controls={menuId}
+                aria-label={`Account menu for ${displayName}`}
               >
                 {displayName}
               </button>
               {dropdownOpen && (
-                <div className="absolute right-0 z-50 mt-2 w-44 rounded-md border border-neutral-200 bg-white py-1 text-left text-sm font-medium text-neutral-900 shadow-lg">
+                <div
+                  id={menuId}
+                  role="menu"
+                  aria-labelledby="club-hub-account-trigger"
+                  className="absolute right-0 z-50 mt-2 w-44 rounded-md border border-neutral-200 bg-white py-1 text-left text-sm font-medium text-neutral-900 shadow-lg"
+                >
                   <Link
                     href="/settings"
-                    className="block px-3 py-2 hover:bg-neutral-50"
+                    role="menuitem"
+                    className="block px-3 py-2 text-neutral-900 hover:bg-neutral-50 focus:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#5c1417]"
                     onClick={() => setDropdownOpen(false)}
                   >
                     Settings
                   </Link>
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={handleSignOut}
-                    className="block w-full px-3 py-2 text-left hover:bg-neutral-50"
+                    className="block w-full px-3 py-2 text-left text-neutral-900 hover:bg-neutral-50 focus:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#5c1417]"
                   >
                     Sign out
                   </button>
@@ -135,7 +145,7 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
               )}
             </>
           ) : (
-            <Link href={loginHref} className="hover:underline underline-offset-4">
+            <Link href={loginHref} className={clubHubNavLinkClass}>
               Log in
             </Link>
           )}

@@ -1,5 +1,7 @@
 import DashboardTopBar from "@/components/layout/DashboardTopBar";
 import Footer from "@/components/layout/Footer";
+import SiteSkipLink from "@/components/common/SiteSkipLink";
+import { SITE_MAIN_ID } from "@/lib/a11y/site";
 
 export function AppPageLayout({
   children,
@@ -14,8 +16,11 @@ export function AppPageLayout({
 
   return (
     <div className={classes}>
+      <SiteSkipLink />
       <DashboardTopBar title={title} showNavLinks={showNavLinks} />
-      <div className="flex-1 flex flex-col w-full">{children}</div>
+      <main id={SITE_MAIN_ID} className="flex-1 flex flex-col w-full outline-none" tabIndex={-1}>
+        {children}
+      </main>
       {showFooter ? <Footer /> : null}
     </div>
   );

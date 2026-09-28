@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
 
           {sent ? (
             <div className="space-y-4">
-              <p className="text-sm text-foreground text-center">
+              <p className="text-sm text-foreground text-center" role="status">
                 Check your inbox. We’ve sent a password reset link to <strong>{email}</strong>.
               </p>
               <p className="text-sm text-muted-foreground text-center">

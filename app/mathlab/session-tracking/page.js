@@ -3,8 +3,7 @@ import { useAuth } from "@/utils/AuthContext";
 import { useRouter } from "next/navigation";
 import { useState, useCallback, useMemo, Suspense } from "react";
 import { useRunEffect } from "@/hooks/useRunEffect";
-import DashboardTopBar from "@/components/layout/DashboardTopBar";
-import MathLabSidebar from "@/components/mathlab/MathLabSidebar";
+import MathLabPageShell from "@/components/mathlab/MathLabPageShell";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { collection, query, getDocs, orderBy } from "firebase/firestore";
 import { firestore } from "@/firebase";
@@ -112,26 +111,16 @@ function SessionTrackingPageContent() {
 
   if (loading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <DashboardTopBar title="Session Tracking" />
-        <MathLabSidebar />
-        <div className="flex-1 flex items-center justify-center ml-0 md:ml-16">
-          <LoadingSpinner />
-        </div>
-      </div>
+      <MathLabPageShell contentClassName="flex-1 flex items-center justify-center ml-0 md:ml-16">
+        <LoadingSpinner />
+      </MathLabPageShell>
     );
   }
 
   if (!isAdmin) return null;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <DashboardTopBar title="Session Tracking" />
-      <Suspense fallback={null}>
-        <MathLabSidebar />
-      </Suspense>
-
-      <div className="flex-1 px-6 py-4 ml-0 md:ml-16 pb-16 md:pb-4">
+    <MathLabPageShell contentClassName="flex-1 px-6 py-4 ml-0 md:ml-16 pb-16 md:pb-4">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold text-foreground mb-6">Session Tracking</h1>
 
@@ -249,8 +238,7 @@ function SessionTrackingPageContent() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </MathLabPageShell>
   );
 }
 
@@ -258,12 +246,9 @@ export default function SessionTrackingPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
-        </div>
+        <MathLabPageShell contentClassName="flex items-center justify-center ml-0 md:ml-16 min-h-[50vh]">
+          <LoadingSpinner />
+        </MathLabPageShell>
       }
     >
       <SessionTrackingPageContent />

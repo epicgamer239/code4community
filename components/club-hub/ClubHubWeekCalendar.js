@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchClubEventsInRange, groupEventsByDate } from "@/lib/club-hub/clubEvents";
+import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 
 const RED = "#5c1417";
 
@@ -101,8 +102,8 @@ function EventBlock({ ev, isSelectedCol }) {
     : "mt-0.5 text-[12px] font-bold leading-snug text-neutral-900";
   const locCls = accent
     ? "mt-0.5 text-[10px] leading-snug text-rose-800"
-    : "mt-0.5 text-[10px] leading-snug text-neutral-600";
-  const noteCls = "mt-1 text-[9px] leading-snug text-rose-900/90";
+    : "mt-0.5 text-[10px] leading-snug text-neutral-700";
+  const noteCls = "mt-1 text-[9px] leading-snug text-rose-950";
 
   return (
     <div className={box}>
@@ -152,12 +153,21 @@ function MonthView({ year, month, selectedDay, onSelectDay, eventsByDate }) {
           const list = eventsByDate[key] || [];
           const selected = key === selectedKey;
 
+          const dayLabel = day.toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          });
+
           return (
             <button
               key={key}
               type="button"
               onClick={() => onSelectDay(day)}
-              className={`flex min-h-0 flex-col border-b border-r border-neutral-200 p-1 text-left transition-colors last:border-r-0 hover:bg-rose-50/50 sm:p-1.5 ${
+              aria-label={`${dayLabel}${list.length ? `, ${list.length} event${list.length === 1 ? "" : "s"}` : ""}`}
+              aria-pressed={selected}
+              className={`flex min-h-0 flex-col border-b border-r border-neutral-200 p-1 text-left transition-colors last:border-r-0 hover:bg-rose-50/50 sm:p-1.5 ${clubHubButtonFocusClass} ${
                 selected ? "bg-[#5c1417]/[5%] ring-1 ring-inset ring-[#5c1417]" : "bg-white"
               }`}
             >
@@ -181,7 +191,7 @@ function MonthView({ year, month, selectedDay, onSelectDay, eventsByDate }) {
                   </p>
                 ))}
                 {list.length > 3 ? (
-                  <p className="px-1 text-[9px] text-neutral-500">+{list.length - 3} more</p>
+                  <p className="px-1 text-[9px] text-neutral-700">+{list.length - 3} more</p>
                 ) : null}
               </div>
             </button>
@@ -269,14 +279,14 @@ export default function ClubHubWeekCalendar() {
     "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#5c1417] text-white transition-colors hover:bg-[#731a1f] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5c1417] focus-visible:ring-offset-1 sm:h-9 sm:w-9";
 
   const toggleBtn = (active) =>
-    active
+    `${active
       ? "rounded-full border border-[#5c1417] bg-[#5c1417] px-5 py-1.5 text-sm font-semibold text-white shadow-sm"
-      : "rounded-full border border-[#5c1417]/40 bg-white px-5 py-1.5 text-sm font-semibold text-[#5c1417] hover:bg-rose-50";
+      : "rounded-full border border-[#5c1417]/40 bg-white px-5 py-1.5 text-sm font-semibold text-[#5c1417] hover:bg-rose-50"} ${clubHubButtonFocusClass}`;
 
   const headerLabel = view === "month" ? fmtMonthYear(focusDate) : fmtRange(weekStart);
 
   return (
-    <div className="w-full">
+    <section className="w-full" aria-labelledby="club-hub-calendar-heading">
       <div className="border-b border-neutral-200 bg-white shadow-sm">
         <div
           className="flex min-h-[72px] items-center justify-center px-4 py-3 sm:min-h-[80px] sm:py-3.5"
@@ -288,7 +298,10 @@ export default function ClubHubWeekCalendar() {
             backgroundPosition: "center top",
           }}
         >
-          <h2 className="text-center font-black leading-none tracking-tight text-white drop-shadow-sm sm:drop-shadow md:tracking-tight">
+          <h2
+            id="club-hub-calendar-heading"
+            className="text-center font-black leading-none tracking-tight text-white drop-shadow-sm sm:drop-shadow md:tracking-tight"
+          >
             <span className="block text-[clamp(2.25rem,5.5vw,3.5rem)]">Calendar</span>
           </h2>
         </div>
@@ -319,13 +332,19 @@ export default function ClubHubWeekCalendar() {
           <div className="h-0.5 w-full bg-[#5c1417]" aria-hidden />
 
           <div className="flex justify-center gap-2 px-3 py-3 sm:py-3.5">
-            <button type="button" onClick={() => setView("week")} className={toggleBtn(view === "week")}>
+            <button
+              type="button"
+              onClick={() => setView("week")}
+              className={toggleBtn(view === "week")}
+              aria-pressed={view === "week"}
+            >
               Week
             </button>
             <button
               type="button"
               onClick={() => setView("month")}
               className={toggleBtn(view === "month")}
+              aria-pressed={view === "month"}
             >
               Month
             </button>
@@ -367,6 +386,13 @@ export default function ClubHubWeekCalendar() {
                       day: "numeric",
                     });
 
+                    const dayLabel = day.toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+
                     return (
                       <button
                         key={key}
@@ -375,7 +401,9 @@ export default function ClubHubWeekCalendar() {
                           setSelectedDay(day);
                           setFocusDate(day);
                         }}
-                        className="flex min-h-0 min-w-0 flex-col border-r border-neutral-200 bg-neutral-100/80 text-left last:border-r-0"
+                        aria-label={`${dayLabel}${list.length ? `, ${list.length} event${list.length === 1 ? "" : "s"}` : ""}`}
+                        aria-pressed={isSelected}
+                        className={`flex min-h-0 min-w-0 flex-col border-r border-neutral-200 bg-neutral-100/80 text-left last:border-r-0 ${clubHubButtonFocusClass}`}
                       >
                         <div
                           className={`shrink-0 px-1 py-2.5 text-center ${
@@ -393,7 +421,7 @@ export default function ClubHubWeekCalendar() {
 
                         <div className="min-h-0 flex-1 overflow-y-auto pt-1">
                           {list.length === 0 ? (
-                            <p className="py-6 text-center text-[10px] text-neutral-400">No events</p>
+                            <p className="py-6 text-center text-[10px] text-neutral-700">No events</p>
                           ) : (
                             list.map((ev, i) => (
                               <EventBlock key={`${key}-${i}`} ev={ev} isSelectedCol={isSelected} />
@@ -425,7 +453,9 @@ export default function ClubHubWeekCalendar() {
                           setSelectedDay(day);
                           setFocusDate(day);
                         }}
-                        className={`flex w-full items-center justify-between px-3 py-2.5 text-left ${
+                        aria-expanded={isSelected}
+                        aria-controls={`${key}-events`}
+                        className={`flex w-full items-center justify-between px-3 py-2.5 text-left ${clubHubButtonFocusClass} ${
                           isSelected ? "bg-[#5c1417]" : "bg-neutral-50"
                         }`}
                       >
@@ -437,9 +467,9 @@ export default function ClubHubWeekCalendar() {
                           {dateStr}
                         </span>
                       </button>
-                      <div className="space-y-0 bg-neutral-100/80 py-1">
+                      <div id={`${key}-events`} className="space-y-0 bg-neutral-100/80 py-1">
                         {list.length === 0 ? (
-                          <p className="py-4 text-center text-[10px] text-neutral-400">No events</p>
+                          <p className="py-4 text-center text-[10px] text-neutral-700">No events</p>
                         ) : (
                           list.map((ev, i) => (
                             <EventBlock
@@ -458,6 +488,6 @@ export default function ClubHubWeekCalendar() {
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

@@ -17,6 +17,13 @@
     "test:rules": "firebase emulators:exec --only firestore --project code4community-rules-test \"vitest run tests/firestore\"",
     "check:admin-emails": "node scripts/check-admin-emails.mjs",
     "lint:ci": "eslint . --max-warnings 0",
+    "a11y:audit": "node scripts/a11y-audit.mjs",
+    "a11y:audit:quick": "node scripts/a11y-audit.mjs --quick",
+    "a11y:keyboard": "node scripts/a11y-keyboard.mjs",
+    "a11y:static": "node scripts/a11y-static.mjs",
+    "a11y:approval": "node scripts/a11y-approval.mjs",
+    "a11y:all": "node scripts/a11y-static.mjs && node scripts/a11y-audit.mjs && node scripts/a11y-keyboard.mjs && node scripts/a11y-approval.mjs",
+    "a11y:all:quick": "node scripts/a11y-static.mjs && node scripts/a11y-audit.mjs --quick && node scripts/a11y-keyboard.mjs && node scripts/a11y-approval.mjs",
     "build:firestore-rules": "node scripts/build-firestore-rules.js",
     "firebase": "firebase",
     "firebase:login": "firebase login --reauth",
@@ -50,6 +57,8 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.3",
     "@firebase/rules-unit-testing": "^5.0.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@axe-core/puppeteer": "^4.10.1",
+    "puppeteer": "^24.2.0"
   }
 }

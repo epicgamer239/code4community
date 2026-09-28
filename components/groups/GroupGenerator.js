@@ -180,16 +180,22 @@ export default function GroupGenerator({ embedded = false }) {
   return (
     <div className={shell}>
       <div className="mx-auto max-w-5xl space-y-6">
-        {embedded && (
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Student Groups
-            </h1>
+        <div>
+          <h1
+            className={
+              embedded
+                ? "text-xl font-semibold tracking-tight text-foreground"
+                : "sr-only"
+            }
+          >
+            Student Groups
+          </h1>
+          {embedded ? (
             <p className="mt-1 text-sm text-muted-foreground">
               Build balanced groups with roster constraints and export options.
             </p>
-          </div>
-        )}
+          ) : null}
+        </div>
 
         <section className="rounded-lg border border-border bg-card p-4 sm:p-5">
           <ClassManager
@@ -260,10 +266,11 @@ export default function GroupGenerator({ embedded = false }) {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    <label htmlFor="group-mode" className="mb-1.5 block text-sm font-medium text-foreground">
                       Mode
                     </label>
                     <select
+                      id="group-mode"
                       value={groupingConfig.mode}
                       onChange={(e) =>
                         handleConfigUpdate({
@@ -308,10 +315,11 @@ export default function GroupGenerator({ embedded = false }) {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  <label htmlFor="group-strategy" className="mb-1.5 block text-sm font-medium text-foreground">
                     Strategy
                   </label>
                   <select
+                    id="group-strategy"
                     value={groupingConfig.strategy}
                     onChange={(e) =>
                       handleConfigUpdate({

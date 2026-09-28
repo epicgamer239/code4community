@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { runEffectWork } from "@/hooks/runEffectWork";
 import { useAuth } from "@/utils/AuthContext";
 import ClubAutocomplete from "@/components/club-hub/ClubAutocomplete";
+import ClubHubLiveMessage from "@/components/club-hub/ClubHubLiveMessage";
+import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import ClubHubRostersPanel from "@/components/club-hub/ClubHubRostersPanel";
 import {
   BROAD_RUN_CLUBS,
@@ -255,54 +257,81 @@ export default function ClubHubAdminDashboard() {
   };
 
   const tabBtn = (active) =>
-    active
+    `${active
       ? "rounded-full border border-[#5c1417] bg-[#5c1417] px-5 py-1.5 text-sm font-semibold text-white"
-      : "rounded-full border border-[#5c1417]/40 bg-white px-5 py-1.5 text-sm font-semibold text-[#5c1417] hover:bg-rose-50";
+      : "rounded-full border border-[#5c1417]/40 bg-white px-5 py-1.5 text-sm font-semibold text-[#5c1417] hover:bg-rose-50"} ${clubHubButtonFocusClass}`;
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">Club Hub admin</h1>
-        <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+        <p className="mt-2 text-sm leading-relaxed text-neutral-700">
           Manage access, sponsors, and view club rosters across the directory.
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={() => setTab("access")} className={tabBtn(tab === "access")}>
+        <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="Club Hub admin sections">
+          <button
+            type="button"
+            role="tab"
+            id="club-hub-tab-access"
+            aria-selected={tab === "access"}
+            aria-controls="club-hub-panel-access"
+            onClick={() => setTab("access")}
+            className={tabBtn(tab === "access")}
+          >
             Access
           </button>
-          <button type="button" onClick={() => setTab("rosters")} className={tabBtn(tab === "rosters")}>
+          <button
+            type="button"
+            role="tab"
+            id="club-hub-tab-rosters"
+            aria-selected={tab === "rosters"}
+            aria-controls="club-hub-panel-rosters"
+            onClick={() => setTab("rosters")}
+            className={tabBtn(tab === "rosters")}
+          >
             Rosters &amp; metrics
           </button>
         </div>
       </div>
 
+      <ClubHubLiveMessage message={message} />
+      <ClubHubLiveMessage message={error} variant="alert" />
+
       {tab === "rosters" ? (
-        <ClubHubRostersPanel mode="admin" clubOptions={clubOptions} allowedSlugs={allClubSlugs} />
+        <div
+          id="club-hub-panel-rosters"
+          role="tabpanel"
+          aria-labelledby="club-hub-tab-rosters"
+          tabIndex={0}
+        >
+          <ClubHubRostersPanel mode="admin" clubOptions={clubOptions} allowedSlugs={allClubSlugs} />
+        </div>
       ) : null}
 
       {tab !== "access" ? null : (
-        <>
-      {message && (
-        <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-          {message}
-        </p>
-      )}
-      {error && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          {error}
-        </p>
-      )}
+        <div
+          id="club-hub-panel-access"
+          role="tabpanel"
+          aria-labelledby="club-hub-tab-access"
+          tabIndex={0}
+          className="space-y-8"
+        >
 
       <section className="rounded-[14px] bg-white p-6 shadow-sm ring-1 ring-black/5">
         <h2 className="text-lg font-bold text-neutral-900">Club coordinators</h2>
-        <p className="mt-1 text-sm text-neutral-600">Can edit every club page.</p>
+        <p className="mt-1 text-sm text-neutral-700">Can edit every club page.</p>
 
         <form onSubmit={handleAddCoordinator} className="mt-4 flex flex-wrap gap-2">
+          <label htmlFor="club-hub-coordinator-email" className="sr-only">
+            Coordinator email
+          </label>
           <input
+            id="club-hub-coordinator-email"
             type="email"
             value={coordinatorEmail}
             onChange={(e) => setCoordinatorEmail(e.target.value)}
             placeholder="name@lcps.org"
+            autoComplete="email"
             className="min-w-[16rem] flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
           />
           <button
@@ -316,7 +345,7 @@ export default function ClubHubAdminDashboard() {
         </form>
 
         {loading ? (
-          <p className="mt-4 text-sm text-neutral-500">Loading…</p>
+          <p className="mt-4 text-sm text-neutral-700">Loading…</p>
         ) : (
           <ul className="mt-4 divide-y divide-neutral-200">
             {coordinators.map((row) => (
@@ -324,7 +353,7 @@ export default function ClubHubAdminDashboard() {
                 <div>
                   <p className="font-medium text-neutral-900">{row.email}</p>
                   {row.protected && (
-                    <p className="text-xs text-neutral-500">Built-in coordinator</p>
+                    <p className="text-xs text-neutral-700">Built-in coordinator</p>
                   )}
                 </div>
                 {!row.protected && (
@@ -354,22 +383,29 @@ export default function ClubHubAdminDashboard() {
 
       <section className="rounded-[14px] bg-white p-6 shadow-sm ring-1 ring-black/5">
         <h2 className="text-lg font-bold text-neutral-900">Extra club editors</h2>
-        <p className="mt-1 text-sm text-neutral-600">
+        <p className="mt-1 text-sm text-neutral-700">
           Grant edit access to a specific club by email.
         </p>
 
         <form onSubmit={handleAddManualEditor} className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <label htmlFor="club-hub-editor-email" className="sr-only">
+            Editor email
+          </label>
           <input
+            id="club-hub-editor-email"
             type="email"
             value={editorEmail}
             onChange={(e) => setEditorEmail(e.target.value)}
             placeholder="name@lcps.org"
+            autoComplete="email"
             className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
           />
           <ClubAutocomplete
+            id="club-hub-editor-club"
             clubs={clubOptions}
             valueSlug={editorClubSlug}
             onChangeSlug={setEditorClubSlug}
+            label="Club for editor access"
             placeholder="Type club name…"
           />
           <button
@@ -383,14 +419,14 @@ export default function ClubHubAdminDashboard() {
         </form>
 
         {!loading && manualEditors.length === 0 ? (
-          <p className="mt-4 text-sm text-neutral-500">No extra club editors yet.</p>
+          <p className="mt-4 text-sm text-neutral-700">No extra club editors yet.</p>
         ) : (
           <ul className="mt-4 divide-y divide-neutral-200">
             {manualEditors.map((row) => (
               <li key={row.email} className="flex items-center justify-between gap-3 py-3">
                 <div>
                   <p className="font-medium text-neutral-900">{row.email}</p>
-                  <p className="text-sm text-neutral-600">
+                  <p className="text-sm text-neutral-700">
                     Clubs: {slugLabels(row.manualClubSlugs)}
                   </p>
                 </div>
@@ -419,13 +455,13 @@ export default function ClubHubAdminDashboard() {
 
       <section className="rounded-[14px] bg-white p-6 shadow-sm ring-1 ring-black/5">
         <h2 className="text-lg font-bold text-neutral-900">Club sponsors</h2>
-        <p className="mt-1 text-sm text-neutral-600">
+        <p className="mt-1 text-sm text-neutral-700">
           Assign sponsor names and emails for each club. Changes here override the
           built-in directory defaults.
         </p>
 
         <div className="mt-4">
-          <label htmlFor="sponsor-club" className="block text-xs font-semibold uppercase tracking-wider text-neutral-500">
+          <label htmlFor="sponsor-club" className="block text-xs font-semibold uppercase tracking-wider text-neutral-700">
             Club
           </label>
           <ClubAutocomplete
@@ -442,7 +478,11 @@ export default function ClubHubAdminDashboard() {
           <form onSubmit={handleSaveSponsors} className="mt-5 space-y-3">
             {sponsorDraft.map((sponsor, index) => (
               <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <label htmlFor={`sponsor-name-${index}`} className="sr-only">
+                  Sponsor {index + 1} name
+                </label>
                 <input
+                  id={`sponsor-name-${index}`}
                   type="text"
                   value={sponsor.name}
                   onChange={(e) =>
@@ -455,7 +495,11 @@ export default function ClubHubAdminDashboard() {
                   placeholder="Sponsor name"
                   className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
                 />
+                <label htmlFor={`sponsor-email-${index}`} className="sr-only">
+                  Sponsor {index + 1} email
+                </label>
                 <input
+                  id={`sponsor-email-${index}`}
                   type="email"
                   value={sponsor.email}
                   onChange={(e) =>
@@ -513,18 +557,18 @@ export default function ClubHubAdminDashboard() {
             </div>
           </form>
         ) : (
-          <p className="mt-4 text-sm text-neutral-500">Type a club name to edit sponsors.</p>
+          <p className="mt-4 text-sm text-neutral-700">Type a club name to edit sponsors.</p>
         )}
 
         {!sponsorsLoading && sponsorClubSlug && effectiveSponsors.length > 0 && (
-          <p className="mt-4 text-sm text-neutral-600">
+          <p className="mt-4 text-sm text-neutral-700">
             Current sponsors for this club:{" "}
             {effectiveSponsors.map((s) => `${s.name} (${s.email})`).join(", ")}
           </p>
         )}
 
         {!sponsorsLoading && (
-          <p className="mt-4 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
+          <p className="mt-4 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
             Example:{" "}
             {slugLabels(
               clubSlugsToMap(
@@ -534,7 +578,7 @@ export default function ClubHubAdminDashboard() {
           </p>
         )}
       </section>
-        </>
+        </div>
       )}
     </div>
   );

@@ -293,7 +293,11 @@ export default function StudentRosterManager({ students, onStudentsUpdate, onTog
             onKeyDown={(e) => e.key === "Enter" && addManualStudent()}
             className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400/30"
           />
+          <label htmlFor="manual-student-performance" className="sr-only">
+            Performance level for new student
+          </label>
           <select
+            id="manual-student-performance"
             value={manualStudent.performance}
             onChange={(e) =>
               setManualStudent({ ...manualStudent, performance: e.target.value })

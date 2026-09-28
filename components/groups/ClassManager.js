@@ -59,7 +59,7 @@ export default function ClassManager({ currentClass, onClassSelect, onClassCreat
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-base font-semibold text-foreground">Classes</h3>
+        <h2 className="text-base font-semibold text-foreground">Classes</h2>
         <button
           type="button"
           onClick={() => setShowCreateForm(!showCreateForm)}

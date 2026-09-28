@@ -2,12 +2,12 @@
 .scRoot {
   --sc-header: #2a3541;
   --sc-text: #556474;
-  --sc-placeholder: #8c99a8;
+  --sc-placeholder: #5c6775;
   --sc-border: #d1d3de;
   --sc-solitude: #e9eaef;
   --sc-aqua: #f5f5f8;
   --sc-white: #fff;
-  --sc-mariner: #277cd9;
+  --sc-mariner: #1d5fab;
   --sc-mariner-extra: #eaf2fb;
   --sc-negative: #ed1c24;
   --sc-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1), 0 0 2px rgba(0, 0, 0, 0.12);

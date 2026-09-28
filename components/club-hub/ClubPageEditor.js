@@ -7,7 +7,7 @@ function Field({ label, htmlFor, children }) {
     <div>
       <label
         htmlFor={htmlFor}
-        className="block text-xs font-semibold uppercase tracking-wider text-neutral-500"
+        className="block text-xs font-semibold uppercase tracking-wider text-neutral-700"
       >
         {label}
       </label>
@@ -57,10 +57,13 @@ export default function ClubPageEditor({
       </h2>
 
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+        <label
+          htmlFor="club-header-file"
+          className="block text-xs font-semibold uppercase tracking-wider text-neutral-700"
+        >
           Header image
-        </p>
-        <p className="mt-1 text-sm text-neutral-600">
+        </label>
+        <p className="mt-1 text-sm text-neutral-700">
           Full-width banner behind the club name (JPG/PNG/WebP, max 5&nbsp;MB).
         </p>
         {headerPreview ? (
@@ -75,6 +78,7 @@ export default function ClubPageEditor({
         ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <input
+            id="club-header-file"
             ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"

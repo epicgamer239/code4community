@@ -9,6 +9,7 @@ import { isTutorOrHigher } from "@/utils/authorization";
 import { mathlabLoginPath } from "@/lib/mathlab/guest";
 
 function SidebarNavEntry({ item, isCollapsed, isMobile, onRequireAuth }) {
+  const iconOnlyLabel = isCollapsed && !isMobile ? item.label : undefined;
   const className = isMobile
     ? `flex-1 flex flex-col items-center py-3 px-2 transition-colors ${
         item.isActive ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground"
@@ -30,13 +31,18 @@ function SidebarNavEntry({ item, isCollapsed, isMobile, onRequireAuth }) {
   );
   if (item.requiresAuth) {
     return (
-      <button type="button" onClick={() => onRequireAuth(item.href)} className={className}>
+      <button
+        type="button"
+        onClick={() => onRequireAuth(item.href)}
+        className={className}
+        aria-label={iconOnlyLabel}
+      >
         {inner}
       </button>
     );
   }
   return (
-    <Link href={item.href} className={className}>
+    <Link href={item.href} className={className} aria-label={iconOnlyLabel}>
       {inner}
     </Link>
   );

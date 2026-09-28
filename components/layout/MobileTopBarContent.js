@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { siteFocusVisibleClass, siteNavFocusVisibleClass } from "@/lib/a11y/site";
 
 export default function MobileTopBarContent({
   isMenuOpen,
@@ -28,10 +29,10 @@ export default function MobileTopBarContent({
           <button
             type="button"
             onClick={closeMenu}
-            className="p-2 -ml-2 text-black hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-300 shrink-0"
+            className={`p-2 -ml-2 text-black hover:bg-gray-100 rounded shrink-0 ${siteNavFocusVisibleClass}`}
             aria-label="Close menu"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -39,10 +40,10 @@ export default function MobileTopBarContent({
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            className="p-2 -ml-2 text-black hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-300 shrink-0"
+            className={`p-2 -ml-2 text-black hover:bg-gray-100 rounded shrink-0 ${siteNavFocusVisibleClass}`}
             aria-label="Open menu"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
@@ -53,9 +54,10 @@ export default function MobileTopBarContent({
             closeMenu();
             router.push("/");
           }}
-          className="flex items-center gap-2 min-w-0 flex-1"
+          className={`flex items-center gap-2 min-w-0 flex-1 ${siteNavFocusVisibleClass}`}
+          aria-label={`${title}, go to home`}
         >
-          <Image src="/brand/c4c.png" alt="" width={32} height={32} className="w-8 h-8 shrink-0" />
+          <Image src="/brand/c4c.png" alt="" width={32} height={32} className="w-8 h-8 shrink-0" aria-hidden />
           <span className={titleClasses}>{title}</span>
         </button>
       </div>
@@ -68,14 +70,14 @@ export default function MobileTopBarContent({
               <Link
                 href="/login"
                 onClick={isMenuOpen ? closeMenu : undefined}
-                className="text-sm font-medium text-black hover:text-gray-600 px-2 py-1.5 whitespace-nowrap"
+                className={`text-sm font-medium text-black hover:text-gray-600 px-2 py-1.5 whitespace-nowrap ${siteNavFocusVisibleClass}`}
               >
                 Sign In
               </Link>
               <Link
                 href="/signup"
                 onClick={isMenuOpen ? closeMenu : undefined}
-                className="text-sm font-medium bg-black text-white hover:bg-gray-800 rounded px-4 py-2 whitespace-nowrap"
+                className={`text-sm font-medium bg-black text-white hover:bg-gray-800 rounded px-4 py-2 whitespace-nowrap ${siteNavFocusVisibleClass}`}
               >
                 Get Started
               </Link>

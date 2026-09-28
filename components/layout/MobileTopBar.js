@@ -23,7 +23,18 @@ export default function MobileTopBar({ title = "Code4Community", showNavLinks = 
   useEffect(() => {
     if (menuOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [menuOpen]);
 
   const closeMenu = () => setMenuOpen(false);
@@ -83,7 +94,7 @@ export default function MobileTopBar({ title = "Code4Community", showNavLinks = 
 
           {/* Nav links */}
           {showNavLinks && (
-            <nav className="flex-1 overflow-auto py-2">
+            <nav className="flex-1 overflow-auto py-2" aria-label="Primary">
               {(() => {
                 const links = authReady && user
                   ? [...BASE_NAV_LINKS, { label: "SETTINGS", path: "/settings" }]
@@ -97,7 +108,8 @@ export default function MobileTopBar({ title = "Code4Community", showNavLinks = 
                     <button
                       type="button"
                       onClick={() => handleNav(link.path)}
-                      className={`w-full text-left px-4 py-4 text-base font-medium transition-colors ${
+                      aria-current={isActive ? "page" : undefined}
+                      className={`w-full text-left px-4 py-4 text-base font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
                         isActive ? "text-primary" : "text-black hover:bg-gray-50"
                       }`}
                     >

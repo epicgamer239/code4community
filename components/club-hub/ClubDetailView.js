@@ -15,6 +15,9 @@ import {
   validateClubHeaderFile,
 } from "@/lib/club-hub/clubPages";
 import ClubHubNav from "@/components/club-hub/ClubHubNav";
+import ClubHubSkipLink from "@/components/club-hub/ClubHubSkipLink";
+import ClubHubLiveMessage from "@/components/club-hub/ClubHubLiveMessage";
+import { CLUB_HUB_MAIN_ID, clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import ClubEventsEditor from "@/components/club-hub/ClubEventsEditor";
 import ClubMembershipButton from "@/components/club-hub/ClubMembershipButton";
 import ClubPageEditor from "@/components/club-hub/ClubPageEditor";
@@ -76,10 +79,11 @@ function ResourcesButton({ href, label, disabledTitle }) {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className={className}
+        className={`${className} ${clubHubButtonFocusClass}`}
         style={{ backgroundColor: CLUB_HUB_MAROON }}
       >
         {label}
+        <span className="sr-only"> (opens in new tab)</span>
       </a>
     );
   }
@@ -88,8 +92,10 @@ function ResourcesButton({ href, label, disabledTitle }) {
       className={`${className} cursor-default opacity-75`}
       style={{ backgroundColor: CLUB_HUB_MAROON }}
       title={disabledTitle}
+      aria-disabled="true"
     >
       {label}
+      <span className="sr-only"> (not available yet)</span>
     </span>
   );
 }
@@ -328,18 +334,23 @@ export default function ClubDetailView({ club, slug }) {
 
   return (
     <div className="min-h-screen text-neutral-900" style={{ backgroundColor: CLUB_HUB_PAGE_BG }}>
-      <section className="relative min-h-[210px] overflow-hidden sm:min-h-[248px] md:min-h-[268px]">
+      <ClubHubSkipLink />
+      <section
+        className="relative min-h-[210px] overflow-hidden sm:min-h-[248px] md:min-h-[268px]"
+        aria-label={`${club.name} banner`}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={displayHeaderSrc}
           alt=""
+          aria-hidden
           className="absolute inset-0 h-full w-full scale-[1.02] object-cover object-center blur-[1.5px]"
         />
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.22) 100%)",
+              "linear-gradient(180deg, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.68) 100%)",
           }}
           aria-hidden
         />
@@ -355,22 +366,10 @@ export default function ClubDetailView({ club, slug }) {
         loginRedirect={`/club-hub/directory/${slug}`}
       />
 
-      <div className="w-full px-4 pt-4.5 pb-4 sm:px-6 sm:pt-6 sm:pb-5 lg:px-10">
-        {message && (
-          <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-            {message}
-          </p>
-        )}
-        {joinMessage && (
-          <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-            {joinMessage}
-          </p>
-        )}
-        {error && (
-          <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-            {error}
-          </p>
-        )}
+      <main id={CLUB_HUB_MAIN_ID} className="w-full px-4 pt-4.5 pb-4 sm:px-6 sm:pt-6 sm:pb-5 lg:px-10">
+        <ClubHubLiveMessage message={message} />
+        <ClubHubLiveMessage message={joinMessage} />
+        <ClubHubLiveMessage message={error} variant="alert" />
 
         {editing ? (
           <ClubPageEditor
@@ -427,7 +426,7 @@ export default function ClubDetailView({ club, slug }) {
                   <button
                     type="button"
                     onClick={startEdit}
-                    className="shrink-0 rounded-lg px-3 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 sm:px-3.5 sm:py-1.5 sm:text-sm"
+                    className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 sm:px-3.5 sm:py-1.5 sm:text-sm ${clubHubButtonFocusClass}`}
                     style={{ backgroundColor: CLUB_HUB_MAROON }}
                   >
                     Edit page
@@ -461,7 +460,12 @@ export default function ClubDetailView({ club, slug }) {
                     <ul className="mt-1 space-y-0.5 pl-0">
                       {contacts.map((email) => (
                         <li key={email} className="break-all font-normal text-[#1f2937]">
-                          {email}
+                          <a
+                            href={`mailto:${email}`}
+                            className="text-[#5c1417] underline underline-offset-2 hover:text-[#731a1f] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5c1417] focus-visible:ring-offset-1"
+                          >
+                            {email}
+                          </a>
                         </li>
                       ))}
                     </ul>
@@ -477,16 +481,16 @@ export default function ClubDetailView({ club, slug }) {
             </section>
           </div>
         )}
-      </div>
 
-      <ClubEventsSection
-        loadingEvents={loadingEvents}
-        upcomingEvents={upcomingEvents}
-        canEdit={canEditPage}
-        authLoading={authLoading}
-        accessLoading={accessLoading}
-        onOpenEditor={() => setEventsEditorOpen(true)}
-      />
+        <ClubEventsSection
+          loadingEvents={loadingEvents}
+          upcomingEvents={upcomingEvents}
+          canEdit={canEditPage}
+          authLoading={authLoading}
+          accessLoading={accessLoading}
+          onOpenEditor={() => setEventsEditorOpen(true)}
+        />
+      </main>
 
       <ClubEventsEditor
         open={eventsEditorOpen}
@@ -497,16 +501,23 @@ export default function ClubDetailView({ club, slug }) {
         onChanged={loadClubEvents}
       />
 
-      <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-500">
-        <Link href="/club-hub/directory" className="text-[#5c1417] hover:underline">
+      <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-700">
+        <Link
+          href="/club-hub/directory"
+          className={`text-[#5c1417] hover:underline ${clubHubButtonFocusClass}`}
+        >
           ← Club Directory
         </Link>
-        <span className="mx-2 text-neutral-300">·</span>
-        <Link href="/club-hub" className="hover:underline">
+        <span className="mx-2 text-neutral-500" aria-hidden>
+          ·
+        </span>
+        <Link href="/club-hub" className={`hover:underline ${clubHubButtonFocusClass}`}>
           Club Hub
         </Link>
-        <span className="mx-2 text-neutral-300">·</span>
-        <Link href="/" className="hover:underline">
+        <span className="mx-2 text-neutral-500" aria-hidden>
+          ·
+        </span>
+        <Link href="/" className={`hover:underline ${clubHubButtonFocusClass}`}>
           Code4Community home
         </Link>
       </footer>

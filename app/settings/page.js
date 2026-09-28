@@ -298,7 +298,10 @@ export default function SettingsPage() {
                     />
                   </div>
                   {nameMessage && (
-                    <p className={`text-sm ${nameMessage.type === "success" ? "text-green-600" : "text-red-600"}`}>
+                    <p
+                      role={nameMessage.type === "success" ? "status" : "alert"}
+                      className={`text-sm ${nameMessage.type === "success" ? "text-green-600" : "text-red-600"}`}
+                    >
                       {nameMessage.text}
                     </p>
                   )}
@@ -342,7 +345,10 @@ export default function SettingsPage() {
                       />
                     </div>
                     {emailMessage && (
-                      <p className={`text-sm ${emailMessage.type === "success" ? "text-green-600" : "text-red-600"}`}>
+                      <p
+                        role={emailMessage.type === "success" ? "status" : "alert"}
+                        className={`text-sm ${emailMessage.type === "success" ? "text-green-600" : "text-red-600"}`}
+                      >
                         {emailMessage.text}
                       </p>
                     )}
@@ -406,7 +412,10 @@ export default function SettingsPage() {
                         />
                       </div>
                       {passwordMessage && (
-                        <p className={`text-sm ${passwordMessage.type === "success" ? "text-green-600" : "text-red-600"}`}>
+                        <p
+                          role={passwordMessage.type === "success" ? "status" : "alert"}
+                          className={`text-sm ${passwordMessage.type === "success" ? "text-green-600" : "text-red-600"}`}
+                        >
                           {passwordMessage.text}
                         </p>
                       )}

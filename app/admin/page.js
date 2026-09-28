@@ -28,7 +28,8 @@ export default function SiteAdminPage() {
     return (
       <AppPageLayout>
         <ContainerMain className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">Sign in with a site admin account.</p>
+          <h1 className="text-2xl font-bold text-foreground">Site admin</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Sign in with a site admin account.</p>
           <Link href="/login?redirectTo=%2Fadmin" className="mt-3 inline-block text-primary hover:underline">
             Log in
           </Link>

@@ -3,6 +3,8 @@
 import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import DashboardTopBar from "@/components/layout/DashboardTopBar";
+import SiteSkipLink from "@/components/common/SiteSkipLink";
+import { SITE_MAIN_ID } from "@/lib/a11y/site";
 
 /** Centered rectangle (not full-width). When fixedHeight, same size for all slides (desktop); otherwise expands to content (mobile). No internal scrolling. */
 function SlideContent({ leftText, rightContent, className = "", fixedHeight = false }) {
@@ -37,7 +39,7 @@ function Slide1Graphic() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-700 truncate">your-org.org/custom-dashboard</span>
-          <span className="ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500 text-white">Live</span>
+          <span className="ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-700 text-white">Live</span>
         </div>
       </div>
       <div className="h-8 bg-blue-800 rounded flex items-center pl-2 gap-1">
@@ -280,6 +282,7 @@ export default function Services() {
 
   return (
     <div className="min-h-screen w-full bg-white flex flex-col overflow-x-hidden">
+      <SiteSkipLink />
       <div className="bg-background">
         <DashboardTopBar title="Code4Community" showNavLinks={true} />
       </div>
@@ -300,7 +303,12 @@ export default function Services() {
         </div>
       </div>
 
-      <main className="flex-1 flex items-center justify-center px-6 py-20 md:py-28">
+      <main
+        id={SITE_MAIN_ID}
+        className="flex-1 flex flex-col outline-none"
+        tabIndex={-1}
+      >
+        <div className="flex flex-1 items-center justify-center px-6 py-20 md:py-28">
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-black leading-tight mb-6">
             Custom software for any organization
@@ -325,7 +333,7 @@ export default function Services() {
             </Link>
           </div>
         </div>
-      </main>
+        </div>
 
       {/* Mobile: simple vertical stack of all three slides, no transitions (only render when not desktop so we never show desktop slide section after) */}
       {!isDesktop && (
@@ -421,6 +429,7 @@ export default function Services() {
           </div>
         </div>
       </section>
+      </main>
     </div>
   );
 }

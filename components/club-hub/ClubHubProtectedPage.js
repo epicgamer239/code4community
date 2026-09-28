@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/utils/AuthContext";
 import ClubHubNav from "@/components/club-hub/ClubHubNav";
+import ClubHubSkipLink from "@/components/club-hub/ClubHubSkipLink";
+import { CLUB_HUB_MAIN_ID, clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { CLUB_HUB_MAROON, CLUB_HUB_PAGE_BG } from "@/lib/club-hub/theme";
 
 /**
@@ -40,8 +42,10 @@ export default function ClubHubProtectedPage({
   if (loading || accessLoading) {
     return (
       <div
-        className="min-h-screen px-4 py-16 text-center text-neutral-600"
+        className="min-h-screen px-4 py-16 text-center text-neutral-700"
         style={{ backgroundColor: CLUB_HUB_PAGE_BG }}
+        role="status"
+        aria-live="polite"
       >
         Loading…
       </div>
@@ -51,18 +55,19 @@ export default function ClubHubProtectedPage({
   if (!user) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: CLUB_HUB_PAGE_BG }}>
+        <ClubHubSkipLink />
         <ClubHubNav active={active} loginRedirect={loginRedirect} />
-        <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <main id={CLUB_HUB_MAIN_ID} className="mx-auto max-w-lg px-4 py-16 text-center">
           <h1 className="text-xl font-bold text-neutral-900">{title}</h1>
-          <p className="mt-2 text-sm text-neutral-600">{loginMessage}</p>
+          <p className="mt-2 text-sm text-neutral-700">{loginMessage}</p>
           <Link
             href={`/login?redirectTo=${encodeURIComponent(loginRedirect)}`}
-            className="mt-5 inline-block rounded-md px-4 py-2 text-sm font-semibold text-white"
+            className={`mt-5 inline-block rounded-md px-4 py-2 text-sm font-semibold text-white ${clubHubButtonFocusClass}`}
             style={{ backgroundColor: CLUB_HUB_MAROON }}
           >
             Log in
           </Link>
-        </div>
+        </main>
       </div>
     );
   }
@@ -73,8 +78,11 @@ export default function ClubHubProtectedPage({
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: CLUB_HUB_PAGE_BG }}>
+      <ClubHubSkipLink />
       <ClubHubNav active={active} loginRedirect={loginRedirect} />
-      <div className="px-4 py-8 sm:px-6 lg:px-10">{children}</div>
+      <main id={CLUB_HUB_MAIN_ID} className="px-4 py-8 sm:px-6 lg:px-10">
+        {children}
+      </main>
     </div>
   );
 }

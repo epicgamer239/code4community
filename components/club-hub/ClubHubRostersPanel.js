@@ -126,7 +126,7 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-bold text-neutral-900">Rosters &amp; metrics</h2>
-        <p className="mt-1 text-sm text-neutral-600">
+        <p className="mt-1 text-sm text-neutral-700">
           {mode === "admin"
             ? "Member counts and upcoming events across all clubs."
             : "View rosters and activity for clubs you manage."}
@@ -154,14 +154,14 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
       <section className="rounded-[14px] bg-white p-6 shadow-sm ring-1 ring-black/5">
         <h3 className="font-bold text-neutral-900">All clubs</h3>
         {loading ? (
-          <p className="mt-4 text-sm text-neutral-500">Loading…</p>
+          <p className="mt-4 text-sm text-neutral-700">Loading…</p>
         ) : visibleClubs.length === 0 ? (
-          <p className="mt-4 text-sm text-neutral-500">No clubs available.</p>
+          <p className="mt-4 text-sm text-neutral-700">No clubs available.</p>
         ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-neutral-200 text-xs uppercase tracking-wider text-neutral-500">
+                <tr className="border-b border-neutral-200 text-xs uppercase tracking-wider text-neutral-700">
                   <th className="py-2 pr-4 font-semibold">Club</th>
                   <th className="py-2 pr-4 font-semibold">Members</th>
                   <th className="py-2 pr-4 font-semibold">Upcoming events</th>
@@ -206,7 +206,7 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
         <div className="mt-4 sm:max-w-md">
           <label
             htmlFor="roster-club"
-            className="block text-xs font-semibold uppercase tracking-wider text-neutral-500"
+            className="block text-xs font-semibold uppercase tracking-wider text-neutral-700"
           >
             Club
           </label>
@@ -234,14 +234,14 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
 
         {selectedSlug ? (
           rosterLoading ? (
-            <p className="mt-4 text-sm text-neutral-500">Loading roster…</p>
+            <p className="mt-4 text-sm text-neutral-700">Loading roster…</p>
           ) : roster.length === 0 ? (
-            <p className="mt-4 text-sm text-neutral-500">No members have joined yet.</p>
+            <p className="mt-4 text-sm text-neutral-700">No members have joined yet.</p>
           ) : (
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-neutral-200 text-xs uppercase tracking-wider text-neutral-500">
+                  <tr className="border-b border-neutral-200 text-xs uppercase tracking-wider text-neutral-700">
                     <th className="py-2 pr-4 font-semibold">Name</th>
                     <th className="py-2 pr-4 font-semibold">Email</th>
                     <th className="py-2 font-semibold">Joined</th>
@@ -266,7 +266,7 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
             </div>
           )
         ) : (
-          <p className="mt-4 text-sm text-neutral-500">Choose a club to view its member roster.</p>
+          <p className="mt-4 text-sm text-neutral-700">Choose a club to view its member roster.</p>
         )}
       </section>
     </div>
@@ -277,7 +277,7 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
 function MetricCard({ label, value }) {
   return (
     <div className="rounded-[14px] bg-white p-4 shadow-sm ring-1 ring-black/5">
-      <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-neutral-700">{label}</p>
       <p className="mt-1 text-2xl font-bold" style={{ color: MAROON }}>
         {value}
       </p>

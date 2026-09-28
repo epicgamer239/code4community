@@ -10,12 +10,16 @@ export default function ClubHubSponsorDashboard({ allowedSlugs, accessLoading = 
   const clubOptions = getSortedClubOptions();
 
   if (accessLoading) {
-    return <p className="text-sm text-neutral-500">Loading…</p>;
+    return (
+      <p className="text-sm text-neutral-700" role="status">
+        Loading…
+      </p>
+    );
   }
 
   if (allowedSlugs.length === 0) {
     return (
-      <p className="text-sm text-neutral-600">
+      <p className="text-sm text-neutral-700">
         You do not have sponsor access to any clubs.
       </p>
     );
@@ -25,7 +29,7 @@ export default function ClubHubSponsorDashboard({ allowedSlugs, accessLoading = 
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">My clubs</h1>
-        <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+        <p className="mt-2 text-sm leading-relaxed text-neutral-700">
           View member rosters and upcoming activity for clubs you sponsor or manage.
         </p>
       </div>

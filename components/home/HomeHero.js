@@ -3,6 +3,7 @@
 import { useLayoutEffect, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { siteFocusVisibleClass } from "@/lib/a11y/site";
 
 const heroPhrases = [
   "help your organization",
@@ -29,12 +30,30 @@ export default function HomeHero() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [displayLength, setDisplayLength] = useState(() => heroPhrases[0].length);
   const [phase, setPhase] = useState("holding");
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useLayoutEffect(() => {
     document.title = "Code4Community | Home";
   }, []);
 
   useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => {
+      const reduced = mq.matches;
+      setReduceMotion(reduced);
+      if (reduced) {
+        setPhraseIndex(0);
+        setDisplayLength(heroPhrases[0].length);
+        setPhase("holding");
+      }
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) return undefined;
     let intervalId = null;
     let holdTimeoutId = null;
 
@@ -70,9 +89,11 @@ export default function HomeHero() {
       }, TYPE_MS);
       return () => clearInterval(intervalId);
     }
-  }, [phase, phraseIndex]);
+  }, [phase, phraseIndex, reduceMotion]);
 
-  const visibleText = heroPhrases[phraseIndex].slice(0, displayLength);
+  const visibleText = reduceMotion
+    ? heroPhrases[0]
+    : heroPhrases[phraseIndex].slice(0, displayLength);
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row lg:h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-4rem)] lg:max-h-[calc(100vh-4rem)] lg:overflow-hidden">
@@ -82,7 +103,9 @@ export default function HomeHero() {
           <span className="inline-block pb-1.5 overflow-visible bg-gradient-to-r from-violet-500 via-purple-500 to-amber-500 bg-clip-text text-transparent">
             {visibleText}
           </span>
-          <span className="inline-block w-0.5 h-8 md:h-10 ml-0.5 bg-foreground animate-pulse align-middle" aria-hidden />
+          {!reduceMotion ? (
+            <span className="inline-block w-0.5 h-8 md:h-10 ml-0.5 bg-foreground animate-pulse align-middle" aria-hidden />
+          ) : null}
         </h1>
         <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg">
           Code4Community is a student-led engineering club that builds <strong>custom tools and software</strong> for local nonprofits and small businesses <strong>at low cost.</strong>
@@ -90,14 +113,14 @@ export default function HomeHero() {
         <div className="flex flex-wrap gap-4">
           <Link
             href="/signup"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-foreground text-background font-medium rounded-lg hover:opacity-90 transition-opacity"
+            className={`inline-flex items-center gap-2 px-6 py-3 bg-foreground text-background font-medium rounded-lg hover:opacity-90 transition-opacity ${siteFocusVisibleClass}`}
           >
             Request a Tool
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </Link>
           <Link
             href="/contact"
-            className="inline-flex items-center gap-2 px-6 py-3 border-2 border-foreground text-foreground font-medium rounded-lg hover:bg-foreground hover:text-background transition-colors"
+            className={`inline-flex items-center gap-2 px-6 py-3 border-2 border-foreground text-foreground font-medium rounded-lg hover:bg-foreground hover:text-background transition-colors ${siteFocusVisibleClass}`}
           >
             Get in touch
           </Link>

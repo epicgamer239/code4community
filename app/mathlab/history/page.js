@@ -3,8 +3,7 @@ import { useAuth } from "@/utils/AuthContext";
 import { useRouter } from "next/navigation";
 import { useState, useCallback, useMemo, Suspense } from "react";
 import { useRunEffect } from "@/hooks/useRunEffect";
-import DashboardTopBar from "@/components/layout/DashboardTopBar";
-import MathLabSidebar from "@/components/mathlab/MathLabSidebar";
+import MathLabPageShell from "@/components/mathlab/MathLabPageShell";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { firestore } from "@/firebase";
@@ -178,9 +177,9 @@ function MathLabHistoryPageContent() {
 
   if (!displayUser) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <MathLabPageShell contentClassName="flex items-center justify-center ml-0 md:ml-16 min-h-[50vh]">
         <LoadingSpinner />
-      </div>
+      </MathLabPageShell>
     );
   }
 
@@ -196,13 +195,10 @@ function MathLabHistoryPageContent() {
     : [];
 
   return (
-    <div className="min-h-screen bg-background " style={{ overscrollBehavior: "none" }}>
-      <DashboardTopBar title="BRHS Math Lab" />
-      <Suspense fallback={null}>
-        <MathLabSidebar />
-      </Suspense>
-
-      <div className="ml-0 md:ml-16 pb-16 md:pb-0">
+    <MathLabPageShell
+      className="min-h-screen bg-background"
+      contentClassName="ml-0 md:ml-16 pb-16 md:pb-0"
+    >
         <div className="container mx-auto px-6 py-8">
           <div className="max-w-6xl mx-auto">
             <div className="mb-8">
@@ -329,8 +325,7 @@ function MathLabHistoryPageContent() {
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </MathLabPageShell>
   );
 }
 
@@ -338,12 +333,9 @@ export default function MathLabHistoryPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
-        </div>
+        <MathLabPageShell contentClassName="flex items-center justify-center ml-0 md:ml-16 min-h-[50vh]">
+          <LoadingSpinner />
+        </MathLabPageShell>
       }
     >
       <MathLabHistoryPageContent />

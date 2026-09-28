@@ -6,15 +6,22 @@ import Link from "next/link";
 import LaurelRankSeal from "@/components/club-hub/LaurelRankSeal";
 import ClubHubWeekCalendar from "@/components/club-hub/ClubHubWeekCalendar";
 import ClubHubNav from "@/components/club-hub/ClubHubNav";
+import ClubHubSkipLink from "@/components/club-hub/ClubHubSkipLink";
+import { CLUB_HUB_MAIN_ID } from "@/lib/club-hub/a11y";
 import { buildClubHubHomeRankings } from "@/lib/club-hub/clubHubEngagementRankings";
 import { fetchClubSizeRankings } from "@/lib/club-hub/clubMembershipCounts";
 import { logClientError } from "@/lib/auth/logClientError";
-import { CLUB_HUB_MAROON, CLUB_HUB_MAROON_DARK } from "@/lib/club-hub/theme";
+import {
+  CLUB_HUB_MAROON,
+  CLUB_HUB_MAROON_DARK,
+  CLUB_HUB_MUTED_TEXT_CLASS,
+} from "@/lib/club-hub/theme";
+import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 
 function rankNameClass(rank, placeholder) {
-  if (placeholder) return "text-neutral-400 italic";
-  if (rank === 1) return "text-[#b45309]";
-  if (rank === 2) return "text-slate-500";
+  if (placeholder) return "text-neutral-700 italic";
+  if (rank === 1) return "text-[#92400e]";
+  if (rank === 2) return "text-slate-600";
   return "text-[#9a3412]";
 }
 
@@ -42,7 +49,8 @@ export default function ClubHubPage() {
 
   return (
     <div id="top" className="min-h-screen bg-neutral-100 text-neutral-900">
-      <section className="relative min-h-[246px] sm:min-h-[299px]">
+      <ClubHubSkipLink />
+      <section className="relative min-h-[246px] sm:min-h-[299px]" aria-label="Broad Run Club Hub banner">
         <Image
           src="/brand/brh.png"
           alt="Broad Run High School, Ashburn, Virginia"
@@ -66,20 +74,29 @@ export default function ClubHubPage() {
 
       <ClubHubNav active="home" loginRedirect="/club-hub" />
 
-      <main id="club-directory" className="mx-auto w-full max-w-7xl px-3 pb-0 pt-6 sm:px-5 sm:pt-8 lg:px-8">
+      <main
+        id={CLUB_HUB_MAIN_ID}
+        className="mx-auto w-full max-w-7xl px-3 pb-0 pt-6 sm:px-5 sm:pt-8 lg:px-8"
+        aria-labelledby="club-hub-rankings-heading"
+      >
+        <h2 id="club-hub-rankings-heading" className="sr-only">
+          Club engagement rankings
+        </h2>
         <div className="grid gap-4 md:grid-cols-3 md:gap-5">
           {rankings.map((col) => (
-            <div
+            <section
               key={col.title}
+              aria-labelledby={`rank-col-${col.title.replace(/\s+/g, "-").toLowerCase()}`}
               className="overflow-hidden rounded-xl border border-neutral-200/90 bg-white shadow-[0_6px_20px_rgba(0,0,0,0.06)]"
             >
               <div
+                id={`rank-col-${col.title.replace(/\s+/g, "-").toLowerCase()}`}
                 className="px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-white sm:text-xs"
                 style={{ backgroundColor: CLUB_HUB_MAROON }}
               >
                 {col.title}
                 {col.placeholder ? (
-                  <span className="ml-1 font-normal normal-case opacity-80">(preview)</span>
+                  <span className="ml-1 font-normal normal-case text-rose-100">(preview)</span>
                 ) : null}
               </div>
               <ul className="space-y-1.5 bg-gradient-to-b from-neutral-50/90 to-white p-2 sm:p-2.5">
@@ -93,6 +110,7 @@ export default function ClubHubPage() {
                       <span
                         className={`min-w-0 flex-1 px-0.5 text-center text-xs font-semibold leading-tight sm:text-sm ${rankNameClass(row.rank, row.placeholder)}`}
                       >
+                        <span className="sr-only">{`Rank ${row.rank}: `}</span>
                         {row.name}
                       </span>
                       <LaurelRankSeal rank={row.rank} size="sm" />
@@ -100,7 +118,7 @@ export default function ClubHubPage() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </section>
           ))}
         </div>
       </main>
@@ -123,8 +141,13 @@ export default function ClubHubPage() {
         </div>
       </section>
 
-      <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-500">
-        <Link href="/" className="text-[#5c1417] hover:underline">
+      <footer
+        className={`border-t border-neutral-200 bg-white py-6 text-center text-xs ${CLUB_HUB_MUTED_TEXT_CLASS}`}
+      >
+        <Link
+          href="/"
+          className={`text-[#5c1417] hover:underline ${clubHubButtonFocusClass}`}
+        >
           ← Back to Code4Community
         </Link>
       </footer>

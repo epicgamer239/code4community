@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/utils/AuthContext";
 import { auth, signOut } from "@/firebase";
 import MobileTopBar from "@/components/layout/MobileTopBar";
+import { siteFocusVisibleClass, siteNavFocusVisibleClass } from "@/lib/a11y/site";
 
 export default function DashboardTopBar({ title = "Code4Community", onNavigation, showNavLinks = true }) {
   const router = useRouter();
@@ -22,8 +23,15 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
         setDropdownOpen(false);
       }
     }
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setDropdownOpen(false);
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   const handleSignOut = async () => {
@@ -84,7 +92,7 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
                 <button
                   type="button"
                   onClick={() => router.push("/")}
-                  className="text-xl font-semibold text-foreground hover:text-primary transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded text-left"
+                  className={`text-xl font-semibold text-foreground hover:text-primary transition-colors cursor-pointer text-left ${siteNavFocusVisibleClass}`}
                   title="Go to Home"
                 >
                   {title}
@@ -97,7 +105,7 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
 
             {/* Navigation Links + CTAs or User Menu on Right */}
             {showNavLinks && (
-              <nav className="flex items-center space-x-4 md:space-x-6">
+              <nav className="flex items-center space-x-4 md:space-x-6" aria-label="Primary">
                 {navLinks.map((link) => {
                   const isActive =
                     pathname === link.path ||
@@ -105,8 +113,10 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
                   return (
                     <button
                       key={link.path}
+                      type="button"
                       onClick={() => router.push(link.path)}
-                      className={`text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded ${
+                      aria-current={isActive ? "page" : undefined}
+                      className={`text-sm font-medium transition-colors ${siteNavFocusVisibleClass} ${
                         isActive
                           ? "text-primary"
                           : "text-foreground hover:text-primary"
@@ -121,12 +131,15 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
                     <div className="relative" ref={dropdownRef}>
                       <button
                         type="button"
+                        id="site-account-menu-trigger"
                         onClick={() => setDropdownOpen((o) => !o)}
-                        className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded px-2 py-1.5"
+                        className={`flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors rounded px-2 py-1.5 ${siteNavFocusVisibleClass}`}
                         aria-expanded={dropdownOpen}
-                        aria-haspopup="true"
+                        aria-haspopup="menu"
+                        aria-controls="site-account-menu"
+                        aria-label={`Account menu for ${displayName}`}
                       >
-                        <span className="max-w-[120px] truncate md:max-w-[180px]">
+                        <span className="max-w-[120px] truncate md:max-w-[180px]" aria-hidden>
                           {displayName}
                         </span>
                         <svg
@@ -134,23 +147,31 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
+                          aria-hidden
                         >
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
                       {dropdownOpen && (
-                        <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-background py-1 shadow-lg z-50">
+                        <div
+                          id="site-account-menu"
+                          role="menu"
+                          aria-labelledby="site-account-menu-trigger"
+                          className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-background py-1 shadow-lg z-50"
+                        >
                           <Link
                             href="/settings"
+                            role="menuitem"
                             onClick={() => setDropdownOpen(false)}
-                            className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted focus:outline-none focus:bg-muted"
+                            className={`block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted focus:outline-none focus-visible:bg-muted ${siteFocusVisibleClass}`}
                           >
                             Settings
                           </Link>
                           <button
                             type="button"
+                            role="menuitem"
                             onClick={handleSignOut}
-                            className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted focus:outline-none focus:bg-muted"
+                            className={`block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted focus:outline-none focus-visible:bg-muted ${siteFocusVisibleClass}`}
                           >
                             Sign out
                           </button>
@@ -161,13 +182,13 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
                     <div className="flex items-center gap-2">
                       <Link
                         href="/login"
-                        className="text-sm font-medium text-foreground hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded px-3 py-1.5"
+                        className={`text-sm font-medium text-foreground hover:text-primary transition-colors px-3 py-1.5 ${siteNavFocusVisibleClass}`}
                       >
                         Log in
                       </Link>
                       <Link
                         href="/signup"
-                        className="text-sm font-medium bg-foreground text-background hover:opacity-90 transition-opacity rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                        className={`text-sm font-medium bg-foreground text-background hover:opacity-90 transition-opacity rounded px-4 py-2 ${siteNavFocusVisibleClass}`}
                       >
                         Get started
                       </Link>

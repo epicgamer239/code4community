@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/a11y-report
+firestore-debug.log
 
 # next.js
 /.next/

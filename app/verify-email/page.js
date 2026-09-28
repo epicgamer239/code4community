@@ -100,7 +100,10 @@ export default function VerifyEmailPage() {
 
           <div className="space-y-3">
             {notVerifiedMessage && (
-              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm">
+              <div
+                role="alert"
+                className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm"
+              >
                 {notVerifiedMessage}
               </div>
             )}
@@ -121,7 +124,7 @@ export default function VerifyEmailPage() {
               {resending ? "Sending…" : "Resend verification email"}
             </button>
             {resendSent && (
-              <p className="text-sm text-center text-green-600 dark:text-green-400">
+              <p className="text-sm text-center text-green-600 dark:text-green-400" role="status">
                 Verification email sent. Check your inbox.
               </p>
             )}

@@ -1,31 +1,17 @@
 "use client";
 
-import { Lexend_Deca, Open_Sans } from "next/font/google";
 import React, { useState, useLayoutEffect, useRef, useCallback, useEffect, useMemo } from "react";
 import { useRunEffect } from "@/hooks/useRunEffect";
 import { useRouter } from "next/navigation";
 import DashboardTopBar from "@/components/layout/DashboardTopBar";
+import SiteSkipLink from "@/components/common/SiteSkipLink";
+import { SITE_MAIN_ID } from "@/lib/a11y/site";
 import { useAuth } from "@/utils/AuthContext";
 import {
   fetchUserSeatingChart,
   saveUserSeatingChart,
 } from "@/lib/seating-chart/firestore";
 import styles from "./seating-chart.module.css";
-
-/** Gynzy-style typography for this page only (does not change global layout fonts). */
-const seatingOpenSans = Open_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-seating-open",
-  display: "swap",
-});
-
-const seatingLexendDeca = Lexend_Deca({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-seating-lexend",
-  display: "swap",
-});
 
 // Furniture type definitions: { id, seats, w, h, color?, paletteImage?, pieceLabel?, labelColor? }
 // Optional paletteImage: path under /public for custom thumbnails.
@@ -1305,10 +1291,15 @@ export default function SeatingChart() {
   };
 
   return (
-    <div className={`min-h-screen bg-background flex flex-col ${styles.scRoot} ${seatingOpenSans.variable} ${seatingLexendDeca.variable}`}>
+    <div className={`min-h-screen bg-background flex flex-col ${styles.scRoot}`}>
+      <SiteSkipLink />
       <DashboardTopBar title="Code4Community" showNavLinks={true} />
 
-      <div className={`${styles.componentContainer} flex-1 flex flex-col min-h-0`}>
+      <main
+        id={SITE_MAIN_ID}
+        className={`${styles.componentContainer} flex-1 flex flex-col min-h-0`}
+      >
+        <h1 className="sr-only">Classroom seating chart</h1>
         <div className={styles.mainContainer}>
           <aside className={`${styles.sidePanel} side-panel visible`} aria-label="Chart tools">
             <div className={`${styles.chartNameInput} chart-name-input`}>
@@ -1367,6 +1358,8 @@ export default function SeatingChart() {
                           return (
                             <div
                               key={def.id}
+                              role="button"
+                              tabIndex={0}
                               draggable
                               onDragStart={(e) => handleFurnitureDragStart(e, def.id)}
                               className={`${styles.furniturePaletteItem} gynzy-furniture-item`}
@@ -1557,7 +1550,7 @@ export default function SeatingChart() {
             </button>
           </div>
         </div>
-      </div>
+      </main>
 
       {/* Students bottom sheet - slides up from bottom */}
       {showManageStudents && (

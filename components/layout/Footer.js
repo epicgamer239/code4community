@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { siteFocusVisibleClass } from "@/lib/a11y/site";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -37,12 +38,12 @@ export default function Footer({ className = "" }) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 items-start text-sm text-foreground">
           <div className="text-center md:text-left space-y-3">
-            <nav className="flex flex-wrap justify-center md:justify-start gap-x-4 gap-y-1">
+            <nav className="flex flex-wrap justify-center md:justify-start gap-x-4 gap-y-1" aria-label="Footer">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="underline underline-offset-2 hover:opacity-70 transition-opacity"
+                  className={`underline underline-offset-2 hover:opacity-70 transition-opacity ${siteFocusVisibleClass}`}
                 >
                   {link.label}
                 </Link>
@@ -52,7 +53,7 @@ export default function Footer({ className = "" }) {
               Contact us at{" "}
               <a
                 href="mailto:brhsc4c@gmail.com"
-                className="underline underline-offset-2 hover:opacity-70 transition-opacity"
+                className={`underline underline-offset-2 hover:opacity-70 transition-opacity ${siteFocusVisibleClass}`}
               >
                 brhsc4c@gmail.com
               </a>
@@ -67,12 +68,15 @@ export default function Footer({ className = "" }) {
           </div>
 
           <div className="text-center md:text-right">
-            <nav className="flex flex-wrap justify-center md:justify-end gap-x-4 gap-y-1">
+            <nav
+              className="flex flex-wrap justify-center md:justify-end gap-x-4 gap-y-1"
+              aria-label="Legal"
+            >
               {secondaryLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="underline underline-offset-2 hover:opacity-70 transition-opacity"
+                  className={`underline underline-offset-2 hover:opacity-70 transition-opacity ${siteFocusVisibleClass}`}
                 >
                   {link.label}
                 </Link>

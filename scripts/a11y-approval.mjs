@@ -1,0 +1,120 @@
+#!/usr/bin/env node
+/**
+ * Build a teacher / approver-facing accessibility summary from latest audit artifacts.
+ *
+ * Run after: npm run a11y:audit && npm run a11y:keyboard
+ * Or use: npm run a11y:all
+ */
+
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+
+const OUT_DOC = join(process.cwd(), "docs", "accessibility-for-approval.md");
+const REPORT_DIR = process.argv.includes("--out")
+  ? process.argv[process.argv.indexOf("--out") + 1]
+  : "a11y-report";
+
+function readJson(path) {
+  if (!existsSync(path)) return null;
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
+function main() {
+  const axe = readJson(join(REPORT_DIR, "report.json"));
+  const keyboard = readJson(join(REPORT_DIR, "keyboard-report.json"));
+  const staticScan = readJson(join(REPORT_DIR, "static-report.json"));
+  const generatedAt = new Date().toISOString().slice(0, 10);
+
+  const axePages = axe?.summary?.totalPages ?? "—";
+  const axeViolations = axe?.summary?.pagesWithViolations ?? "—";
+  const axeInstances = axe?.summary?.totalViolationInstances ?? "—";
+  const axeWhen = axe?.generatedAt?.slice(0, 19) ?? "not run yet";
+
+  const kbPass = keyboard?.passedCount ?? "—";
+  const kbTotal = keyboard?.results?.length ?? "—";
+  const kbWhen = keyboard?.generatedAt?.slice(0, 19) ?? "not run yet";
+  const kbFails =
+    keyboard?.results?.filter((r) => !r.passed).map((r) => `- ${r.name}: ${r.failures.join("; ")}`) ||
+    [];
+
+  const staticIssues = staticScan?.issueCount ?? "—";
+  const staticWhen = staticScan?.generatedAt?.slice(0, 19) ?? "not run yet";
+  const staticFiles = staticScan?.filesScanned ?? "—";
+
+  const md = `# Code4Community — Accessibility summary (for review)
+
+**Last updated:** ${generatedAt}  
+**Target standard:** [WCAG 2.1 Level AA](https://www.w3.org/TR/WCAG21/)
+
+This document summarizes accessibility work on the Code4Community website (student-built tools for Broad Run High School). It is intended for staff review and approval—not a legal certification.
+
+**Full criterion checklist:** [accessibility-wcag-2.1-aa-checklist.md](./accessibility-wcag-2.1-aa-checklist.md) (every WCAG 2.1 AA success criterion mapped to our status).
+
+---
+
+## What we built for accessibility
+
+- **Zoom & reflow:** Viewport allows pinch/zoom (no \`user-scalable=no\` lock).
+- **Landmarks:** \`main\` regions and skip links (“Skip to main content”) on marketing pages, Club Hub, Math Lab, and major tools.
+- **Keyboard:** Visible focus rings (\`:focus-visible\`), Escape closes account menus, form labels on auth flows.
+- **Screen reader support:** \`aria-label\` / \`aria-current\` on navigation, live regions for status messages, semantic headings.
+- **Color contrast:** Primary link/button colors adjusted to meet AA contrast on light backgrounds.
+- **Motion:** Hero animations respect \`prefers-reduced-motion\`.
+
+---
+
+## Automated testing (evidence)
+
+| Check | Tool | Latest run | Result |
+|-------|------|------------|--------|
+| WCAG 2.1 AA rules (automated) | [axe-core](https://github.com/dequelabs/axe-core) via Puppeteer | ${axeWhen} | **${axeViolations}** / ${axePages} pages with violations (${axeInstances} total instances) |
+| Keyboard & naming smoke tests | Custom Puppeteer script | ${kbWhen} | **${kbPass}** / ${kbTotal} scenarios passed |
+| Alt text in source (\`app/\`, \`components/\`) | \`a11y-static.mjs\` | ${staticWhen} | **${staticIssues}** issues in ${staticFiles} files scanned |
+
+**How to reproduce (developers):**
+
+\`\`\`bash
+npm run build && npm run start
+# in another terminal:
+npm run a11y:all
+\`\`\`
+
+Detailed machine output (not committed): \`a11y-report/summary.md\`, \`a11y-report/keyboard-summary.md\`.
+
+${kbFails.length ? `\n### Keyboard check failures to fix\n\n${kbFails.join("\n")}\n` : ""}
+
+---
+
+## Manual checklist (recommended once per major release)
+
+These items are best verified with **VoiceOver** (Mac: Cmd+F5) or **NVDA** (Windows) on production:
+
+1. Tab from the top of the home page: skip link → main nav → main content (no keyboard traps).
+2. Log in page: Tab through email, password, show-password, submit; errors are announced.
+3. Club Hub: calendar and directory readable; join/edit flows usable without a mouse.
+4. One tool (Math Lab or Seating Chart): primary task doable with keyboard where feasible.
+
+**Feedback:** Users can report barriers via [Contact](/contact) (brhsc4c@gmail.com).
+
+---
+
+## Scope & honest limits
+
+- Automated scans cover **public URLs** from the sitemap (logged-out). Signed-in admin/editor flows are tested manually as needed.
+- Automated tools detect roughly **half** of WCAG issues; manual screen reader testing still matters.
+- Third-party sign-in (Google) and embedded content follow those providers’ accessibility.
+
+---
+
+## Statement
+
+Code4Community treats **WCAG 2.1 AA** as the goal, runs documented automated checks before releases, and fixes reported issues. We welcome accessibility feedback from staff and students.
+
+*Generated by \`npm run a11y:approval\` from local audit artifacts.*
+`;
+
+  writeFileSync(OUT_DOC, md);
+  console.log(`Wrote ${OUT_DOC}`);
+}
+
+main();

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CLUB_HUB_MAROON } from "@/lib/club-hub/theme";
+import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 
 /**
  * @param {{
@@ -36,7 +37,9 @@ export default function ClubMembershipButton({
         type="button"
         onClick={onJoinLeave}
         disabled={joinBusy}
-        className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold shadow-sm sm:px-3.5 sm:py-1.5 sm:text-sm disabled:opacity-50 ${
+        aria-busy={joinBusy}
+        aria-label={isMember ? "Leave club" : "Join club"}
+        className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold shadow-sm sm:px-3.5 sm:py-1.5 sm:text-sm disabled:opacity-50 ${clubHubButtonFocusClass} ${
           isMember
             ? "border border-[#5c1417]/30 bg-white text-[#5c1417] hover:bg-rose-50"
             : "text-white hover:opacity-90"
@@ -51,7 +54,7 @@ export default function ClubMembershipButton({
   return (
     <Link
       href={`/login?redirectTo=${encodeURIComponent(`/club-hub/directory/${slug}`)}`}
-      className="shrink-0 rounded-lg px-3 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 sm:px-3.5 sm:py-1.5 sm:text-sm"
+      className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 sm:px-3.5 sm:py-1.5 sm:text-sm ${clubHubButtonFocusClass}`}
       style={{ backgroundColor: CLUB_HUB_MAROON }}
     >
       Log in to join

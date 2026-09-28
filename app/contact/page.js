@@ -1,4 +1,5 @@
 import { AppPageLayout } from "@/components/common/AppPageLayout";
+import { siteFocusVisibleClass } from "@/lib/a11y/site";
 
 export const metadata = {
   title: "Code4Community | Contact",
@@ -24,7 +25,7 @@ export default function ContactPage() {
           <div>
             <a
               href="mailto:brhsc4c@gmail.com"
-              className="text-foreground font-medium underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors"
+              className={`text-foreground font-medium underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors ${siteFocusVisibleClass}`}
             >
               brhsc4c@gmail.com
             </a>

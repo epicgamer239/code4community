@@ -1,6 +1,7 @@
 "use client";
 
 import { CLUB_HUB_MAROON_DARK } from "@/lib/club-hub/theme";
+import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { formatEventDateLabel } from "@/lib/club-hub/clubEvents";
 
 /**
@@ -23,7 +24,7 @@ export default function ClubEventsSection({
 }) {
   return (
     <section
-      className="relative border-t border-black/10"
+      className="relative mt-4 border-t border-black/10 w-[calc(100%+2rem)] max-w-none -mx-4 sm:w-[calc(100%+3rem)] sm:-mx-6 lg:w-[calc(100%+5rem)] lg:-mx-10"
       style={{
         backgroundColor: CLUB_HUB_MAROON_DARK,
         backgroundImage:
@@ -40,7 +41,7 @@ export default function ClubEventsSection({
             <button
               type="button"
               onClick={onOpenEditor}
-              className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#5c1417] shadow-sm hover:bg-neutral-100 sm:px-3.5 sm:py-2 sm:text-sm"
+              className={`shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#5c1417] shadow-sm hover:bg-neutral-100 sm:px-3.5 sm:py-2 sm:text-sm ${clubHubButtonFocusClass}`}
             >
               Edit meetings &amp; activities
             </button>
@@ -48,9 +49,11 @@ export default function ClubEventsSection({
         </div>
         <div className="mt-3 rounded-[14px] border border-white/15 bg-white/95 p-4 text-[15px] leading-relaxed text-neutral-800 shadow-sm sm:p-5">
           {loadingEvents ? (
-            <p className="text-neutral-500">Loading…</p>
+            <p className="text-neutral-700" role="status">
+              Loading…
+            </p>
           ) : upcomingEvents.length === 0 ? (
-            <p className="text-neutral-500">
+            <p className="text-neutral-700">
               No upcoming meetings posted yet.
               {canEdit ? " Use Edit meetings & activities to add events." : ""}
             </p>
@@ -59,7 +62,7 @@ export default function ClubEventsSection({
               {upcomingEvents.map((ev) => (
                 <li key={ev.id} className="border-b border-neutral-200 pb-4 last:border-0 last:pb-0">
                   <p className="font-bold text-[#111827]">{ev.title}</p>
-                  <p className="mt-0.5 text-sm text-neutral-600">
+                  <p className="mt-0.5 text-sm text-neutral-700">
                     {formatEventDateLabel(ev.date)} · {ev.time}
                     {ev.location ? ` · ${ev.location}` : ""}
                   </p>

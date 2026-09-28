@@ -58,6 +58,8 @@ export default function OfficeHoursSidebar() {
       : []),
   ];
 
+  const iconOnlyLabel = isCollapsed && !isMobile;
+
   const navClass = (active) =>
     isMobile
       ? `flex-1 flex flex-col items-center py-3 px-2 transition-colors ${
@@ -86,12 +88,13 @@ export default function OfficeHoursSidebar() {
                 type="button"
                 onClick={() => onNav(item)}
                 className={navClass(item.isActive)}
+                aria-label={item.label}
               >
                 {calendarIcon}
                 <span className="text-xs font-medium truncate mt-1">{item.label}</span>
               </button>
             ) : (
-              <Link key={item.id} href={item.href} className={navClass(item.isActive)}>
+              <Link key={item.id} href={item.href} className={navClass(item.isActive)} aria-label={item.label}>
                 {calendarIcon}
                 <span className="text-xs font-medium truncate mt-1">{item.label}</span>
               </Link>
@@ -135,12 +138,18 @@ export default function OfficeHoursSidebar() {
               type="button"
               onClick={() => onNav(item)}
               className={navClass(item.isActive)}
+              aria-label={iconOnlyLabel ? item.label : undefined}
             >
               {calendarIcon}
               {!isCollapsed && <span className="ml-3 text-sm font-medium truncate">{item.label}</span>}
             </button>
           ) : (
-            <Link key={item.id} href={item.href} className={navClass(item.isActive)}>
+            <Link
+              key={item.id}
+              href={item.href}
+              className={navClass(item.isActive)}
+              aria-label={iconOnlyLabel ? item.label : undefined}
+            >
               {calendarIcon}
               {!isCollapsed && <span className="ml-3 text-sm font-medium truncate">{item.label}</span>}
             </Link>
