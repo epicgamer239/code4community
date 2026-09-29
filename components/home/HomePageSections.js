@@ -92,7 +92,7 @@ export default function HomePageSections() {
               href="/about"
               className="inline-flex items-center px-5 py-2.5 text-sm font-bold text-foreground bg-[#efe8f8] border-[1.5px] border-foreground shadow-[4px_4px_0_0_#2a2a2a] hover:translate-x-px hover:translate-y-px hover:shadow-[3px_3px_0_0_#2a2a2a] transition-all"
             >
-              Learn More
+              Learn more about Code4Community
             </Link>
           </div>
 

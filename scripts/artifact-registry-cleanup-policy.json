@@ -1,0 +1,25 @@
+[
+  {
+    "name": "keep-recent-deploys",
+    "action": { "type": "KEEP" },
+    "mostRecentVersions": {
+      "keepCount": 3
+    }
+  },
+  {
+    "name": "delete-old-images",
+    "action": { "type": "DELETE" },
+    "condition": {
+      "tagState": "UNTAGGED",
+      "olderThan": "604800s"
+    }
+  },
+  {
+    "name": "delete-stale-tagged",
+    "action": { "type": "DELETE" },
+    "condition": {
+      "tagState": "TAGGED",
+      "olderThan": "2592000s"
+    }
+  }
+]

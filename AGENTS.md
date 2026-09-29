@@ -27,7 +27,7 @@ Code4Community — a Next.js 16 (App Router) platform for a student-led engineer
 - **Tests (Firestore rules)**: `npm run test:rules` (requires Java for the Firestore emulator)
 - **Admin allowlist drift check**: `npm run check:admin-emails`
 - **Firestore rules build**: `npm run build:firestore-rules`
-- **Accessibility**: `npm run a11y:static` (alt text in source); with server running, `npm run a11y:all` (axe + keyboard + updates `docs/accessibility-for-approval.md`); `a11y:all:quick` skips per-club directory slugs. Criterion map: `docs/accessibility-wcag-2.1-aa-checklist.md`
+- **Accessibility**: `npm run a11y:static` (alt text in source); with server running, `npm run a11y:all` (axe + keyboard + updates `docs/accessibility-for-approval.md`); `a11y:all:quick` skips per-club directory slugs. Criterion maps: `docs/accessibility-wcag-2.1-aa-checklist.md`, `docs/accessibility-lcps-essentials-alignment.md`
 
 ### CI
 GitHub Actions (`.github/workflows/ci.yml`) runs on PRs and pushes to `main`:

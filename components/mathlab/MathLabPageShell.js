@@ -8,7 +8,7 @@ import { SITE_MAIN_ID } from "@/lib/a11y/site";
 
 export default function MathLabPageShell({
   children,
-  className = "min-h-screen bg-background",
+  className = "min-h-screen bg-background flex flex-col",
   contentClassName = "",
 }) {
   return (
@@ -18,7 +18,11 @@ export default function MathLabPageShell({
       <Suspense fallback={null}>
         <MathLabSidebar />
       </Suspense>
-      <main id={SITE_MAIN_ID} className={contentClassName}>
+      <main
+        id={SITE_MAIN_ID}
+        className={["outline-none", contentClassName].filter(Boolean).join(" ")}
+        tabIndex={-1}
+      >
         {children}
       </main>
     </div>

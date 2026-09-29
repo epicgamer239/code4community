@@ -29,7 +29,7 @@ function PostCard({ post }) {
         {post.excerpt}
       </p>
       <span className="mt-5 text-sm font-medium text-foreground group-hover:underline underline-offset-4">
-        Read more →
+        Continue reading: {post.title}
       </span>
     </Link>
   );

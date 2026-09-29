@@ -114,14 +114,16 @@ function MathLabPageContent() {
 
   return (
     <MathLabPageShell
-      className="min-h-screen bg-background"
-      contentClassName={`flex-1 flex justify-center ml-0 md:ml-16 pb-16 md:pb-8 ${
-        showTutorDashboard ? "items-start pt-8 md:pt-10" : "items-center"
+      className="h-screen overflow-hidden bg-background flex flex-col"
+      contentClassName={`flex-1 flex min-h-0 w-full min-w-0 flex-col ml-0 md:ml-16 pb-16 md:pb-0 ${
+        showTutorDashboard
+          ? "overflow-y-auto items-stretch pt-8 md:pt-10"
+          : "overflow-hidden items-center justify-center"
       }`}
     >
       <h1 className="sr-only">BRHS Math Lab</h1>
       {session.roleChangeMessage && (
-        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mx-6 mt-4">
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mx-6 mt-4 shrink-0">
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
@@ -139,7 +141,11 @@ function MathLabPageContent() {
         </div>
       )}
 
-      <div className="w-full flex justify-center" style={{ minHeight: "calc(100vh - 80px)" }}>
+      <div
+        className={`w-full flex justify-center min-h-0 ${
+          showTutorDashboard ? "py-4" : "flex-1 items-center"
+        }`}
+      >
         {showTutorDashboard ? (
           <MathLabTutorDashboard
             livePendingRequests={queue.livePendingRequests}

@@ -7,6 +7,8 @@ This document summarizes accessibility work on the Code4Community website (stude
 
 **Full criterion checklist:** [accessibility-wcag-2.1-aa-checklist.md](./accessibility-wcag-2.1-aa-checklist.md) (every WCAG 2.1 AA success criterion mapped to our status).
 
+**LCPS “Accessibility Essentials” (instructional checklist):** [accessibility-lcps-essentials-alignment.md](./accessibility-lcps-essentials-alignment.md) — how each LCPS item applies to this website (N/A for slides/Word where noted).
+
 ---
 
 ## What we built for accessibility
