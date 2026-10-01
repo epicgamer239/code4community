@@ -31,6 +31,7 @@ import {
   joinClub,
   leaveClub,
 } from "@/lib/club-hub/clubMemberships";
+import { notifyRosterSheetSync } from "@/lib/club-hub/notifyRosterSheetSync";
 import { resolveDisplayName } from "@/lib/profile";
 import {
   CLUB_HUB_CARD,
@@ -256,6 +257,7 @@ export default function ClubDetailView({ club, slug }) {
     try {
       if (isMember) {
         await leaveClub({ clubSlug: slug, userId: user.uid });
+        await notifyRosterSheetSync(user, "leave", slug);
         setIsMember(false);
         setJoinMessage("You left this club.");
       } else {
@@ -266,6 +268,7 @@ export default function ClubDetailView({ club, slug }) {
           userEmail: user.email || userData?.email || "",
           displayName: resolveDisplayName(userData, user.displayName || "Member"),
         });
+        await notifyRosterSheetSync(user, "join", slug);
         setIsMember(true);
         setJoinMessage("You joined this club!");
       }

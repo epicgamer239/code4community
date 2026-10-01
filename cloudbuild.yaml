@@ -26,7 +26,7 @@ steps:
       - --max-instances=20
       - --port=8080
       - --set-build-env-vars=${_BUILD_AND_RUNTIME_ENV},NEXT_DEPLOYMENT_ID=$COMMIT_SHA
-      - --set-env-vars=${_BUILD_AND_RUNTIME_ENV},NEXT_DEPLOYMENT_ID=$COMMIT_SHA
+      - --set-env-vars=${_BUILD_AND_RUNTIME_ENV},NEXT_DEPLOYMENT_ID=$COMMIT_SHA,CLUB_ROSTER_SPREADSHEET_ID=1fdVX9URoMzroPllhTuZzINXzdpekwgoO_BDmF9NBN6c
       - --set-secrets=WRITING_CENTER_GOOGLE_FORM_SYNC_SECRET=writing-center-google-form-sync:latest,FIREBASE_SERVICE_ACCOUNT_JSON=firebase-service-account-json:latest
       - --quiet
 

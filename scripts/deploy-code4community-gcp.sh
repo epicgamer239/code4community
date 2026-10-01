@@ -31,13 +31,13 @@ NEXT_PUBLIC_RECAPTCHA_SITE_KEY="${NEXT_PUBLIC_RECAPTCHA_SITE_KEY:-6LfPCPMsAAAAAJ
 DEPLOY_ID="${NEXT_DEPLOYMENT_ID:-$(git rev-parse --short HEAD 2>/dev/null || date +%s)}"
 BUILD_ENV="NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY},NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN},NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID},NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET},NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID},NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID},NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL},NEXT_PUBLIC_RECAPTCHA_SITE_KEY=${NEXT_PUBLIC_RECAPTCHA_SITE_KEY},NEXT_DEPLOYMENT_ID=${DEPLOY_ID}"
 
-RUNTIME_ENV="$BUILD_ENV"
+RUNTIME_ENV="${BUILD_ENV},CLUB_ROSTER_SPREADSHEET_ID=${CLUB_ROSTER_SPREADSHEET_ID:-1fdVX9URoMzroPllhTuZzINXzdpekwgoO_BDmF9NBN6c}"
 
 echo "→ gcloud project: $PROJECT_ID"
 gcloud config set project "$PROJECT_ID" >/dev/null
 
 echo "→ Enabling APIs (idempotent)"
-gcloud services enable run.googleapis.com firebasehosting.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com --quiet
+gcloud services enable run.googleapis.com firebasehosting.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com sheets.googleapis.com --quiet
 
 echo "→ Deploying Cloud Run service: $SERVICE_ID ($REGION) [Node.js buildpack, no Dockerfile]"
 gcloud run deploy "$SERVICE_ID" \
