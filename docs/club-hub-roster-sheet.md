@@ -27,3 +27,10 @@ curl -X POST https://code4community26.web.app/api/club-hub/admin/roster-sheet-bo
 ## Sponsors
 
 Share the spreadsheet as **Viewer** only. Do not grant Editor — edits would be overwritten on the next sync or bootstrap.
+
+## Home tab (links to all clubs)
+
+1. Spreadsheet → **Extensions → Apps Script**
+2. Paste `google-apps-script/club-roster-nav-tab.gs`, save
+3. Run **`buildClubRosterNavTab`** once (authorize)
+4. Later: menu **Club Rosters → Rebuild Home links** (or run again after new tabs exist)

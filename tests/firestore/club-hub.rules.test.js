@@ -61,6 +61,17 @@ describe.skipIf(!hasEmulator)("Club Hub Firestore rules", () => {
       );
     });
 
+    it("allows get on own membership doc before it exists", async () => {
+      const alice = testEnv.authenticatedContext("alice", {
+        email: "alice@lcps.org",
+      });
+      const db = alice.firestore();
+
+      await assertSucceeds(
+        getDoc(doc(db, "clubHubMemberships", "robotics__alice")),
+      );
+    });
+
     it("denies creating membership for another user", async () => {
       const alice = testEnv.authenticatedContext("alice", {
         email: "alice@lcps.org",

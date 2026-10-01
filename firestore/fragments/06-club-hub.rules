@@ -198,10 +198,20 @@
         return request.resource.data.clubSlug + '__' + request.auth.uid;
       }
 
+      function clubHubMembershipIdForAuthUser(membershipId) {
+        return membershipId.matches('^.+__' + request.auth.uid + '$');
+      }
+
       match /clubHubMemberships/{membershipId} {
-        allow read: if isAuthenticated() && (
-          resource.data.userId == request.auth.uid ||
+        // Own doc get must work when the membership doc does not exist yet (pre-join).
+        allow get: if isAuthenticated() && (
+          clubHubMembershipIdForAuthUser(membershipId) ||
           isClubHubAdmin() ||
+          (resource != null && canEditClubHubPage(resource.data.clubSlug))
+        );
+        allow list: if isAuthenticated() && (
+          isClubHubAdmin() ||
+          resource.data.userId == request.auth.uid ||
           canEditClubHubPage(resource.data.clubSlug)
         );
         allow create: if isAuthenticated() &&

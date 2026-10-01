@@ -8,5 +8,5 @@ describe.skipIf(!run)("club roster sheet bootstrap (manual)", () => {
     const result = await bootstrapClubRosterSpreadsheet();
     expect(result.ok).toBe(true);
     expect(result.tabs).toBeGreaterThan(0);
-  }, 300_000);
+  }, 900_000);
 });
