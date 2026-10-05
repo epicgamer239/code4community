@@ -7,7 +7,12 @@
  */
 
 var NAV_TAB_NAME = "Home";
-var SKIP_TABS = { Home: true, _rosterMeta: true, Sheet1: true };
+var SKIP_TABS = {
+  Home: true,
+  _rosterMeta: true,
+  Sheet1: true,
+  "Student meeting clubs": true,
+};
 
 function onOpen() {
   SpreadsheetApp.getUi()

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase/admin";
 import { isClubHubAdminEmail } from "@/lib/club-hub/clubHubAdminServer";
+import { bootstrapStudentMeetingTabFromFirestore } from "@/lib/club-hub/meetingChoicesSheetSync";
 import { bootstrapClubRosterSpreadsheet } from "@/lib/club-hub/rosterSheetSync";
 import { isClubRosterSheetSyncConfigured } from "@/lib/club-hub/rosterSheetConfig";
 import { normalizeEmail } from "@/lib/email";
@@ -35,11 +36,20 @@ export async function POST(request) {
       return NextResponse.json({ error: "Club Hub admin access required." }, { status: 403 });
     }
 
-    const result = await bootstrapClubRosterSpreadsheet();
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error || "Bootstrap failed." }, { status: 500 });
+    const [roster, meeting] = await Promise.all([
+      bootstrapClubRosterSpreadsheet(),
+      bootstrapStudentMeetingTabFromFirestore(),
+    ]);
+    if (!roster.ok) {
+      return NextResponse.json({ error: roster.error || "Bootstrap failed." }, { status: 500 });
     }
-    return NextResponse.json(result);
+    if (!meeting.ok) {
+      return NextResponse.json(
+        { error: meeting.error || "Student meeting tab bootstrap failed." },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json({ ...roster, studentMeetingRows: meeting.rows });
   } catch (err) {
     return NextResponse.json(
       { error: err?.message || "Could not bootstrap roster sheet." },

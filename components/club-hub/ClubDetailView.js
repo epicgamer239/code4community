@@ -32,6 +32,8 @@ import {
   leaveClub,
 } from "@/lib/club-hub/clubMemberships";
 import { notifyRosterSheetSync } from "@/lib/club-hub/notifyRosterSheetSync";
+import { clearMeetingChoiceForClub } from "@/lib/club-hub/clubMeetingChoices";
+import { notifyMeetingChoicesSheetSync } from "@/lib/club-hub/notifyMeetingChoicesSheetSync";
 import { resolveDisplayName } from "@/lib/profile";
 import {
   CLUB_HUB_CARD,
@@ -249,31 +251,44 @@ export default function ClubDetailView({ club, slug }) {
     setError("");
   };
 
-  const handleJoinLeave = async () => {
-    if (!user?.uid || joinBusy) return;
+  const handleLeaveClub = async () => {
+    if (!user?.uid || joinBusy || !isMember) return;
     setJoinBusy(true);
     setJoinMessage("");
     setError("");
     try {
-      if (isMember) {
-        await leaveClub({ clubSlug: slug, userId: user.uid });
-        await notifyRosterSheetSync(user, "leave", slug);
-        setIsMember(false);
-        setJoinMessage("You left this club.");
-      } else {
-        await joinClub({
-          clubSlug: slug,
-          clubName: club.name,
-          userId: user.uid,
-          userEmail: user.email || userData?.email || "",
-          displayName: resolveDisplayName(userData, user.displayName || "Member"),
-        });
-        await notifyRosterSheetSync(user, "join", slug);
-        setIsMember(true);
-        setJoinMessage("You joined this club!");
-      }
+      await leaveClub({ clubSlug: slug, userId: user.uid });
+      await clearMeetingChoiceForClub(user.uid, slug);
+      await notifyMeetingChoicesSheetSync(user);
+      await notifyRosterSheetSync(user, "leave", slug);
+      setIsMember(false);
+      setJoinMessage("You left this club.");
     } catch (err) {
       setError(err.message || "Could not update membership.");
+    } finally {
+      setJoinBusy(false);
+    }
+  };
+
+  const handleJoinClub = async () => {
+    if (!user?.uid || joinBusy || isMember) return;
+    setJoinBusy(true);
+    setJoinMessage("");
+    setError("");
+    try {
+      await joinClub({
+        clubSlug: slug,
+        clubName: club.name,
+        userId: user.uid,
+        userEmail: user.email || userData?.email || "",
+        displayName: resolveDisplayName(userData, user.displayName || "Member"),
+      });
+      await notifyRosterSheetSync(user, "join", slug);
+      setIsMember(true);
+      setJoinMessage("You joined this club!");
+    } catch (err) {
+      setError(err.message || "Could not update membership.");
+      throw err;
     } finally {
       setJoinBusy(false);
     }
@@ -365,7 +380,6 @@ export default function ClubDetailView({ club, slug }) {
       </section>
 
       <ClubHubNav
-        active="directory"
         loginRedirect={`/club-hub/directory/${slug}`}
       />
 
@@ -437,14 +451,15 @@ export default function ClubDetailView({ club, slug }) {
                 ) : (
                   <ClubMembershipButton
                     slug={slug}
+                    clubName={club.name}
                     user={user}
-                    userData={userData}
                     authLoading={authLoading}
                     accessLoading={accessLoading}
                     membershipLoading={membershipLoading}
                     isMember={isMember}
                     joinBusy={joinBusy}
-                    onJoinLeave={handleJoinLeave}
+                    onJoin={handleJoinClub}
+                    onLeave={handleLeaveClub}
                   />
                 )}
               </div>

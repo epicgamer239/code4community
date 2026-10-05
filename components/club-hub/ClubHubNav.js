@@ -17,7 +17,7 @@ import { auth, signOut } from "@/firebase";
 
 /**
  * Club Hub top nav — same Firebase session as the rest of the site.
- * @param {{ active?: "home" | "directory" | "admin" | "sponsor" | null, loginRedirect?: string }} props
+ * @param {{ active?: "home" | "directory" | "meeting-days" | "admin" | "sponsor" | null, loginRedirect?: string }} props
  */
 export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" }) {
   const { user, userData, loading } = useAuth();
@@ -101,6 +101,9 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
       <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-6 px-4 py-[1.006rem] text-sm font-semibold tracking-wide text-white sm:gap-10 sm:text-base md:gap-12">
         {navItem("Home", active === "home", "/club-hub")}
         {navItem("Club Directory", active === "directory", "/club-hub/directory")}
+        {user
+          ? navItem("Meeting days", active === "meeting-days", "/club-hub/meeting-days")
+          : null}
         {showSponsorLink ? navItem("My clubs", active === "sponsor", "/club-hub/sponsor") : null}
         {showAdminLink ? navItem(adminNavLabel, active === "admin", "/club-hub/admin") : null}
         <div className="relative" ref={dropdownRef} suppressHydrationWarning>

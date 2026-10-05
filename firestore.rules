@@ -1175,6 +1175,58 @@
               request.resource.data.updatedAt is timestamp;
       }
 
+      function clubHubHasMembershipForSlug(clubSlug) {
+        return exists(/databases/$(database)/documents/clubHubMemberships/$(clubSlug + '__' + request.auth.uid));
+      }
+
+      function isOptionalClubSlugField(value) {
+        return value == '' ||
+              (value is string && value.size() > 0 && value.size() <= 120);
+      }
+
+      function meetingChoiceSwitchNeedsCooldown(oldVal, newVal) {
+        return oldVal != '' && newVal != '' && oldVal != newVal;
+      }
+
+      function isClubHubMeetingChoiceCooldownOk() {
+        return !meetingChoiceSwitchNeedsCooldown(
+                  resource.data.get('goldClubSlug', ''),
+                  request.resource.data.goldClubSlug
+                ) &&
+               !meetingChoiceSwitchNeedsCooldown(
+                  resource.data.get('maroonClubSlug', ''),
+                  request.resource.data.maroonClubSlug
+                ) ||
+               request.time >= resource.data.get('choicesUpdatedAt', timestamp.date(1970, 1, 1)) +
+                 duration.value(30, 'm');
+      }
+
+      function isValidClubHubMeetingChoicesWrite() {
+        return request.resource.data.keys().hasAll(
+                  ['goldClubSlug', 'maroonClubSlug', 'updatedAt', 'choicesUpdatedAt']
+                ) &&
+              isOptionalClubSlugField(request.resource.data.goldClubSlug) &&
+              isOptionalClubSlugField(request.resource.data.maroonClubSlug) &&
+              request.resource.data.updatedAt is timestamp &&
+              request.resource.data.choicesUpdatedAt is timestamp &&
+              (request.resource.data.goldClubSlug == '' ||
+                clubHubHasMembershipForSlug(request.resource.data.goldClubSlug)) &&
+              (request.resource.data.maroonClubSlug == '' ||
+                clubHubHasMembershipForSlug(request.resource.data.maroonClubSlug));
+      }
+
+      match /clubHubMeetingChoices/{uid} {
+        allow read: if isAuthenticated() && request.auth.uid == uid;
+        allow create: if isAuthenticated() &&
+                        request.auth.uid == uid &&
+                        isValidClubHubMeetingChoicesWrite();
+        allow update: if isAuthenticated() &&
+                        request.auth.uid == uid &&
+                        isValidClubHubMeetingChoicesWrite() &&
+                        isClubHubMeetingChoiceCooldownOk();
+        allow delete: if isAuthenticated() && request.auth.uid == uid;
+      }
+
       match /clubHubMembershipCounts/{slug} {
         allow read: if true;
         allow create: if isAuthenticated() &&

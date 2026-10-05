@@ -23,6 +23,7 @@ export const CLIENT_RATE_LIMITS = {
   clubHubPageWrite: { maxRequests: 20, windowMs: 60_000 },
   clubHubEventWrite: { maxRequests: 30, windowMs: 60_000 },
   clubHubMembershipWrite: { maxRequests: 20, windowMs: 60_000 },
+  clubHubMeetingChoicesWrite: { maxRequests: 20, windowMs: 60_000 },
   clubHubHeaderUpload: { maxRequests: 15, windowMs: 60 * 60_000 },
   siteConfigWrite: { maxRequests: 30, windowMs: 60_000 },
 };
