@@ -1,66 +1,33 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { runEffectWork } from "@/hooks/runEffectWork";
 import { useAuth } from "@/utils/AuthContext";
-import ClubAutocomplete from "@/components/club-hub/ClubAutocomplete";
 import ClubHubLiveMessage from "@/components/club-hub/ClubHubLiveMessage";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import ClubHubRostersPanel from "@/components/club-hub/ClubHubRostersPanel";
-import {
-  BROAD_RUN_CLUBS,
-  clubNameToSlug,
-  getSortedClubOptions,
-} from "@/lib/club-hub/broadRunClubDirectory";
+import ClubHubSpecialSheetEventsPanel from "@/components/club-hub/ClubHubSpecialSheetEventsPanel";
+import { getSortedClubOptions } from "@/lib/club-hub/broadRunClubDirectory";
 import {
   PROTECTED_CLUB_HUB_COORDINATOR_EMAIL,
-  canManageClubHubRoles,
-  clubSlugsToMap,
   isProtectedClubHubCoordinator,
 } from "@/lib/club-hub/access";
-import { useClubHubAccess } from "@/lib/club-hub/useClubHubAccess";
 import {
   fetchAllClubHubAccessRecords,
   setClubHubCoordinator,
-  setClubHubManualClubAccess,
 } from "@/lib/club-hub/clubHubRoles";
-import {
-  fetchAllClubSponsorOverrides,
-  getEffectiveSponsorsForSlug,
-  getSponsorClubSlugsForEmail,
-  resetClubSponsorsToDirectory,
-  saveClubSponsors,
-} from "@/lib/club-hub/clubSponsors";
+import { fetchAllClubSponsorOverrides } from "@/lib/club-hub/clubSponsors";
 import { normalizeEmail, isValidEmail } from "@/lib/email";
-import { invalidateClubHubAccessCache } from "@/lib/club-hub/useClubHubAccess";
 import { CLUB_HUB_MAROON } from "@/lib/club-hub/theme";
-import { logClientError } from "@/lib/auth/logClientError";
-
-function slugLabels(slugMap) {
-  if (!slugMap) return "—";
-  const slugs = Object.keys(slugMap).filter((slug) => slugMap[slug]);
-  if (slugs.length === 0) return "—";
-  return slugs
-    .map((slug) => BROAD_RUN_CLUBS.find((c) => clubNameToSlug(c.name) === slug)?.name || slug)
-    .join(", ");
-}
 
 export default function ClubHubAdminDashboard() {
-  const { user, userData } = useAuth();
-  const { accessRecord } = useClubHubAccess();
-  const canManageAccess = canManageClubHubRoles(user?.email, userData, accessRecord);
+  const { user } = useAuth();
   const [tab, setTab] = useState("access");
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [coordinatorEmail, setCoordinatorEmail] = useState("");
-  const [editorEmail, setEditorEmail] = useState("");
-  const [editorClubSlug, setEditorClubSlug] = useState("");
-  const [sponsorClubSlug, setSponsorClubSlug] = useState("");
-  const [sponsorDraft, setSponsorDraft] = useState([{ name: "", email: "" }]);
   const [sponsorOverrides, setSponsorOverrides] = useState({});
-  const [sponsorsLoading, setSponsorsLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const clubOptions = useMemo(() => getSortedClubOptions(), []);
@@ -68,7 +35,6 @@ export default function ClubHubAdminDashboard() {
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
-    setSponsorsLoading(true);
     setError("");
     try {
       const [rows, overrides] = await Promise.all([
@@ -81,7 +47,6 @@ export default function ClubHubAdminDashboard() {
       setError(err.message || "Could not load Club Hub roles.");
     } finally {
       setLoading(false);
-      setSponsorsLoading(false);
     }
   }, []);
 
@@ -114,15 +79,6 @@ export default function ClubHubAdminDashboard() {
       ...fromDb,
     ];
   }, [records]);
-
-  const manualEditors = useMemo(
-    () =>
-      records.filter(
-        (row) =>
-          Object.keys(row.manualClubSlugs || {}).length > 0 && !row.isCoordinator,
-      ),
-    [records],
-  );
 
   const run = async (action) => {
     if (!user?.uid || busy) return;
@@ -157,105 +113,6 @@ export default function ClubHubAdminDashboard() {
     });
   };
 
-  const selectedSponsorClub = useMemo(
-    () => clubOptions.find((club) => club.slug === sponsorClubSlug) || null,
-    [clubOptions, sponsorClubSlug],
-  );
-
-  const effectiveSponsors = useMemo(() => {
-    if (!sponsorClubSlug) return [];
-    return getEffectiveSponsorsForSlug(sponsorClubSlug, sponsorOverrides);
-  }, [sponsorClubSlug, sponsorOverrides]);
-
-  useEffect(() => {
-    return runEffectWork(() => {
-      if (!sponsorClubSlug) {
-        setSponsorDraft([{ name: "", email: "" }]);
-        return;
-      }
-      const sponsors = getEffectiveSponsorsForSlug(sponsorClubSlug, sponsorOverrides);
-      setSponsorDraft(
-        sponsors.length > 0
-          ? sponsors.map((s) => ({ name: s.name, email: s.email }))
-          : [{ name: "", email: "" }],
-      );
-    });
-  }, [sponsorClubSlug, sponsorOverrides]);
-
-  const refreshSponsorAccessForClub = async (slug) => {
-    if (!user?.getIdToken || !slug) return;
-    try {
-      const token = await user.getIdToken();
-      await fetch("/api/club-hub/admin/refresh-sponsor-access", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ slug }),
-      });
-    } catch (err) {
-      logClientError("ClubHubAdminDashboard.refreshSponsorAccess", err);
-    }
-  };
-
-  const handleSaveSponsors = async (e) => {
-    e.preventDefault();
-    if (!user?.uid || !selectedSponsorClub) return;
-    await run(async () => {
-      await saveClubSponsors({
-        slug: selectedSponsorClub.slug,
-        clubName: selectedSponsorClub.name,
-        sponsors: sponsorDraft,
-        adminUid: user.uid,
-      });
-      await refreshSponsorAccessForClub(selectedSponsorClub.slug);
-      invalidateClubHubAccessCache();
-      setMessage(`Saved sponsors for ${selectedSponsorClub.name}.`);
-    });
-  };
-
-  const handleResetSponsors = async () => {
-    if (!user?.uid || !selectedSponsorClub) return;
-    await run(async () => {
-      await resetClubSponsorsToDirectory({
-        slug: selectedSponsorClub.slug,
-        adminUid: user.uid,
-      });
-      await refreshSponsorAccessForClub(selectedSponsorClub.slug);
-      invalidateClubHubAccessCache();
-      setMessage(`Reset ${selectedSponsorClub.name} to directory defaults.`);
-    });
-  };
-
-  const handleAddManualEditor = async (e) => {
-    e.preventDefault();
-    const email = normalizeEmail(editorEmail);
-    if (!isValidEmail(email)) {
-      setError("Enter a valid editor email.");
-      return;
-    }
-    if (!editorClubSlug) {
-      setError("Choose a club from the list.");
-      return;
-    }
-    await run(async () => {
-      const existing = records.find((row) => row.email === email);
-      const currentSlugs = Object.keys(existing?.manualClubSlugs || {}).filter(
-        (slug) => existing.manualClubSlugs[slug],
-      );
-      const nextSlugs = Array.from(new Set([...currentSlugs, editorClubSlug]));
-      await setClubHubManualClubAccess({
-        email,
-        clubSlugs: nextSlugs,
-        adminUid: user.uid,
-      });
-      setEditorEmail("");
-      setEditorClubSlug("");
-      setMessage(`Granted club edit access to ${email}.`);
-    });
-  };
-
   const tabBtn = (active) =>
     `${active
       ? "rounded-full border border-[#5c1417] bg-[#5c1417] px-5 py-1.5 text-sm font-semibold text-white"
@@ -266,7 +123,7 @@ export default function ClubHubAdminDashboard() {
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">Club Hub admin</h1>
         <p className="mt-2 text-sm leading-relaxed text-neutral-700">
-          Manage access, sponsors, and view club rosters across the directory.
+          Manage coordinators, per-club rosters, and one-off seminar columns on the roster sheet.
         </p>
         <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="Club Hub admin sections">
           <button
@@ -291,11 +148,33 @@ export default function ClubHubAdminDashboard() {
           >
             Rosters &amp; metrics
           </button>
+          <button
+            type="button"
+            role="tab"
+            id="club-hub-tab-special-events"
+            aria-selected={tab === "special-events"}
+            aria-controls="club-hub-panel-special-events"
+            onClick={() => setTab("special-events")}
+            className={tabBtn(tab === "special-events")}
+          >
+            Special events
+          </button>
         </div>
       </div>
 
       <ClubHubLiveMessage message={message} />
       <ClubHubLiveMessage message={error} variant="alert" />
+
+      {tab === "special-events" ? (
+        <div
+          id="club-hub-panel-special-events"
+          role="tabpanel"
+          aria-labelledby="club-hub-tab-special-events"
+          tabIndex={0}
+        >
+          <ClubHubSpecialSheetEventsPanel />
+        </div>
+      ) : null}
 
       {tab === "rosters" ? (
         <div
@@ -304,7 +183,19 @@ export default function ClubHubAdminDashboard() {
           aria-labelledby="club-hub-tab-rosters"
           tabIndex={0}
         >
-          <ClubHubRostersPanel mode="admin" clubOptions={clubOptions} allowedSlugs={allClubSlugs} />
+          <ClubHubRostersPanel
+            mode="admin"
+            clubOptions={clubOptions}
+            allowedSlugs={allClubSlugs}
+            adminAccess={{
+              records,
+              sponsorOverrides,
+              busy,
+              onBusyChange: setBusy,
+              user,
+              onAccessMutated: loadRecords,
+            }}
+          />
         </div>
       ) : null}
 
@@ -316,268 +207,80 @@ export default function ClubHubAdminDashboard() {
           tabIndex={0}
           className="space-y-8"
         >
-
-      <section className="rounded-[14px] bg-white p-6 shadow-sm ring-1 ring-black/5">
-        <h2 className="text-lg font-bold text-neutral-900">Club coordinators</h2>
-        <p className="mt-1 text-sm text-neutral-700">Can edit every club page.</p>
-
-        <form onSubmit={handleAddCoordinator} className="mt-4 flex flex-wrap gap-2">
-          <label htmlFor="club-hub-coordinator-email" className="sr-only">
-            Coordinator email
-          </label>
-          <input
-            id="club-hub-coordinator-email"
-            type="email"
-            value={coordinatorEmail}
-            onChange={(e) => setCoordinatorEmail(e.target.value)}
-            placeholder="name@lcps.org"
-            autoComplete="email"
-            className="min-w-[16rem] flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ backgroundColor: CLUB_HUB_MAROON }}
-          >
-            Add coordinator
-          </button>
-        </form>
-
-        {loading ? (
-          <p className="mt-4 text-sm text-neutral-700">Loading…</p>
-        ) : (
-          <ul className="mt-4 divide-y divide-neutral-200">
-            {coordinators.map((row) => (
-              <li key={row.email} className="flex items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="font-medium text-neutral-900">{row.email}</p>
-                  {row.protected && (
-                    <p className="text-xs text-neutral-700">Built-in coordinator</p>
-                  )}
-                </div>
-                {!row.protected && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      run(async () => {
-                        await setClubHubCoordinator({
-                          email: row.email,
-                          adminUid: user.uid,
-                          isCoordinator: false,
-                        });
-                        setMessage(`Removed coordinator: ${row.email}`);
-                      })
-                    }
-                    className="text-sm font-medium text-red-700 hover:underline disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="rounded-[14px] bg-white p-6 shadow-sm ring-1 ring-black/5">
-        <h2 className="text-lg font-bold text-neutral-900">Extra club editors</h2>
-        <p className="mt-1 text-sm text-neutral-700">
-          Grant edit access to a specific club by email.
-        </p>
-
-        <form onSubmit={handleAddManualEditor} className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-          <label htmlFor="club-hub-editor-email" className="sr-only">
-            Editor email
-          </label>
-          <input
-            id="club-hub-editor-email"
-            type="email"
-            value={editorEmail}
-            onChange={(e) => setEditorEmail(e.target.value)}
-            placeholder="name@lcps.org"
-            autoComplete="email"
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-          />
-          <ClubAutocomplete
-            id="club-hub-editor-club"
-            clubs={clubOptions}
-            valueSlug={editorClubSlug}
-            onChangeSlug={setEditorClubSlug}
-            label="Club for editor access"
-            placeholder="Type club name…"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ backgroundColor: CLUB_HUB_MAROON }}
-          >
-            Grant access
-          </button>
-        </form>
-
-        {!loading && manualEditors.length === 0 ? (
-          <p className="mt-4 text-sm text-neutral-700">No extra club editors yet.</p>
-        ) : (
-          <ul className="mt-4 divide-y divide-neutral-200">
-            {manualEditors.map((row) => (
-              <li key={row.email} className="flex items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="font-medium text-neutral-900">{row.email}</p>
-                  <p className="text-sm text-neutral-700">
-                    Clubs: {slugLabels(row.manualClubSlugs)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    run(async () => {
-                      await setClubHubManualClubAccess({
-                        email: row.email,
-                        clubSlugs: [],
-                        adminUid: user.uid,
-                      });
-                      setMessage(`Removed manual access for ${row.email}.`);
-                    })
-                  }
-                  className="text-sm font-medium text-red-700 hover:underline disabled:opacity-50"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="rounded-[14px] bg-white p-6 shadow-sm ring-1 ring-black/5">
-        <h2 className="text-lg font-bold text-neutral-900">Club sponsors</h2>
-        <p className="mt-1 text-sm text-neutral-700">
-          Assign sponsor names and emails for each club. Changes here override the
-          built-in directory defaults.
-        </p>
-
-        <div className="mt-4">
-          <label htmlFor="sponsor-club" className="block text-xs font-semibold uppercase tracking-wider text-neutral-700">
-            Club
-          </label>
-          <ClubAutocomplete
-            id="sponsor-club"
-            clubs={clubOptions}
-            valueSlug={sponsorClubSlug}
-            onChangeSlug={setSponsorClubSlug}
-            placeholder="Type club name…"
-            className="mt-1.5 sm:max-w-md"
-          />
-        </div>
-
-        {selectedSponsorClub ? (
-          <form onSubmit={handleSaveSponsors} className="mt-5 space-y-3">
-            {sponsorDraft.map((sponsor, index) => (
-              <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                <label htmlFor={`sponsor-name-${index}`} className="sr-only">
-                  Sponsor {index + 1} name
-                </label>
-                <input
-                  id={`sponsor-name-${index}`}
-                  type="text"
-                  value={sponsor.name}
-                  onChange={(e) =>
-                    setSponsorDraft((rows) =>
-                      rows.map((row, i) =>
-                        i === index ? { ...row, name: e.target.value } : row,
-                      ),
-                    )
-                  }
-                  placeholder="Sponsor name"
-                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                />
-                <label htmlFor={`sponsor-email-${index}`} className="sr-only">
-                  Sponsor {index + 1} email
-                </label>
-                <input
-                  id={`sponsor-email-${index}`}
-                  type="email"
-                  value={sponsor.email}
-                  onChange={(e) =>
-                    setSponsorDraft((rows) =>
-                      rows.map((row, i) =>
-                        i === index ? { ...row, email: e.target.value } : row,
-                      ),
-                    )
-                  }
-                  placeholder="name@lcps.org"
-                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                />
-                <button
-                  type="button"
-                  disabled={busy || sponsorDraft.length <= 1}
-                  onClick={() =>
-                    setSponsorDraft((rows) => rows.filter((_, i) => i !== index))
-                  }
-                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 disabled:opacity-40"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-
-            <div className="flex flex-wrap gap-2 pt-1">
+          <section className="rounded-[14px] bg-white p-6 shadow-sm ring-1 ring-black/5">
+            <h2 className="text-lg font-bold text-neutral-900">Club coordinators</h2>
+            <p className="mt-1 text-sm text-neutral-700">
+              Can edit every club page. For sponsors, extra editors, rosters, and board members on
+              a specific club, use{" "}
               <button
                 type="button"
-                disabled={busy || sponsorDraft.length >= 10}
-                onClick={() =>
-                  setSponsorDraft((rows) => [...rows, { name: "", email: "" }])
-                }
-                className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-800"
+                onClick={() => setTab("rosters")}
+                className={`font-semibold text-[#5c1417] hover:underline ${clubHubButtonFocusClass}`}
               >
-                Add sponsor
+                Rosters &amp; metrics
               </button>
+              .
+            </p>
+
+            <form onSubmit={handleAddCoordinator} className="mt-4 flex flex-wrap gap-2">
+              <label htmlFor="club-hub-coordinator-email" className="sr-only">
+                Coordinator email
+              </label>
+              <input
+                id="club-hub-coordinator-email"
+                type="email"
+                value={coordinatorEmail}
+                onChange={(e) => setCoordinatorEmail(e.target.value)}
+                placeholder="name@lcps.org"
+                autoComplete="email"
+                className="min-w-[16rem] flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              />
               <button
                 type="submit"
                 disabled={busy}
                 className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 style={{ backgroundColor: CLUB_HUB_MAROON }}
               >
-                Save sponsors
+                Add coordinator
               </button>
-              {Object.prototype.hasOwnProperty.call(sponsorOverrides, sponsorClubSlug) && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={handleResetSponsors}
-                  className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-800 disabled:opacity-50"
-                >
-                  Reset to defaults
-                </button>
-              )}
-            </div>
-          </form>
-        ) : (
-          <p className="mt-4 text-sm text-neutral-700">Type a club name to edit sponsors.</p>
-        )}
+            </form>
 
-        {!sponsorsLoading && sponsorClubSlug && effectiveSponsors.length > 0 && (
-          <p className="mt-4 text-sm text-neutral-700">
-            Current sponsors for this club:{" "}
-            {effectiveSponsors.map((s) => `${s.name} (${s.email})`).join(", ")}
-          </p>
-        )}
-
-        {!sponsorsLoading && (
-          <p className="mt-4 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
-            Example:{" "}
-            {slugLabels(
-              clubSlugsToMap(
-                getSponsorClubSlugsForEmail("Timothy.Cathcart@lcps.org", sponsorOverrides),
-              ),
+            {loading ? (
+              <p className="mt-4 text-sm text-neutral-700">Loading…</p>
+            ) : (
+              <ul className="mt-4 divide-y divide-neutral-200">
+                {coordinators.map((row) => (
+                  <li key={row.email} className="flex items-center justify-between gap-3 py-3">
+                    <div>
+                      <p className="font-medium text-neutral-900">{row.email}</p>
+                      {row.protected && (
+                        <p className="text-xs text-neutral-700">Built-in coordinator</p>
+                      )}
+                    </div>
+                    {!row.protected && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          run(async () => {
+                            await setClubHubCoordinator({
+                              email: row.email,
+                              adminUid: user.uid,
+                              isCoordinator: false,
+                            });
+                            setMessage(`Removed coordinator: ${row.email}`);
+                          })
+                        }
+                        className="text-sm font-medium text-red-700 hover:underline disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
-          </p>
-        )}
-      </section>
+          </section>
         </div>
       )}
     </div>

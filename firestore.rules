@@ -982,6 +982,7 @@
                 (
                   clubHubSlugAllowedInMap(clubHubAccessForAuthUser().get('directoryClubSlugs', {}), slug) ||
                   clubHubSlugAllowedInMap(clubHubAccessForAuthUser().get('manualClubSlugs', {}), slug) ||
+                  clubHubSlugAllowedInMap(clubHubAccessForAuthUser().get('boardClubSlugs', {}), slug) ||
                   clubHubSlugAllowedInMap(clubHubAccessForAuthUser().get('clubSlugs', {}), slug)
                 ));
       }
@@ -998,6 +999,7 @@
               request.resource.data.isCoordinator is bool &&
               isValidClubHubSlugMap(request.resource.data.get('manualClubSlugs', {})) &&
               isValidClubHubSlugMap(request.resource.data.get('directoryClubSlugs', {})) &&
+              isValidClubHubSlugMap(request.resource.data.get('boardClubSlugs', {})) &&
               request.resource.data.updatedAt is timestamp &&
               request.resource.data.updatedBy == request.auth.uid;
       }
@@ -1027,6 +1029,16 @@
         allow create, update: if isClubHubAdmin() && isValidClubHubAccessWrite(emailKey);
         allow delete: if isClubHubAdmin() &&
                         normalizeEmail(emailKey) != 'katrice.white@lcps.org';
+      }
+
+      match /clubHubBoardMembers/{clubSlug} {
+        allow read: if canEditClubHubPage(clubSlug);
+        allow write: if false;
+      }
+
+      match /clubHubBoardMembersByEmail/{emailKey} {
+        allow read: if isClubHubAdmin();
+        allow write: if false;
       }
 
       // Club Hub editable page copy
@@ -1179,6 +1191,41 @@
         return exists(/databases/$(database)/documents/clubHubMemberships/$(clubSlug + '__' + request.auth.uid));
       }
 
+      function clubHubMembershipDocPath(clubSlug) {
+        return /databases/$(database)/documents/clubHubMemberships/$(clubSlug + '__' + request.auth.uid);
+      }
+
+      function clubHubIsBoardMemberForClub(clubSlug) {
+        return exists(clubHubMembershipDocPath(clubSlug)) &&
+               get(clubHubMembershipDocPath(clubSlug)).data.get('memberGroups', []).hasAny(['board']);
+      }
+
+      // Keep in sync with lib/club-hub/meetingDayBoardAccess.js (requiresBoardFor*).
+      function clubHubGoldMeetingPickNeedsBoard(slug) {
+        return slug == 'hispanic-student-union' ||
+               slug == 'key-club' ||
+               slug == 'national-art-honor-society-nahs';
+      }
+
+      function clubHubMaroonMeetingPickNeedsBoard(slug) {
+        return slug == 'black-student-union-bsu' ||
+               slug == 'interact';
+      }
+
+      function clubHubMeetingGoldSlugAllowed(slug) {
+        return slug == '' ||
+               (clubHubHasMembershipForSlug(slug) &&
+                (!clubHubGoldMeetingPickNeedsBoard(slug) ||
+                 clubHubIsBoardMemberForClub(slug)));
+      }
+
+      function clubHubMeetingMaroonSlugAllowed(slug) {
+        return slug == '' ||
+               (clubHubHasMembershipForSlug(slug) &&
+                (!clubHubMaroonMeetingPickNeedsBoard(slug) ||
+                 clubHubIsBoardMemberForClub(slug)));
+      }
+
       function isOptionalClubSlugField(value) {
         return value == '' ||
               (value is string && value.size() > 0 && value.size() <= 120);
@@ -1209,10 +1256,8 @@
               isOptionalClubSlugField(request.resource.data.maroonClubSlug) &&
               request.resource.data.updatedAt is timestamp &&
               request.resource.data.choicesUpdatedAt is timestamp &&
-              (request.resource.data.goldClubSlug == '' ||
-                clubHubHasMembershipForSlug(request.resource.data.goldClubSlug)) &&
-              (request.resource.data.maroonClubSlug == '' ||
-                clubHubHasMembershipForSlug(request.resource.data.maroonClubSlug));
+              clubHubMeetingGoldSlugAllowed(request.resource.data.goldClubSlug) &&
+              clubHubMeetingMaroonSlugAllowed(request.resource.data.maroonClubSlug);
       }
 
       match /clubHubMeetingChoices/{uid} {

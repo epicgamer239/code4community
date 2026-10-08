@@ -30,7 +30,7 @@ export default function ClubHubSponsorDashboard({ allowedSlugs, accessLoading = 
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">My clubs</h1>
         <p className="mt-2 text-sm leading-relaxed text-neutral-700">
-          View member rosters and upcoming activity for clubs you sponsor or manage.
+          Select a club below to view its roster or edit board members.
         </p>
       </div>
       <ClubHubRostersPanel mode="sponsor" clubOptions={clubOptions} allowedSlugs={allowedSlugs} />

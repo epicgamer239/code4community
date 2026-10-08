@@ -15,6 +15,28 @@ describe("validateMeetingChoices", () => {
       validateMeetingChoices(
         { goldClubSlug: "deca", maroonClubSlug: "deca" },
         joined,
+        [
+          { clubSlug: "deca", memberGroups: [] },
+          { clubSlug: "anime-club", memberGroups: [] },
+        ],
+      ),
+    ).toBe("");
+  });
+
+  it("rejects Interact maroon for non-board members", () => {
+    const memberships = [
+      { clubSlug: "interact", memberGroups: [] },
+      { clubSlug: "deca", memberGroups: [] },
+    ];
+    const slugs = new Set(["interact", "deca"]);
+    expect(
+      validateMeetingChoices({ goldClubSlug: "", maroonClubSlug: "interact" }, slugs, memberships),
+    ).toMatch(/board members only/i);
+    expect(
+      validateMeetingChoices(
+        { goldClubSlug: "", maroonClubSlug: "interact" },
+        slugs,
+        [{ clubSlug: "interact", memberGroups: ["board"] }],
       ),
     ).toBe("");
   });

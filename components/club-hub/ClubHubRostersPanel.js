@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { runEffectWork } from "@/hooks/runEffectWork";
-import Link from "next/link";
 import ClubAutocomplete from "@/components/club-hub/ClubAutocomplete";
+import SponsorClubManageDialog from "@/components/club-hub/SponsorClubManageDialog";
 import { fetchAllUpcomingClubEvents } from "@/lib/club-hub/clubEvents";
 import { fetchMembershipCountMap } from "@/lib/club-hub/clubMembershipCounts";
-import {
-  fetchClubMembershipRoster,
-  formatJoinedAt,
-} from "@/lib/club-hub/clubMemberships";
+import { fetchClubMembershipRoster } from "@/lib/club-hub/clubMemberships";
+import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 
 const MAROON = "#5c1417";
 
@@ -18,9 +16,22 @@ const MAROON = "#5c1417";
  *   mode: "admin" | "sponsor",
  *   clubOptions: { slug: string, name: string }[],
  *   allowedSlugs: string[],
+ *   adminAccess?: {
+ *     records: ReturnType<import("@/lib/club-hub/clubHubRoles").normalizeAccessRecord>[],
+ *     sponsorOverrides: Record<string, unknown>,
+ *     busy: boolean,
+ *     onBusyChange: (busy: boolean) => void,
+ *     user: { uid: string, getIdToken?: () => Promise<string> } | null,
+ *     onAccessMutated: () => void | Promise<void>,
+ *   },
  * }} props
  */
-export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs }) {
+export default function ClubHubRostersPanel({
+  mode,
+  clubOptions,
+  allowedSlugs,
+  adminAccess = null,
+}) {
   const [selectedSlug, setSelectedSlug] = useState("");
   const [loading, setLoading] = useState(true);
   const [rosterLoading, setRosterLoading] = useState(false);
@@ -29,10 +40,22 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [roster, setRoster] = useState([]);
 
+  const [sponsorDialogClub, setSponsorDialogClub] = useState(null);
+  const [sponsorDialogPanel, setSponsorDialogPanel] = useState("menu");
+  const [adminDialogClub, setAdminDialogClub] = useState(null);
+  const [adminDialogPanel, setAdminDialogPanel] = useState("menu");
+  const [dialogMessage, setDialogMessage] = useState("");
+  const [dialogError, setDialogError] = useState("");
+
   const visibleClubs = useMemo(() => {
     const allowed = new Set(allowedSlugs);
     return clubOptions.filter((club) => allowed.has(club.slug));
   }, [clubOptions, allowedSlugs]);
+
+  const dialogSlug =
+    mode === "sponsor"
+      ? sponsorDialogClub?.slug || ""
+      : adminDialogClub?.slug || "";
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -68,7 +91,8 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
   }, [loadSummary]);
 
   useEffect(() => {
-    if (!selectedSlug) {
+    const slug = dialogSlug;
+    if (!slug) {
       return runEffectWork(() => setRoster([]));
     }
     let cancelled = false;
@@ -77,7 +101,7 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
       if (cancelled) return;
       setRosterLoading(true);
       try {
-        const rows = await fetchClubMembershipRoster(selectedSlug);
+        const rows = await fetchClubMembershipRoster(slug);
         if (!cancelled) setRoster(rows);
       } catch (err) {
         if (!cancelled) setError(err.message || "Could not load roster.");
@@ -88,7 +112,7 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
     return () => {
       cancelled = true;
     };
-  }, [selectedSlug]);
+  }, [dialogSlug]);
 
   const metricsBySlug = useMemo(() => {
     /** @type {Record<string, { members: number, upcomingEvents: number }>} */
@@ -122,14 +146,48 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
   const selectedClub = visibleClubs.find((club) => club.slug === selectedSlug) || null;
   const selectedMetrics = selectedSlug ? metricsBySlug[selectedSlug] : null;
 
+  const openSponsorDialog = (club) => {
+    setSponsorDialogClub(club);
+    setSponsorDialogPanel("menu");
+  };
+
+  const closeSponsorDialog = () => {
+    setSponsorDialogClub(null);
+    setSponsorDialogPanel("menu");
+    setDialogMessage("");
+    setDialogError("");
+  };
+
+  const openAdminDialog = (club) => {
+    setAdminDialogClub(club);
+    setAdminDialogPanel("menu");
+    setDialogMessage("");
+    setDialogError("");
+  };
+
+  const closeAdminDialog = () => {
+    setAdminDialogClub(null);
+    setAdminDialogPanel("menu");
+    setDialogMessage("");
+    setDialogError("");
+  };
+
+  const handleAdminClubChange = (slug) => {
+    setSelectedSlug(slug);
+    setAdminDialogClub(null);
+    setAdminDialogPanel("menu");
+    setDialogMessage("");
+    setDialogError("");
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-bold text-neutral-900">Rosters &amp; metrics</h2>
         <p className="mt-1 text-sm text-neutral-700">
           {mode === "admin"
-            ? "Member counts and upcoming events across all clubs."
-            : "View rosters and activity for clubs you manage."}
+            ? "Member counts across all clubs. Type a club name, open its card, then choose roster, board, editors, or sponsors."
+            : "Choose a club to view its roster or manage board members."}
         </p>
       </div>
 
@@ -151,125 +209,148 @@ export default function ClubHubRostersPanel({ mode, clubOptions, allowedSlugs })
         />
       </div>
 
-      <section className="rounded-[14px] bg-white p-6 shadow-sm ring-1 ring-black/5">
-        <h3 className="font-bold text-neutral-900">All clubs</h3>
-        {loading ? (
-          <p className="mt-4 text-sm text-neutral-700">Loading…</p>
-        ) : visibleClubs.length === 0 ? (
-          <p className="mt-4 text-sm text-neutral-700">No clubs available.</p>
-        ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-neutral-200 text-xs uppercase tracking-wider text-neutral-700">
-                  <th className="py-2 pr-4 font-semibold">Club</th>
-                  <th className="py-2 pr-4 font-semibold">Members</th>
-                  <th className="py-2 pr-4 font-semibold">Upcoming events</th>
-                  <th className="py-2 font-semibold">Roster</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {visibleClubs.map((club) => {
-                  const m = metricsBySlug[club.slug] || { members: 0, upcomingEvents: 0 };
-                  return (
-                    <tr key={club.slug}>
-                      <td className="py-2.5 pr-4 font-medium text-neutral-900">
-                        <Link
-                          href={`/club-hub/directory/${club.slug}`}
-                          className="text-[#5c1417] hover:underline"
-                        >
-                          {club.name}
-                        </Link>
-                      </td>
-                      <td className="py-2.5 pr-4 text-neutral-700">{m.members}</td>
-                      <td className="py-2.5 pr-4 text-neutral-700">{m.upcomingEvents}</td>
-                      <td className="py-2.5">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedSlug(club.slug)}
-                          className="text-sm font-semibold text-[#5c1417] hover:underline"
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      {mode === "sponsor" ? (
+        <>
+          <section aria-labelledby="sponsor-my-clubs-heading">
+            <h3 id="sponsor-my-clubs-heading" className="text-base font-bold text-neutral-900">
+              Your clubs
+            </h3>
+            {loading ? (
+              <p className="mt-3 text-sm text-neutral-700">Loading…</p>
+            ) : visibleClubs.length === 0 ? (
+              <p className="mt-3 text-sm text-neutral-700">No clubs available.</p>
+            ) : (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {visibleClubs.map((club) => (
+                  <ClubManageCard
+                    key={club.slug}
+                    club={club}
+                    metrics={metricsBySlug[club.slug] || { members: 0, upcomingEvents: 0 }}
+                    onClick={() => openSponsorDialog(club)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
 
-      <section className="rounded-[14px] bg-white p-6 shadow-sm ring-1 ring-black/5">
-        <h3 className="font-bold text-neutral-900">Club roster</h3>
-        <div className="mt-4 sm:max-w-md">
-          <label
-            htmlFor="roster-club"
-            className="block text-xs font-semibold uppercase tracking-wider text-neutral-700"
-          >
-            Club
-          </label>
-          <ClubAutocomplete
-            id="roster-club"
-            clubs={visibleClubs}
-            valueSlug={selectedSlug}
-            onChangeSlug={setSelectedSlug}
-            placeholder="Type club name…"
-            className="mt-1.5"
+          <SponsorClubManageDialog
+            club={sponsorDialogClub}
+            panel={sponsorDialogPanel}
+            metrics={
+              sponsorDialogClub ? metricsBySlug[sponsorDialogClub.slug] || null : null
+            }
+            roster={roster}
+            rosterLoading={rosterLoading}
+            onPanelChange={setSponsorDialogPanel}
+            onClose={closeSponsorDialog}
           />
-        </div>
-
-        {selectedClub && selectedMetrics ? (
-          <div className="mt-4 flex flex-wrap gap-4 text-sm text-neutral-700">
-            <span>
-              <strong className="text-neutral-900">{selectedMetrics.members}</strong> members
-            </span>
-            <span>
-              <strong className="text-neutral-900">{selectedMetrics.upcomingEvents}</strong>{" "}
-              upcoming events
-            </span>
-          </div>
-        ) : null}
-
-        {selectedSlug ? (
-          rosterLoading ? (
-            <p className="mt-4 text-sm text-neutral-700">Loading roster…</p>
-          ) : roster.length === 0 ? (
-            <p className="mt-4 text-sm text-neutral-700">No members have joined yet.</p>
-          ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-neutral-200 text-xs uppercase tracking-wider text-neutral-700">
-                    <th className="py-2 pr-4 font-semibold">Name</th>
-                    <th className="py-2 pr-4 font-semibold">Email</th>
-                    <th className="py-2 font-semibold">Joined</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {roster.map((member) => (
-                    <tr key={member.id}>
-                      <td className="py-2.5 pr-4 font-medium text-neutral-900">
-                        {member.displayName || "—"}
-                      </td>
-                      <td className="py-2.5 pr-4 break-all text-neutral-700">
-                        {member.userEmail || "—"}
-                      </td>
-                      <td className="py-2.5 text-neutral-700">
-                        {formatJoinedAt(member.joinedAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        </>
+      ) : (
+        <>
+          <section aria-labelledby="admin-choose-club-heading">
+            <h3 id="admin-choose-club-heading" className="text-base font-bold text-neutral-900">
+              Choose a club
+            </h3>
+            <div className="mt-4 sm:max-w-md">
+              <label
+                htmlFor="roster-club"
+                className="block text-xs font-semibold uppercase tracking-wider text-neutral-700"
+              >
+                Club
+              </label>
+              <ClubAutocomplete
+                id="roster-club"
+                clubs={visibleClubs}
+                valueSlug={selectedSlug}
+                onChangeSlug={handleAdminClubChange}
+                placeholder="Type club name…"
+                className="mt-1.5"
+              />
             </div>
-          )
-        ) : (
-          <p className="mt-4 text-sm text-neutral-700">Choose a club to view its member roster.</p>
-        )}
-      </section>
+
+            {!selectedClub ? (
+              <p className="mt-4 text-sm text-neutral-700">
+                Type a club name to manage roster, board, editors, and sponsors.
+              </p>
+            ) : (
+              <div className="mt-5 max-w-md">
+                <ClubManageCard
+                  club={selectedClub}
+                  metrics={selectedMetrics || { members: 0, upcomingEvents: 0 }}
+                  onClick={() => openAdminDialog(selectedClub)}
+                />
+              </div>
+            )}
+          </section>
+
+          <SponsorClubManageDialog
+            variant="admin"
+            club={adminDialogClub}
+            panel={adminDialogPanel}
+            metrics={
+              adminDialogClub ? metricsBySlug[adminDialogClub.slug] || null : null
+            }
+            roster={roster}
+            rosterLoading={rosterLoading}
+            onPanelChange={(next) => {
+              setAdminDialogPanel(next);
+              setDialogMessage("");
+              setDialogError("");
+            }}
+            onClose={closeAdminDialog}
+            dialogMessage={dialogMessage}
+            dialogError={dialogError}
+            adminAccess={
+              adminAccess
+                ? {
+                    records: adminAccess.records.filter(Boolean),
+                    sponsorOverrides: adminAccess.sponsorOverrides,
+                    busy: adminAccess.busy,
+                    onBusyChange: adminAccess.onBusyChange,
+                    user: adminAccess.user,
+                    onAccessMutated: adminAccess.onAccessMutated,
+                    onDialogMessage: (text) => {
+                      setDialogError("");
+                      setDialogMessage(text);
+                    },
+                    onDialogError: (text) => {
+                      setDialogMessage("");
+                      setDialogError(text);
+                    },
+                  }
+                : null
+            }
+          />
+        </>
+      )}
     </div>
+  );
+}
+
+/**
+ * @param {{
+ *   club: { slug: string, name: string },
+ *   metrics: { members: number, upcomingEvents: number },
+ *   onClick: () => void,
+ * }} props
+ */
+function ClubManageCard({ club, metrics, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-[14px] bg-white p-5 text-left shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md hover:ring-[#5c1417]/25 ${clubHubButtonFocusClass}`}
+    >
+      <p className="text-lg font-bold text-[#5c1417]">{club.name}</p>
+      <p className="mt-2 text-sm text-neutral-700">
+        <span className="font-semibold text-neutral-900">{metrics.members}</span> members
+        {" · "}
+        <span className="font-semibold text-neutral-900">{metrics.upcomingEvents}</span> upcoming
+      </p>
+      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">
+        Tap for options
+      </p>
+    </button>
   );
 }
 

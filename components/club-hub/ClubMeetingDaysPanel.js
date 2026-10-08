@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useAuth } from "@/utils/AuthContext";
 import ClubHubLiveMessage from "@/components/club-hub/ClubHubLiveMessage";
 import {
-  isGoldDayClubSlug,
-  isMaroonDayClubSlug,
-} from "@/lib/club-hub/clubDirectorySections";
+  canPickClubForGoldMeetingDay,
+  canPickClubForMaroonMeetingDay,
+} from "@/lib/club-hub/meetingDayBoardAccess";
 import {
   fetchMeetingChoices,
   getMeetingChoiceSwitchError,
@@ -49,12 +49,12 @@ export default function ClubMeetingDaysPanel() {
   );
 
   const goldOptions = useMemo(
-    () => memberships.filter((m) => isGoldDayClubSlug(m.clubSlug)),
+    () => memberships.filter((m) => canPickClubForGoldMeetingDay(m)),
     [memberships],
   );
 
   const maroonOptions = useMemo(
-    () => memberships.filter((m) => isMaroonDayClubSlug(m.clubSlug)),
+    () => memberships.filter((m) => canPickClubForMaroonMeetingDay(m)),
     [memberships],
   );
 
@@ -77,11 +77,19 @@ export default function ClubMeetingDaysPanel() {
         ]);
         if (cancelled) return;
         setMemberships(rows);
-        setGoldClubSlug(choices.goldClubSlug);
-        setMaroonClubSlug(choices.maroonClubSlug);
+        const goldOpts = rows.filter((m) => canPickClubForGoldMeetingDay(m));
+        const maroonOpts = rows.filter((m) => canPickClubForMaroonMeetingDay(m));
+        const nextGold = goldOpts.some((m) => m.clubSlug === choices.goldClubSlug)
+          ? choices.goldClubSlug
+          : "";
+        const nextMaroon = maroonOpts.some((m) => m.clubSlug === choices.maroonClubSlug)
+          ? choices.maroonClubSlug
+          : "";
+        setGoldClubSlug(nextGold);
+        setMaroonClubSlug(nextMaroon);
         setSavedChoices({
-          goldClubSlug: choices.goldClubSlug,
-          maroonClubSlug: choices.maroonClubSlug,
+          goldClubSlug: nextGold,
+          maroonClubSlug: nextMaroon,
           choicesUpdatedAt: choices.choicesUpdatedAt,
         });
       } catch (err) {
@@ -107,6 +115,7 @@ export default function ClubMeetingDaysPanel() {
         goldClubSlug,
         maroonClubSlug,
         joinedSlugs,
+        memberships,
       });
       const refreshed = await fetchMeetingChoices(user.uid);
       setSavedChoices({
@@ -143,9 +152,13 @@ export default function ClubMeetingDaysPanel() {
       <h2 className="text-lg font-bold text-neutral-900">Gold &amp; Maroon meeting clubs</h2>
       <p className="mt-2 text-sm text-neutral-700">
         Choose one club you attend on <strong>Gold (A) days</strong> and one on{" "}
-        <strong>Maroon (B) days</strong>, from clubs you have joined on the site. You can change
-        these anytime. Switching from one club to another has a <strong>30-minute</strong>{" "}
-        cooldown.
+        <strong>Maroon (B) days</strong>, from clubs you have joined on the site. Some clubs (e.g.{" "}
+        <strong>Interact</strong>, <strong>Key Club</strong>) appear under <strong>General</strong> in
+        the directory; look for <strong>(Board only)</strong> under Gold or Maroon for officer
+        meetings. <strong>Board-only</strong> picks here only show up if your
+        sponsor added you as a <strong>board member</strong> for that club. You can change these
+        anytime. Switching from one club to
+        another has a <strong>30-minute</strong> cooldown.
       </p>
 
       <ClubHubLiveMessage message={switchCooldownError} variant="alert" />

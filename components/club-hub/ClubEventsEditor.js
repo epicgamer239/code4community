@@ -6,11 +6,17 @@ import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { runEffectWork } from "@/hooks/runEffectWork";
 import {
   createClubEvent,
+  createClubEventsBatch,
   deleteClubEvent,
   fetchClubEventsForClub,
   formatEventDateLabel,
   updateClubEvent,
 } from "@/lib/club-hub/clubEvents";
+import {
+  expandRecurringEventDates,
+  LCPS_SCHOOL_YEAR_END,
+  WEEKDAY_LABELS,
+} from "@/lib/club-hub/recurringClubEvents";
 
 const MAROON = "#5c1417";
 
@@ -20,6 +26,10 @@ const EMPTY_FORM = {
   date: "",
   time: "3:15 PM",
   location: "",
+  recurrence: "none",
+  weeklyDays: /** @type {number[]} */ ([]),
+  monthlyMode: "same-weekday",
+  repeatUntil: LCPS_SCHOOL_YEAR_END,
 };
 
 /**
@@ -102,11 +112,13 @@ export default function ClubEventsEditor({
   const startEdit = (ev) => {
     setEditingId(ev.id);
     setForm({
+      ...EMPTY_FORM,
       title: ev.title,
       description: ev.description || "",
       date: ev.date,
       time: ev.time || "3:15 PM",
       location: ev.location || "",
+      recurrence: "none",
     });
     setMessage("");
     setError("");
@@ -132,9 +144,27 @@ export default function ClubEventsEditor({
       if (editingId) {
         await updateClubEvent({ ...payload, eventId: editingId });
         setMessage("Event updated.");
-      } else {
+      } else if (form.recurrence === "none") {
         await createClubEvent(payload);
         setMessage("Event added.");
+      } else {
+        const dates = expandRecurringEventDates({
+          startDate: form.date,
+          recurrence: form.recurrence,
+          weeklyDays:
+            form.recurrence === "weekly"
+              ? form.weeklyDays.length
+                ? form.weeklyDays
+                : [new Date(`${form.date}T12:00:00`).getDay()]
+              : [],
+          monthlyMode: form.monthlyMode,
+          endDate: form.repeatUntil,
+        });
+        if (dates.length === 0) {
+          throw new Error("No meeting dates in that range. Check the start date and repeat options.");
+        }
+        await createClubEventsBatch({ ...payload, dates });
+        setMessage(`Added ${dates.length} meeting${dates.length === 1 ? "" : "s"}.`);
       }
       await loadEvents();
       onChanged?.();
@@ -236,10 +266,122 @@ export default function ClubEventsEditor({
                 placeholder="What happens at this meeting?"
               />
             </div>
+            {!editingId ? (
+              <fieldset className="space-y-2 rounded-md border border-neutral-200 bg-white p-3">
+                <legend className="px-1 text-xs font-semibold text-neutral-700">Repeat</legend>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: "none", label: "One date" },
+                    { value: "weekly", label: "Weekly" },
+                    { value: "monthly", label: "Monthly" },
+                  ].map((opt) => (
+                    <label
+                      key={opt.value}
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-800"
+                    >
+                      <input
+                        type="radio"
+                        name="ev-recurrence"
+                        value={opt.value}
+                        checked={form.recurrence === opt.value}
+                        onChange={() =>
+                          setForm((f) => ({
+                            ...f,
+                            recurrence: opt.value,
+                            weeklyDays:
+                              opt.value === "weekly" && !f.weeklyDays.length && f.date
+                                ? [new Date(`${f.date}T12:00:00`).getDay()]
+                                : f.weeklyDays,
+                          }))
+                        }
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+                {form.recurrence === "weekly" ? (
+                  <div>
+                    <p className="text-[11px] font-semibold text-neutral-700">On these weekdays</p>
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {WEEKDAY_LABELS.map(({ value, label }) => {
+                        const checked = form.weeklyDays.includes(value);
+                        return (
+                          <label
+                            key={value}
+                            className={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium ${
+                              checked
+                                ? "border-[#5c1417] bg-rose-50 text-[#5c1417]"
+                                : "border-neutral-300 text-neutral-800"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={checked}
+                              onChange={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  weeklyDays: checked
+                                    ? f.weeklyDays.filter((d) => d !== value)
+                                    : [...f.weeklyDays, value].sort((a, b) => a - b),
+                                }))
+                              }
+                            />
+                            {label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1 text-[11px] text-neutral-600">
+                      Example: Debate &amp; Speech — select Wed and Thu for every week through the
+                      end of the school year.
+                    </p>
+                  </div>
+                ) : null}
+                {form.recurrence === "monthly" ? (
+                  <div className="space-y-2">
+                    <label className="block text-[11px] font-semibold text-neutral-700">
+                      Monthly pattern
+                    </label>
+                    <select
+                      value={form.monthlyMode}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          monthlyMode: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+                    >
+                      <option value="same-weekday">Same weekday (e.g. first Thursday)</option>
+                      <option value="same-date">Same date each month (e.g. the 15th)</option>
+                    </select>
+                    <p className="text-[11px] text-neutral-600">
+                      Uses the first date above as the anchor (weekday or day-of-month).
+                    </p>
+                  </div>
+                ) : null}
+                {form.recurrence !== "none" ? (
+                  <div>
+                    <label htmlFor="ev-repeat-until" className="block text-[11px] font-semibold text-neutral-700">
+                      Repeat through
+                    </label>
+                    <input
+                      id="ev-repeat-until"
+                      type="date"
+                      value={form.repeatUntil}
+                      max={LCPS_SCHOOL_YEAR_END}
+                      onChange={(e) => setForm((f) => ({ ...f, repeatUntil: e.target.value }))}
+                      className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                ) : null}
+              </fieldset>
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
                 <label htmlFor="ev-date" className="block text-xs font-semibold text-neutral-700">
-                  Date
+                  {form.recurrence !== "none" && !editingId ? "First date" : "Date"}
                 </label>
                 <input
                   id="ev-date"

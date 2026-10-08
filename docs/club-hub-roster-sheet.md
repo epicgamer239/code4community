@@ -21,7 +21,7 @@ curl -X POST https://code4community26.web.app/api/club-hub/admin/roster-sheet-bo
 ## Behavior
 
 - Join / leave on the site updates the club tab within a few seconds.
-- **Student meeting clubs** tab: name, Gold club, Maroon club — updates when a student saves on **Meeting days** (`/club-hub/meeting-days`).
+- **Student meeting clubs** tab: name, Gold club, Maroon club, optional **special seminar** columns (one per admin-created event), then hidden **User ID** — updates when a student saves on **Meeting days** (`/club-hub/meeting-days`) or when a coordinator adds a **Special seminar event** on **Club Hub admin**.
 - Hidden tab `_rosterMeta` and column **User ID** are for sync only.
 - If env is unset, join/leave still works; sheet sync is skipped.
 

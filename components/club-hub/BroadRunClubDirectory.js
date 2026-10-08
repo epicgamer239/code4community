@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { clubNameToSlug } from "@/lib/club-hub/broadRunClubDirectory";
 import { getClubsGroupedByMeetingDay } from "@/lib/club-hub/clubDirectorySections";
 /**
- * @param {{ clubs: { name: string }[], buttonClassName: string }} props
+ * @param {{ clubs: { name: string, slug: string, key: string }[], buttonClassName: string }} props
  */
 function ClubLinkGrid({ clubs, buttonClassName }) {
   if (!clubs.length) return null;
@@ -12,8 +11,8 @@ function ClubLinkGrid({ clubs, buttonClassName }) {
     <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-4">
       {clubs.map((club) => (
         <Link
-          key={club.name}
-          href={`/club-hub/directory/${clubNameToSlug(club.name)}`}
+          key={club.key}
+          href={`/club-hub/directory/${club.slug}`}
           className={`flex min-h-[3.5rem] items-center justify-center rounded-[10px] px-2 py-3 text-center text-[11px] font-semibold leading-snug text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5c1417] focus-visible:ring-offset-2 sm:min-h-[3.75rem] sm:text-xs md:text-sm ${buttonClassName}`}
         >
           <span className="line-clamp-4">{club.name}</span>

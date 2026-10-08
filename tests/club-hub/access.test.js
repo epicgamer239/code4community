@@ -38,17 +38,18 @@ describe("getEditableClubSlugsForUser", () => {
     expect(slugs.length).toBeGreaterThan(50);
   });
 
-  it("merges manual and directory access maps", () => {
+  it("merges manual, directory, and board access maps", () => {
     const slugs = getEditableClubSlugsForUser({
       email: "editor@lcps.org",
       userData: { role: "student" },
       accessRecord: {
         manualClubSlugs: { "chess-club": true },
         directoryClubSlugs: { robotics: true },
+        boardClubSlugs: { "tennis-club": true },
       },
       sponsorOverrides: null,
     });
-    expect(slugs).toEqual(["chess-club", "robotics"]);
+    expect(slugs).toEqual(["chess-club", "robotics", "tennis-club"]);
   });
 });
 
