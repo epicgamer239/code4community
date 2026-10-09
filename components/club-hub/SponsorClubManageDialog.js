@@ -46,6 +46,8 @@ export default function SponsorClubManageDialog({
   metrics,
   roster,
   rosterLoading,
+  rosterRemoveBusyUserId = null,
+  onRemoveRosterMember,
   onPanelChange,
   onClose,
   dialogMessage = "",

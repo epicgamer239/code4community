@@ -4,6 +4,8 @@ import {
   adminSetStudentMeetingChoices,
   adminSetStudentSpecialEventEnrollment,
   getStudentHubProfileForAdmin,
+  getStudentHubProfileForAdminByEmail,
+  listRegisteredStudentEmails,
   searchStudentsForAdmin,
 } from "@/lib/club-hub/adminStudentHubServer";
 import { removeClubMemberFromClub } from "@/lib/club-hub/membershipServer";
@@ -17,11 +19,22 @@ async function getHandler(request) {
   if (auth.error) return auth.error;
 
   const userId = request.nextUrl.searchParams.get("userId")?.trim() || "";
+  const email = request.nextUrl.searchParams.get("email")?.trim() || "";
   const q = request.nextUrl.searchParams.get("q")?.trim() || "";
+  const accountEmails =
+    request.nextUrl.searchParams.get("accountEmails") === "1";
 
   try {
+    if (accountEmails) {
+      const emails = await listRegisteredStudentEmails(auth.db);
+      return NextResponse.json({ emails });
+    }
     if (userId) {
       const profile = await getStudentHubProfileForAdmin(auth.db, userId);
+      return NextResponse.json(profile);
+    }
+    if (email) {
+      const profile = await getStudentHubProfileForAdminByEmail(auth.db, email);
       return NextResponse.json(profile);
     }
     if (q.length < 2) {

@@ -74,7 +74,7 @@ export default function BroadRunClubDirectory() {
         />
       </DirectorySection>
 
-      <DirectorySection id="club-directory-general" title="General">
+      <DirectorySection id="club-directory-general" title="General clubs">
         <ClubLinkGrid
           clubs={general}
           buttonClassName="bg-neutral-700 hover:bg-neutral-800"

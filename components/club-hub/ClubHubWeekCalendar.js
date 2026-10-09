@@ -114,6 +114,32 @@ function sameDay(a, b) {
   return dateKey(a) === dateKey(b);
 }
 
+/** @param {Date} day @param {Date} start @param {Date} end */
+function dayInRange(day, start, end) {
+  const k = dateKey(day);
+  return k >= dateKey(start) && k <= dateKey(end);
+}
+
+/** @param {Date} rangeStart @param {Date} rangeEnd @returns {Date | null} */
+function selectedDayAfterNav(rangeStart, rangeEnd) {
+  const today = todayStart();
+  if (dayInRange(today, rangeStart, rangeEnd)) return today;
+  return null;
+}
+
+/** @param {Date} focus @returns {Date | null} */
+function selectionForWeekFocus(focus) {
+  const weekStart = startOfWeekSunday(focus);
+  return selectedDayAfterNav(weekStart, addDays(weekStart, 6));
+}
+
+/** @param {Date} focus @returns {Date | null} */
+function selectionForMonthFocus(focus) {
+  const y = focus.getFullYear();
+  const m = focus.getMonth();
+  return selectedDayAfterNav(new Date(y, m, 1), new Date(y, m, daysInMonth(y, m)));
+}
+
 function todayStart() {
   const t = new Date();
   t.setHours(0, 0, 0, 0);
@@ -357,7 +383,7 @@ function MonthView({ year, month, selectedDay, onDayClick, eventsByDate }) {
   for (let d = 1; d <= totalDays; d++) cells.push(new Date(year, month, d));
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const selectedKey = dateKey(selectedDay);
+  const selectedKey = selectedDay ? dateKey(selectedDay) : "";
 
   return (
     <div className="border-t border-[#5c1417]/30 bg-white">
@@ -438,7 +464,8 @@ function MonthView({ year, month, selectedDay, onDayClick, eventsByDate }) {
 export default function ClubHubWeekCalendar() {
   const [view, setView] = useState("week");
   const [focusDate, setFocusDate] = useState(todayStart);
-  const [selectedDay, setSelectedDay] = useState(todayStart);
+  /** @type {[Date | null, import("react").Dispatch<import("react").SetStateAction<Date | null>>]} */
+  const [selectedDay, setSelectedDay] = useState(() => todayStart());
   const [eventsByDate, setEventsByDate] = useState({});
   const [detailDay, setDetailDay] = useState(null);
 
@@ -502,29 +529,31 @@ export default function ClubHubWeekCalendar() {
     };
   }, [visibleRange.start, visibleRange.end]);
 
-  const selectedIndex = days.findIndex((d) => sameDay(d, selectedDay));
+  const selectedIndex = selectedDay
+    ? days.findIndex((d) => sameDay(d, selectedDay))
+    : -1;
 
   const goPrev = () => {
     if (view === "week") {
-      const next = addDays(weekStart, -7);
-      setFocusDate(next);
-      setSelectedDay(next);
+      const nextFocus = addDays(weekStart, -7);
+      setFocusDate(nextFocus);
+      setSelectedDay(selectionForWeekFocus(nextFocus));
     } else {
-      const next = addMonths(focusDate, -1);
-      setFocusDate(next);
-      setSelectedDay(next);
+      const nextFocus = addMonths(focusDate, -1);
+      setFocusDate(nextFocus);
+      setSelectedDay(selectionForMonthFocus(nextFocus));
     }
   };
 
   const goNext = () => {
     if (view === "week") {
-      const next = addDays(weekStart, 7);
-      setFocusDate(next);
-      setSelectedDay(next);
+      const nextFocus = addDays(weekStart, 7);
+      setFocusDate(nextFocus);
+      setSelectedDay(selectionForWeekFocus(nextFocus));
     } else {
-      const next = addMonths(focusDate, 1);
-      setFocusDate(next);
-      setSelectedDay(next);
+      const nextFocus = addMonths(focusDate, 1);
+      setFocusDate(nextFocus);
+      setSelectedDay(selectionForMonthFocus(nextFocus));
     }
   };
 
@@ -588,7 +617,10 @@ export default function ClubHubWeekCalendar() {
             <div className="flex justify-center gap-2">
               <button
                 type="button"
-                onClick={() => setView("week")}
+                onClick={() => {
+                  setView("week");
+                  setSelectedDay(selectionForWeekFocus(focusDate));
+                }}
                 className={toggleBtn(view === "week")}
                 aria-pressed={view === "week"}
               >
@@ -596,7 +628,10 @@ export default function ClubHubWeekCalendar() {
               </button>
               <button
                 type="button"
-                onClick={() => setView("month")}
+                onClick={() => {
+                  setView("month");
+                  setSelectedDay(selectionForMonthFocus(focusDate));
+                }}
                 className={toggleBtn(view === "month")}
                 aria-pressed={view === "month"}
               >
@@ -695,7 +730,7 @@ export default function ClubHubWeekCalendar() {
                   const key = dateKey(day);
                   const list = eventsByDate[key] || [];
                   const noSchool = hasNoSchoolDay(list);
-                  const isSelected = sameDay(day, selectedDay);
+                  const isSelected = selectedDay ? sameDay(day, selectedDay) : false;
                   const dateStr = day.toLocaleDateString("en-US", {
                     weekday: "short",
                     month: "short",

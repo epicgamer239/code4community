@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useAuth } from "@/utils/AuthContext";
-import StudentHubAutocomplete from "@/components/club-hub/StudentHubAutocomplete";
+import StudentHubDirectory from "@/components/club-hub/StudentHubDirectory";
 import ClubHubLiveMessage from "@/components/club-hub/ClubHubLiveMessage";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { membershipHasBoardGroup } from "@/lib/club-hub/boardMembersClient";
@@ -16,6 +16,7 @@ import {
   adminRemoveStudentFromClubClient,
   adminSetStudentMeetingChoicesClient,
   adminSetStudentSpecialEventClient,
+  fetchStudentHubProfileByEmailClient,
   fetchStudentHubProfileClient,
 } from "@/lib/club-hub/adminStudentsClient";
 import { CLUB_HUB_MAROON } from "@/lib/club-hub/theme";
@@ -31,6 +32,13 @@ export default function ClubHubAdminStudentsPanel() {
   const [goldClubSlug, setGoldClubSlug] = useState("");
   const [maroonClubSlug, setMaroonClubSlug] = useState("");
 
+  const applyProfile = useCallback((data) => {
+    setProfile(data);
+    setSelectedUserId(data.userId || "");
+    setGoldClubSlug(data.meetingChoices?.goldClubSlug || "");
+    setMaroonClubSlug(data.meetingChoices?.maroonClubSlug || "");
+  }, []);
+
   const loadProfile = useCallback(
     async (userId) => {
       if (!user?.getIdToken || !userId) {
@@ -41,17 +49,41 @@ export default function ClubHubAdminStudentsPanel() {
       setError("");
       try {
         const data = await fetchStudentHubProfileClient(user, userId);
-        setProfile(data);
-        setGoldClubSlug(data.meetingChoices?.goldClubSlug || "");
-        setMaroonClubSlug(data.meetingChoices?.maroonClubSlug || "");
+        applyProfile(data);
       } catch (err) {
         setProfile(null);
+        setSelectedUserId("");
         setError(err.message || "Could not load student.");
       } finally {
         setLoading(false);
       }
     },
-    [user],
+    [user, applyProfile],
+  );
+
+  const openStudentFromDirectory = useCallback(
+    async ({ email, displayName }) => {
+      if (!user?.getIdToken || !email) return;
+      setLoading(true);
+      setError("");
+      setMessage("");
+      setProfile(null);
+      setSelectedUserId("");
+      try {
+        const data = await fetchStudentHubProfileByEmailClient(user, email);
+        applyProfile(data);
+      } catch (err) {
+        setProfile(null);
+        setSelectedUserId("");
+        setError(
+          err.message ||
+            `${displayName} has not created a site account yet.`,
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [user, applyProfile],
   );
 
   const goldOptions = useMemo(
@@ -131,35 +163,15 @@ export default function ClubHubAdminStudentsPanel() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-bold text-neutral-900">Find a student</h2>
-        <p className="mt-1 text-sm text-neutral-700">
-          Search by name or email to view clubs, meeting-day picks, and special seminar signups.
-        </p>
-      </div>
-
-      <section aria-labelledby="admin-student-search-heading">
-        <h3 id="admin-student-search-heading" className="text-base font-bold text-neutral-900">
-          Search a student
-        </h3>
-        <div className="mt-4 sm:max-w-md">
-          <StudentHubAutocomplete
-            user={user}
-            id="admin-student-search"
-            onSelect={(student) => {
-              if (!student.userId) return;
-              setSelectedUserId(student.userId);
-              setMessage("");
-              setError("");
-              void loadProfile(student.userId);
-            }}
-          />
-        </div>
-        {!selectedUserId ? (
-          <p className="mt-4 text-sm text-neutral-700">
-            Pick a student with a site account to manage their Club Hub data.
-          </p>
-        ) : null}
+      <section aria-label="Student directory">
+        <StudentHubDirectory
+          key={user?.uid || "signed-out"}
+          user={user}
+          selectedEmail={profile?.email || ""}
+          onSelect={(student) => {
+            void openStudentFromDirectory(student);
+          }}
+        />
       </section>
 
       <ClubHubLiveMessage message={error} variant="alert" />
