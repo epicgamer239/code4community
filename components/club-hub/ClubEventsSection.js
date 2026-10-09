@@ -3,6 +3,7 @@
 import { CLUB_HUB_MAROON_DARK } from "@/lib/club-hub/theme";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { formatEventDateLabel } from "@/lib/club-hub/clubEvents";
+import ClubEventDescriptionView from "@/components/club-hub/ClubEventDescriptionView";
 
 /**
  * @param {{
@@ -67,9 +68,7 @@ export default function ClubEventsSection({
                     {ev.location ? ` · ${ev.location}` : ""}
                   </p>
                   {ev.description ? (
-                    <p className="mt-2 whitespace-pre-wrap text-[15px] text-neutral-800">
-                      {ev.description}
-                    </p>
+                    <ClubEventDescriptionView description={ev.description} />
                   ) : null}
                 </li>
               ))}

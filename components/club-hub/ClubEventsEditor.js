@@ -17,6 +17,8 @@ import {
   LCPS_SCHOOL_YEAR_END,
   WEEKDAY_LABELS,
 } from "@/lib/club-hub/recurringClubEvents";
+import ClubEventDescriptionField from "@/components/club-hub/ClubEventDescriptionField";
+import ClubEventDescriptionView from "@/components/club-hub/ClubEventDescriptionView";
 
 const MAROON = "#5c1417";
 
@@ -211,7 +213,7 @@ export default function ClubEventsEditor({
         role="dialog"
         aria-modal="true"
         aria-labelledby="club-events-editor-title"
-        className="flex max-h-[min(90vh,720px)] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+        className="flex max-h-[min(90vh,780px)] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl"
       >
         <div className="flex items-start justify-between gap-3 border-b border-neutral-200 px-5 py-4">
           <div>
@@ -234,39 +236,74 @@ export default function ClubEventsEditor({
           <ClubHubLiveMessage message={error} variant="alert" />
           <ClubHubLiveMessage message={message} />
 
-          <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+          <form onSubmit={handleSubmit} className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 sm:p-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-neutral-700">
               {editingId ? "Edit event" : "Add event"}
             </p>
-            <div>
-              <label htmlFor="ev-title" className="block text-xs font-semibold text-neutral-700">
-                Title
-              </label>
-              <input
-                id="ev-title"
-                required
-                maxLength={120}
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                placeholder="Weekly meeting"
-              />
-            </div>
-            <div>
-              <label htmlFor="ev-desc" className="block text-xs font-semibold text-neutral-700">
-                Description (optional)
-              </label>
-              <textarea
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="ev-title" className="block text-xs font-semibold text-neutral-700">
+                  Title
+                </label>
+                <input
+                  id="ev-title"
+                  required
+                  maxLength={120}
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  placeholder="Weekly meeting"
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label htmlFor="ev-date" className="block text-xs font-semibold text-neutral-700">
+                    {form.recurrence !== "none" && !editingId ? "First date" : "Date"}
+                  </label>
+                  <input
+                    id="ev-date"
+                    type="date"
+                    required
+                    value={form.date}
+                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                    className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="ev-time" className="block text-xs font-semibold text-neutral-700">
+                    Time
+                  </label>
+                  <input
+                    id="ev-time"
+                    required
+                    maxLength={40}
+                    value={form.time}
+                    onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
+                    className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    placeholder="3:15 PM"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="ev-loc" className="block text-xs font-semibold text-neutral-700">
+                    Location
+                  </label>
+                  <input
+                    id="ev-loc"
+                    maxLength={120}
+                    value={form.location}
+                    onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+                    className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    placeholder="Room 204"
+                  />
+                </div>
+              </div>
+              <ClubEventDescriptionField
                 id="ev-desc"
-                rows={2}
-                maxLength={500}
                 value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                placeholder="What happens at this meeting?"
+                disabled={saving}
+                onChange={(description) => setForm((f) => ({ ...f, description }))}
               />
-            </div>
-            {!editingId ? (
+              {!editingId ? (
               <fieldset className="space-y-2 rounded-md border border-neutral-200 bg-white p-3">
                 <legend className="px-1 text-xs font-semibold text-neutral-700">Repeat</legend>
                 <div className="flex flex-wrap gap-2">
@@ -377,50 +414,9 @@ export default function ClubEventsEditor({
                   </div>
                 ) : null}
               </fieldset>
-            ) : null}
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div>
-                <label htmlFor="ev-date" className="block text-xs font-semibold text-neutral-700">
-                  {form.recurrence !== "none" && !editingId ? "First date" : "Date"}
-                </label>
-                <input
-                  id="ev-date"
-                  type="date"
-                  required
-                  value={form.date}
-                  onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                  className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label htmlFor="ev-time" className="block text-xs font-semibold text-neutral-700">
-                  Time
-                </label>
-                <input
-                  id="ev-time"
-                  required
-                  maxLength={40}
-                  value={form.time}
-                  onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
-                  className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                  placeholder="3:15 PM"
-                />
-              </div>
-              <div>
-                <label htmlFor="ev-loc" className="block text-xs font-semibold text-neutral-700">
-                  Location
-                </label>
-                <input
-                  id="ev-loc"
-                  maxLength={120}
-                  value={form.location}
-                  onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                  className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                  placeholder="Room 204"
-                />
-              </div>
+              ) : null}
             </div>
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="mt-4 flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
               <button
                 type="submit"
                 disabled={saving}
@@ -466,7 +462,10 @@ export default function ClubEventsEditor({
                         {ev.location ? ` · ${ev.location}` : ""}
                       </p>
                       {ev.description ? (
-                        <p className="mt-1 text-sm text-neutral-700">{ev.description}</p>
+                        <ClubEventDescriptionView
+                          description={ev.description}
+                          className="mt-1 text-sm text-neutral-700"
+                        />
                       ) : null}
                     </div>
                     <div className="flex shrink-0 gap-1">
