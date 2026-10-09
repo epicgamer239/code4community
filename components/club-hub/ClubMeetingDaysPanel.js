@@ -151,14 +151,8 @@ export default function ClubMeetingDaysPanel() {
     <div className={CLUB_HUB_CARD}>
       <h2 className="text-lg font-bold text-neutral-900">Gold &amp; Maroon meeting clubs</h2>
       <p className="mt-2 text-sm text-neutral-700">
-        Choose one club you attend on <strong>Gold (A) days</strong> and one on{" "}
-        <strong>Maroon (B) days</strong>, from clubs you have joined on the site. Some clubs (e.g.{" "}
-        <strong>Interact</strong>, <strong>Key Club</strong>) appear under <strong>General</strong> in
-        the directory; look for <strong>(Board only)</strong> under Gold or Maroon for officer
-        meetings. <strong>Board-only</strong> picks here only show up if your
-        sponsor added you as a <strong>board member</strong> for that club. You can change these
-        anytime. Switching from one club to
-        another has a <strong>30-minute</strong> cooldown.
+        Choose one club you attend on Gold days and one on Maroon days, from clubs you
+        have joined on the site.
       </p>
 
       <ClubHubLiveMessage message={switchCooldownError} variant="alert" />

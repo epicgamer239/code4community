@@ -11,6 +11,8 @@ export const firebaseConfig = {
   storageBucket: "",
   messagingSenderId: "",
   appId: "",
+  /** Optional: G-… from Firebase Console after enabling Google Analytics */
+  measurementId: "",
 };
 
 export const recaptchaSiteKey = null;

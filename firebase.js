@@ -28,7 +28,11 @@ import { getStorage } from "firebase/storage";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 import { firebaseConfig as devFirebaseConfig, recaptchaSiteKey as devRecaptchaSiteKey } from "./keys.dev.js";
-import { getPublicFirebaseConfig, getRecaptchaSiteKey } from "@/lib/firebase/config";
+import {
+  getFirebaseMeasurementId,
+  getPublicFirebaseConfig,
+  getRecaptchaSiteKey,
+} from "@/lib/firebase/config";
 
 const isDev = process.env.NODE_ENV === "development";
 /** `npm run preview:local` — production build against c4cdev (keys.dev.js), not code4community26. */

@@ -23,6 +23,17 @@
       function emailsMatch(a, b) {
         return normalizeEmail(a) == normalizeEmail(b) && normalizeEmail(a) != '';
       }
+
+      function clubHubStudentModeSelfOnly() {
+        return emailsMatch('1021676@lcps.org', request.auth.token.email);
+      }
+
+      function clubHubStudentModeFieldOk() {
+        return !('clubHubStudentMode' in request.resource.data) ||
+          (request.resource.data.clubHubStudentMode is bool &&
+            (request.resource.data.clubHubStudentMode == resource.data.get('clubHubStudentMode', false) ||
+              clubHubStudentModeSelfOnly()));
+      }
       
       function isValidRole(role) {
         return role in ['student', 'teacher', 'admin'];

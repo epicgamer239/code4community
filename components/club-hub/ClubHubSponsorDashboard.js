@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/utils/AuthContext";
 import ClubHubRostersPanel from "@/components/club-hub/ClubHubRostersPanel";
 import { getSortedClubOptions } from "@/lib/club-hub/broadRunClubDirectory";
 

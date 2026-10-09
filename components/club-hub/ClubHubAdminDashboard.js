@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/utils/AuthContext";
 import ClubHubLiveMessage from "@/components/club-hub/ClubHubLiveMessage";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
+import ClubHubAdminStudentsPanel from "@/components/club-hub/ClubHubAdminStudentsPanel";
 import ClubHubRostersPanel from "@/components/club-hub/ClubHubRostersPanel";
 import ClubHubSpecialSheetEventsPanel from "@/components/club-hub/ClubHubSpecialSheetEventsPanel";
 import { getSortedClubOptions } from "@/lib/club-hub/broadRunClubDirectory";
@@ -151,6 +152,17 @@ export default function ClubHubAdminDashboard() {
           <button
             type="button"
             role="tab"
+            id="club-hub-tab-students"
+            aria-selected={tab === "students"}
+            aria-controls="club-hub-panel-students"
+            onClick={() => setTab("students")}
+            className={tabBtn(tab === "students")}
+          >
+            Students
+          </button>
+          <button
+            type="button"
+            role="tab"
             id="club-hub-tab-special-events"
             aria-selected={tab === "special-events"}
             aria-controls="club-hub-panel-special-events"
@@ -173,6 +185,17 @@ export default function ClubHubAdminDashboard() {
           tabIndex={0}
         >
           <ClubHubSpecialSheetEventsPanel />
+        </div>
+      ) : null}
+
+      {tab === "students" ? (
+        <div
+          id="club-hub-panel-students"
+          role="tabpanel"
+          aria-labelledby="club-hub-tab-students"
+          tabIndex={0}
+        >
+          <ClubHubAdminStudentsPanel />
         </div>
       ) : null}
 

@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from "@/components/layout/ErrorBoundary";
+import FirebaseAnalytics from "@/components/common/FirebaseAnalytics";
 import { AuthProvider } from "@/utils/AuthContext";
 
 // Security headers are configured in next.config.mjs

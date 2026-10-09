@@ -32,7 +32,6 @@ import {
   leaveClub,
 } from "@/lib/club-hub/clubMemberships";
 import { notifyRosterSheetSync } from "@/lib/club-hub/notifyRosterSheetSync";
-import { clearMeetingChoiceForClub } from "@/lib/club-hub/clubMeetingChoices";
 import { notifyMeetingChoicesSheetSync } from "@/lib/club-hub/notifyMeetingChoicesSheetSync";
 import { resolveDisplayName } from "@/lib/profile";
 import {
@@ -258,7 +257,6 @@ export default function ClubDetailView({ club, slug }) {
     setError("");
     try {
       await leaveClub({ clubSlug: slug, userId: user.uid });
-      await clearMeetingChoiceForClub(user.uid, slug);
       await notifyMeetingChoicesSheetSync(user);
       await notifyRosterSheetSync(user, "leave", slug);
       setIsMember(false);

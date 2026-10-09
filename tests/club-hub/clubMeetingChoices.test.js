@@ -3,6 +3,8 @@ import { Timestamp } from "firebase/firestore";
 import {
   getMeetingChoiceSwitchError,
   meetingChoiceSwitchNeedsCooldown,
+  meetingChoicesAfterLeavingClub,
+  reconcileMeetingChoicesWithMemberships,
   MEETING_CHOICE_SWITCH_COOLDOWN_MS,
   validateMeetingChoices,
 } from "@/lib/club-hub/clubMeetingChoices";
@@ -51,6 +53,44 @@ describe("validateMeetingChoices", () => {
     expect(
       validateMeetingChoices({ goldClubSlug: "anime-club", maroonClubSlug: "" }, joined),
     ).toMatch(/Gold/);
+  });
+});
+
+describe("meetingChoicesAfterLeavingClub", () => {
+  it("clears gold or maroon when it matches the left club", () => {
+    expect(
+      meetingChoicesAfterLeavingClub(
+        { goldClubSlug: "deca", maroonClubSlug: "anime-club" },
+        "deca",
+      ),
+    ).toEqual({ goldClubSlug: "", maroonClubSlug: "anime-club", changed: true });
+    expect(
+      meetingChoicesAfterLeavingClub(
+        { goldClubSlug: "deca", maroonClubSlug: "anime-club" },
+        "anime-club",
+      ),
+    ).toEqual({ goldClubSlug: "deca", maroonClubSlug: "", changed: true });
+  });
+
+  it("no-ops when the club was not a meeting pick", () => {
+    expect(
+      meetingChoicesAfterLeavingClub(
+        { goldClubSlug: "deca", maroonClubSlug: "" },
+        "robotics",
+      ),
+    ).toEqual({ goldClubSlug: "deca", maroonClubSlug: "", changed: false });
+  });
+});
+
+describe("reconcileMeetingChoicesWithMemberships", () => {
+  it("clears picks for clubs the student no longer belongs to", () => {
+    const memberships = [{ clubSlug: "deca", memberGroups: [] }];
+    expect(
+      reconcileMeetingChoicesWithMemberships(
+        { goldClubSlug: "deca", maroonClubSlug: "robotics" },
+        memberships,
+      ),
+    ).toEqual({ goldClubSlug: "deca", maroonClubSlug: "", changed: true });
   });
 });
 

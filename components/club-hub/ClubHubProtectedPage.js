@@ -60,13 +60,21 @@ export default function ClubHubProtectedPage({
         <main id={CLUB_HUB_MAIN_ID} className="mx-auto max-w-lg px-4 py-16 text-center">
           <h1 className="text-xl font-bold text-neutral-900">{title}</h1>
           <p className="mt-2 text-sm text-neutral-700">{loginMessage}</p>
-          <Link
-            href={`/login?redirectTo=${encodeURIComponent(loginRedirect)}`}
-            className={`mt-5 inline-block rounded-md px-4 py-2 text-sm font-semibold text-white ${clubHubButtonFocusClass}`}
-            style={{ backgroundColor: CLUB_HUB_MAROON }}
-          >
-            Log in
-          </Link>
+          <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href={`/login?redirectTo=${encodeURIComponent(loginRedirect)}`}
+              className={`inline-block rounded-md px-4 py-2 text-sm font-semibold text-white ${clubHubButtonFocusClass}`}
+              style={{ backgroundColor: CLUB_HUB_MAROON }}
+            >
+              Log in
+            </Link>
+            <Link
+              href={`/signup?redirectTo=${encodeURIComponent(loginRedirect)}`}
+              className={`inline-block rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-900 ${clubHubButtonFocusClass}`}
+            >
+              Sign up
+            </Link>
+          </div>
         </main>
       </div>
     );

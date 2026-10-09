@@ -134,7 +134,8 @@
                             isValidWritingCenterRole(request.resource.data.writingCenterRole))) &&
                           (!('photoURL' in request.resource.data) || 
                             (request.resource.data.photoURL is string && 
-                            request.resource.data.photoURL.size() <= 500))) ||
+                            request.resource.data.photoURL.size() <= 500)) &&
+                          clubHubStudentModeFieldOk()) ||
                           // Product / site admins (built-in admins are protected)
                           (isSiteAdmin() && protectedAdminTeamFieldsUnchanged()) ||
                           (isMathLabAdmin() &&

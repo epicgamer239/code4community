@@ -5,6 +5,7 @@ import {
   clubMembershipDocId,
   normalizeClubMembership,
 } from "@/lib/club-hub/clubMemberships";
+import { syncStudentMeetingRowAfterClubLeave } from "@/lib/club-hub/meetingChoicesSheetSync";
 import {
   syncClubRosterMemberJoin,
   syncClubRosterMemberLeave,

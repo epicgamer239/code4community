@@ -53,7 +53,7 @@ function MathLabPageContent() {
       session.studentRequest.status === "accepted");
   const tutorDashboardBlocked =
     !isGuest && isTutor && !isStudentViewRoute && hasActiveStudentRequest;
-
+  
   if (loading || (!isGuest && !displayUser)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -85,7 +85,7 @@ function MathLabPageContent() {
   }
 
   if (hasActiveStudentRequest && (!isTutor || isStudentViewRoute)) {
-    return (
+      return (
       <MathLabStudentSessionView
         studentRequest={session.studentRequest}
         sessionStatus={session.sessionStatus}
@@ -111,8 +111,8 @@ function MathLabPageContent() {
   }
 
   const showTutorDashboard = !isGuest && isTutor && !isStudentViewRoute;
-
-  return (
+    
+    return (
     <MathLabPageShell
       className="h-screen overflow-hidden bg-background flex flex-col"
       contentClassName={`flex-1 flex min-h-0 w-full min-w-0 flex-col ml-0 md:ml-16 pb-16 md:pb-0 ${
@@ -173,8 +173,8 @@ function MathLabPageContent() {
             isMatching={session.isMatching}
             onMatchMe={session.handleMatchMe}
           />
-        )}
-      </div>
+              )}
+            </div>
     </MathLabPageShell>
   );
 }
@@ -183,12 +183,12 @@ export default function MathLabPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="text-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
+      </div>
       }
     >
       <MathLabPageContent />

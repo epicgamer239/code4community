@@ -5,6 +5,7 @@ import { useRunEffect } from "@/hooks/useRunEffect";
 import { useRouter } from "next/navigation";
 import { AppPageLayout, ContainerMain } from "@/components/common/AppPageLayout";
 import FullPageLoading from "@/components/common/FullPageLoading";
+import ClubHubStudentModeSettings from "@/components/settings/ClubHubStudentModeSettings";
 import { useAuth } from "@/utils/AuthContext";
 import {
   auth,
@@ -196,6 +197,8 @@ export default function SettingsPage() {
         <div className="max-w-2xl mx-auto">
           <h1 className="text-3xl font-bold text-foreground mb-2">Settings</h1>
           <p className="text-muted-foreground mb-8">Manage your account details.</p>
+
+          <ClubHubStudentModeSettings />
 
           <button
             type="button"

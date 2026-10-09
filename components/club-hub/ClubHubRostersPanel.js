@@ -7,6 +7,7 @@ import SponsorClubManageDialog from "@/components/club-hub/SponsorClubManageDial
 import { fetchAllUpcomingClubEvents } from "@/lib/club-hub/clubEvents";
 import { fetchMembershipCountMap } from "@/lib/club-hub/clubMembershipCounts";
 import { fetchClubMembershipRoster } from "@/lib/club-hub/clubMemberships";
+import { removeClubRosterMemberClient } from "@/lib/club-hub/rosterMembersClient";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 
 const MAROON = "#5c1417";
@@ -24,6 +25,7 @@ const MAROON = "#5c1417";
  *     user: { uid: string, getIdToken?: () => Promise<string> } | null,
  *     onAccessMutated: () => void | Promise<void>,
  *   },
+ *   user?: import("firebase/auth").User | null,
  * }} props
  */
 export default function ClubHubRostersPanel({
@@ -31,6 +33,7 @@ export default function ClubHubRostersPanel({
   clubOptions,
   allowedSlugs,
   adminAccess = null,
+  user = null,
 }) {
   const [selectedSlug, setSelectedSlug] = useState("");
   const [loading, setLoading] = useState(true);
@@ -46,6 +49,9 @@ export default function ClubHubRostersPanel({
   const [adminDialogPanel, setAdminDialogPanel] = useState("menu");
   const [dialogMessage, setDialogMessage] = useState("");
   const [dialogError, setDialogError] = useState("");
+  const [rosterRemoveBusyUserId, setRosterRemoveBusyUserId] = useState(null);
+
+  const rosterManagerUser = mode === "admin" ? adminAccess?.user ?? null : user;
 
   const visibleClubs = useMemo(() => {
     const allowed = new Set(allowedSlugs);
@@ -180,6 +186,44 @@ export default function ClubHubRostersPanel({
     setDialogError("");
   };
 
+  const handleRemoveRosterMember = async (member) => {
+    const clubSlug = dialogSlug;
+    if (!clubSlug || !rosterManagerUser?.getIdToken || !member?.userId) return;
+    const label = member.displayName || member.userEmail || "this student";
+    if (
+      !window.confirm(
+        `Remove ${label} from this club? They will need to join again to rejoin.`,
+      )
+    ) {
+      return;
+    }
+    setDialogError("");
+    setDialogMessage("");
+    setRosterRemoveBusyUserId(member.userId);
+    try {
+      await removeClubRosterMemberClient(rosterManagerUser, {
+        clubSlug,
+        userId: member.userId,
+      });
+      const rows = await fetchClubMembershipRoster(clubSlug);
+      setRoster(rows);
+      await loadSummary();
+      setDialogMessage(`${label} was removed from the club.`);
+    } catch (err) {
+      setDialogError(err.message || "Could not remove member.");
+    } finally {
+      setRosterRemoveBusyUserId(null);
+    }
+  };
+
+  const rosterRemoveProps =
+    rosterManagerUser?.getIdToken
+      ? {
+          rosterRemoveBusyUserId,
+          onRemoveRosterMember: handleRemoveRosterMember,
+        }
+      : {};
+
   return (
     <div className="space-y-6">
       <div>
@@ -243,6 +287,9 @@ export default function ClubHubRostersPanel({
             rosterLoading={rosterLoading}
             onPanelChange={setSponsorDialogPanel}
             onClose={closeSponsorDialog}
+            dialogMessage={dialogMessage}
+            dialogError={dialogError}
+            {...rosterRemoveProps}
           />
         </>
       ) : (
@@ -300,6 +347,7 @@ export default function ClubHubRostersPanel({
             onClose={closeAdminDialog}
             dialogMessage={dialogMessage}
             dialogError={dialogError}
+            {...rosterRemoveProps}
             adminAccess={
               adminAccess
                 ? {

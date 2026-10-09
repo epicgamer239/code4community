@@ -73,7 +73,9 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
   };
 
   const displayName = user?.displayName || user?.email?.split("@")[0] || "Account";
-  const loginHref = `/login?redirectTo=${encodeURIComponent(loginRedirect)}`;
+  const authRedirectQuery = `redirectTo=${encodeURIComponent(loginRedirect)}`;
+  const loginHref = `/login?${authRedirectQuery}`;
+  const signupHref = `/signup?${authRedirectQuery}`;
 
   const menuId = "club-hub-account-menu";
 
@@ -148,9 +150,17 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
               )}
             </>
           ) : (
-            <Link href={loginHref} className={clubHubNavLinkClass}>
-              Log in
-            </Link>
+            <span className="inline-flex flex-wrap items-center justify-center gap-x-1">
+              <Link href={loginHref} className={clubHubNavLinkClass}>
+                Log in
+              </Link>
+              <span className="text-white/85" aria-hidden>
+                /
+              </span>
+              <Link href={signupHref} className={clubHubNavLinkClass}>
+                sign up
+              </Link>
+            </span>
           )}
         </div>
       </div>

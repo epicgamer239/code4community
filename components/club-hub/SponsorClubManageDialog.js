@@ -21,6 +21,8 @@ import { formatJoinedAt } from "@/lib/club-hub/clubMemberships";
  *   metrics: { members: number, upcomingEvents: number } | null,
  *   roster: import("@/lib/club-hub/clubMemberships.js").NormalizedClubMembership[],
  *   rosterLoading: boolean,
+ *   rosterRemoveBusyUserId?: string | null,
+ *   onRemoveRosterMember?: (member: import("@/lib/club-hub/clubMemberships.js").NormalizedClubMembership) => void | Promise<void>,
  *   onPanelChange: (panel: ClubManageDialogPanel) => void,
  *   onClose: () => void,
  *   dialogMessage?: string,
@@ -194,11 +196,18 @@ export default function SponsorClubManageDialog({
                       <th className="py-2 pr-3 font-semibold">Name</th>
                       <th className="py-2 pr-3 font-semibold">Email</th>
                       <th className="py-2 pr-3 font-semibold">Joined</th>
-                      <th className="py-2 font-semibold">Groups</th>
+                      <th className="py-2 pr-3 font-semibold">Groups</th>
+                      {onRemoveRosterMember ? (
+                        <th className="py-2 font-semibold">
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
-                    {roster.map((member) => (
+                    {roster.map((member) => {
+                      const removeBusy = rosterRemoveBusyUserId === member.userId;
+                      return (
                       <tr key={member.id}>
                         <td className="py-2 pr-3 font-medium text-neutral-900">
                           {member.displayName || "—"}
@@ -209,11 +218,25 @@ export default function SponsorClubManageDialog({
                         <td className="py-2 pr-3 text-neutral-700">
                           {formatJoinedAt(member.joinedAt)}
                         </td>
-                        <td className="py-2 text-neutral-700">
+                        <td className="py-2 pr-3 text-neutral-700">
                           {membershipHasBoardGroup(member.memberGroups) ? "Board" : "—"}
                         </td>
+                        {onRemoveRosterMember ? (
+                          <td className="py-2 text-right">
+                            <button
+                              type="button"
+                              disabled={Boolean(rosterRemoveBusyUserId)}
+                              aria-busy={removeBusy}
+                              onClick={() => onRemoveRosterMember(member)}
+                              className={`rounded-md px-2 py-1 text-xs font-semibold text-red-800 hover:bg-red-50 disabled:opacity-50 ${clubHubButtonFocusClass}`}
+                            >
+                              {removeBusy ? "Removing…" : "Remove"}
+                            </button>
+                          </td>
+                        ) : null}
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>
