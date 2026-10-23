@@ -4,6 +4,59 @@ import { AppPageLayout } from "@/components/common/AppPageLayout";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useRunEffect } from "@/hooks/useRunEffect";
 
+// LCPS secondary weighting; Synergy's chart view doesn't copy as text, so this is usually what applies.
+const DEFAULT_WEIGHTS = {
+  "Major Summative": 80,
+  "Minor Summative": 10,
+  "Graded Formative": 10,
+  "Formative Assessment": 10,
+  "Extra Credit": 0,
+  "Other": 0
+};
+
+// Synergy category names vary by school ("Graded Formative" vs "Formative Assessment", etc.).
+const CATEGORY_PATTERN = /^((Major|Minor|Graded|Diagnostic)\s+(Summative|Formative)|(Formative|Summative)\s+Assessments?)$/i;
+
+const toNumber = (value) => (value === "" ? 0 : (value || 0));
+
+// Points-based within each category, then weighted across categories that have graded work.
+const calculateGrade = (assignmentsToCalculate, weights, useWeighted) => {
+  if (assignmentsToCalculate.length === 0) return 0;
+
+  const extraCreditTotal = assignmentsToCalculate
+    .filter(a => a.category === "Extra Credit")
+    .reduce((sum, a) => sum + toNumber(a.earned), 0);
+  const regularAssignments = assignmentsToCalculate.filter(a => a.category !== "Extra Credit");
+
+  if (!useWeighted) {
+    const totalEarned = regularAssignments.reduce((sum, a) => sum + toNumber(a.earned), 0);
+    const totalPossible = regularAssignments.reduce((sum, a) => sum + toNumber(a.possible), 0);
+    const baseGrade = totalPossible > 0 ? (totalEarned / totalPossible) * 100 : 0;
+    return baseGrade + extraCreditTotal;
+  }
+
+  const categoryGroups = {};
+  regularAssignments.forEach(a => {
+    if (!categoryGroups[a.category]) categoryGroups[a.category] = { earned: 0, possible: 0 };
+    categoryGroups[a.category].earned += toNumber(a.earned);
+    categoryGroups[a.category].possible += toNumber(a.possible);
+  });
+
+  let totalWeightedScore = 0;
+  let totalWeight = 0;
+  Object.keys(categoryGroups).forEach(category => {
+    const { earned, possible } = categoryGroups[category];
+    const weight = Number(weights[category]) || 0;
+    if (possible > 0 && weight > 0) {
+      totalWeightedScore += (earned / possible) * 100 * weight;
+      totalWeight += weight;
+    }
+  });
+
+  const baseGrade = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
+  return baseGrade + extraCreditTotal;
+};
+
 export default function GradeCalculator() {
   useLayoutEffect(() => {
     document.title = "Code4Community | Grade Calculator";
@@ -13,34 +66,28 @@ export default function GradeCalculator() {
   const [assignments, setAssignments] = useState([]);
   const [originalAssignments, setOriginalAssignments] = useState([]);
   const [courseName, setCourseName] = useState("");
-  const [currentGrade, setCurrentGrade] = useState("");
-  const [currentPercent, setCurrentPercent] = useState(0);
-  const [categoryWeights, setCategoryWeights] = useState({
-    "Major Summative": 50,
-    "Minor Summative": 40,
-    "Graded Formative": 10,
-    "Extra Credit": 0,
-    "Other": 0
-  });
+  const [reportedGrade, setReportedGrade] = useState("");
+  const [reportedPercent, setReportedPercent] = useState(0);
+  const [categoryWeights, setCategoryWeights] = useState(DEFAULT_WEIGHTS);
   const [useWeightedGrading, setUseWeightedGrading] = useState(true);
-  const [visibleCategories, setVisibleCategories] = useState({
-    "Major Summative": true,
-    "Minor Summative": true,
-    "Graded Formative": true,
-    "Extra Credit": true,
-    "Other": true
-  });
+  const [hiddenCategories, setHiddenCategories] = useState([]);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showWeightPlanModal, setShowWeightPlanModal] = useState(false);
   const isClient = useIsClient();
-  const [selectedWeightPlan, setSelectedWeightPlan] = useState("50/40/10");
+  // A plan key, "Other" (custom), or "Gradebook" when weights were read from the paste
+  const [selectedWeightPlan, setSelectedWeightPlan] = useState("80/10/10");
   const [customWeights, setCustomWeights] = useState({
-    "Major Summative": 50,
-    "Minor Summative": 40,
+    "Major Summative": 80,
+    "Minor Summative": 10,
     "Graded Formative": 10
   });
 
   const WEIGHT_PLANS = {
+    "80/10/10": {
+      name: "LCPS (80/10/10)",
+      weights: { "Major Summative": 80, "Minor Summative": 10, "Graded Formative": 10 },
+      description: "LCPS secondary default: Major assessments 80%, Minor assessments 10%, Formatives 10%"
+    },
     "50/40/10": {
       name: "Standard (50/40/10)",
       weights: { "Major Summative": 50, "Minor Summative": 40, "Graded Formative": 10 },
@@ -95,9 +142,19 @@ export default function GradeCalculator() {
                             'Course History', 'Grade Book', 'MTSS', 'School Information', 
                             'Student Info', 'Test History', 'Documents', 'Totals'];
 
+    // Category names come from the built-in list, the common Synergy patterns, and any weights row in the paste.
+    const knownCategories = new Set(Object.keys(DEFAULT_WEIGHTS).map(c => c.toLowerCase()));
+    const matchCategory = (s) => {
+      const t = s.trim().replace(/\s+/g, " ");
+      if (!t) return null;
+      if (knownCategories.has(t.toLowerCase()) || CATEGORY_PATTERN.test(t)) {
+        const known = Object.keys({ ...DEFAULT_WEIGHTS, ...parsedWeights }).find(c => c.toLowerCase() === t.toLowerCase());
+        return known || t.replace(/\b\w/g, ch => ch.toUpperCase());
+      }
+      return null;
+    };
     // Synergy uses lines like "Major Summative" as categories but assignment titles can include "Summative" (e.g. "Summative Polar").
-    const isSynergyCategoryHeaderLine = (s) =>
-      /^(Major|Minor|Graded|Diagnostic)\s+(Summative|Formative)\b/i.test(s.trim());
+    const isSynergyCategoryHeaderLine = (s) => !!matchCategory(s.split("\t")[0]);
     const isSynergyScoreMetadataLine = (s) =>
       /^(Raw\s+Score|Percentage)\b/i.test(s.trim());
     const isPlausibleAssignmentTitleLine = (s) => {
@@ -106,6 +163,7 @@ export default function GradeCalculator() {
       if (/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(t)) return false;
       if (isSynergyCategoryHeaderLine(t)) return false;
       if (isSynergyScoreMetadataLine(t)) return false;
+      if (/\d\s+out\s+of\s+\d/i.test(t)) return false;
       return true;
     };
 
@@ -129,70 +187,37 @@ export default function GradeCalculator() {
       }
     }
     
-    // Parse Grade Calculation Summary for category weights
+    // Parse category weights from the summary/grid table, e.g. "Major Summative	60%	299.00	300.00"
+    // or "Formative Assessment	10.00%	...". A header row naming a "Weight" / "% of Grade" column picks
+    // which percentage is the weight; otherwise the first percentage after the category name is used.
     let foundSummary = false;
+    let weightColumn = -1;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      
+      if (/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}/.test(line)) continue;
+
       if (line.includes("Grade Calculation Summary")) {
         foundSummary = true;
         continue;
       }
-      
-      if (foundSummary) {
-        // Stop parsing summary when we hit "Assignments" or a blank line
-        if (line.includes("Assignments") || line.trim() === "") {
-          foundSummary = false;
-          continue;
-        }
-        
-        // Skip TOTAL line
-        if (line.includes("TOTAL")) {
-          continue;
-        }
-        
-        // Parse category weight lines: "Major Summative	60%	299.00	300.00" or "Major Summative 60% 299.00 300.00"
-        // Handle both tab-separated and space-separated data
-        let weightFound = false;
-        const parts = line.split(/\t|\s{2,}/).filter(p => p.trim());
-        if (parts.length >= 2) {
-          const categoryName = parts[0].trim();
-          const weightMatch = parts[1].match(/(\d+)%/);
-          
-          if (weightMatch) {
-            const weight = parseInt(weightMatch[1]);
-            
-            // Map to our category names
-            if (categoryName.includes("Major Summative")) {
-              parsedWeights["Major Summative"] = weight;
-              weightFound = true;
-            } else if (categoryName.includes("Minor Summative")) {
-              parsedWeights["Minor Summative"] = weight;
-              weightFound = true;
-            } else if (categoryName.includes("Graded Formative")) {
-              parsedWeights["Graded Formative"] = weight;
-              weightFound = true;
-            }
-          }
-        }
-        
-        // Fallback: Try regex pattern for space-separated data
-        if (!weightFound) {
-          const weightMatch = line.match(/([A-Za-z\s]+?)\s+(\d+)%\s+[\d.]+\s+[\d.]+/);
-          if (weightMatch) {
-            const categoryName = weightMatch[1].trim();
-            const weight = parseInt(weightMatch[2]);
-            
-            // Map to our category names
-            if (categoryName.includes("Major Summative")) {
-              parsedWeights["Major Summative"] = weight;
-            } else if (categoryName.includes("Minor Summative")) {
-              parsedWeights["Minor Summative"] = weight;
-            } else if (categoryName.includes("Graded Formative")) {
-              parsedWeights["Graded Formative"] = weight;
-            }
-          }
-        }
+      if (line.includes("Assignments")) foundSummary = false;
+
+      const parts = line.split(/\t|\s{2,}/).map(p => p.trim()).filter(Boolean);
+      const headerIndex = parts.findIndex(p => /^(weight|% of grade)$/i.test(p));
+      if (headerIndex > 0) {
+        weightColumn = headerIndex;
+        continue;
+      }
+      if (parts.length < 2 || /TOTAL/i.test(parts[0])) continue;
+
+      const categoryName = matchCategory(parts[0]) || (foundSummary ? parts[0] : null);
+      if (!categoryName) continue;
+
+      const weightCell = weightColumn > 0 ? parts[weightColumn] : parts.slice(1).find(p => /%$/.test(p));
+      const weightMatch = weightCell && weightCell.match(/^(\d+(?:\.\d+)?)%$/);
+      if (weightMatch) {
+        parsedWeights[categoryName] = parseFloat(weightMatch[1]);
+        knownCategories.add(categoryName.toLowerCase());
       }
     }
     
@@ -270,7 +295,8 @@ export default function GradeCalculator() {
             }
             
             // Skip navigation items
-            if (navigationItems.some(item => nextLine.includes(item))) {
+            // Exact match only: titles like "Homework Unit 2" contain nav words such as "Home"
+            if (navigationItems.includes(nextLine.replace(/^(gs\s+)?icon\s+/i, ""))) {
               j++;
               continue;
             }
@@ -311,19 +337,22 @@ export default function GradeCalculator() {
             
             // Extract category
             if (!categoryFound) {
-              if (nextLine.includes("Major Summative")) {
-                category = "Major Summative";
-                categoryFound = true;
-              } else if (nextLine.includes("Minor Summative")) {
-                category = "Minor Summative";
-                categoryFound = true;
-              } else if (nextLine.includes("Graded Formative")) {
-                category = "Graded Formative";
+              const matched = nextLine.split('\t').map(matchCategory).find(Boolean);
+              if (matched) {
+                category = matched;
                 categoryFound = true;
               }
             }
             
             // Extract score - try multiple formats (keep trying even after name/category found)
+            // "Raw Score	X.XX/Y.YYY" is the points value that counts toward the grade. It can differ from the
+            // displayed "X out of Y" (e.g. "39 out of 40" worth 9.75/10), so it overrides any earlier match.
+            const rawScoreMatch = nextLine.match(/(?:Raw\s+Score|Percentage)\s+(\d+\.?\d*)\/(\d+\.?\d*)/i);
+            if (rawScoreMatch) {
+              earned = parseFloat(rawScoreMatch[1]);
+              possible = parseFloat(rawScoreMatch[2]);
+              foundScore = true;
+            }
             if (!foundScore) {
               // Format 1: "X out of Y" - example: "105 out of 100.0000"
               const outOfMatch = nextLine.match(/(\d+\.?\d*)\s+out\s+of\s+(\d+\.?\d*)/i);
@@ -332,17 +361,7 @@ export default function GradeCalculator() {
                 possible = parseFloat(outOfMatch[2]);
                 foundScore = true;
               }
-              
-              // Format 2: "Raw Score	X.XX/Y.YYY"
-              if (!foundScore) {
-                const rawScoreMatch = nextLine.match(/(?:Raw\s+Score|Percentage)\s+(\d+\.?\d*)\/(\d+\.?\d*)/i);
-                if (rawScoreMatch) {
-                  earned = parseFloat(rawScoreMatch[1]);
-                  possible = parseFloat(rawScoreMatch[2]);
-                  foundScore = true;
-                }
-              }
-              
+
               // Format 3: "X.XX/Y.YYY" (but not dates)
               if (!foundScore) {
                 const scoreMatch = nextLine.match(/(\d+\.?\d*)\/(\d+\.?\d*)/);
@@ -409,19 +428,6 @@ export default function GradeCalculator() {
               assignmentName = `Assignment ${parsedAssignments.length + 1}`;
             }
             
-            // If we don't have a category, try to infer from context or use "Other"
-            if (category === "Other") {
-              // Look in the context for category hints
-              const contextText = lines.slice(i, Math.min(i + 10, lines.length)).join(' ');
-              if (contextText.includes("Major Summative")) {
-                category = "Major Summative";
-              } else if (contextText.includes("Minor Summative")) {
-                category = "Minor Summative";
-              } else if (contextText.includes("Graded Formative")) {
-                category = "Graded Formative";
-              }
-            }
-            
             // Check for duplicates
             const isDuplicate = parsedAssignments.some(a => 
               a.date === date && a.name === assignmentName && Math.abs(a.earned - earned) < 0.01
@@ -479,14 +485,15 @@ export default function GradeCalculator() {
             const earned = parseFloat(outOfMatch[1]);
             const possible = parseFloat(outOfMatch[2]);
             
-            // Find category
+            // Find category (only within this assignment's lines, not the next one's)
             let category = "Other";
-            if (contextLines.includes("Major Summative")) {
-              category = "Major Summative";
-            } else if (contextLines.includes("Minor Summative")) {
-              category = "Minor Summative";
-            } else if (contextLines.includes("Graded Formative")) {
-              category = "Graded Formative";
+            for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+              if (/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}/.test(lines[j])) break;
+              const matched = lines[j].split('\t').map(matchCategory).find(Boolean);
+              if (matched) {
+                category = matched;
+                break;
+              }
             }
             
             // Skip if diagnostic or not graded
@@ -566,125 +573,48 @@ export default function GradeCalculator() {
     return "F";
   };
 
-  // Calculate grade from assignments and weights
-  const calculateGradeFromAssignments = (assignmentsToCalculate, weightsToUse, useWeighted) => {
-    if (assignmentsToCalculate.length === 0) return { percent: 0, letter: "F" };
-    
-    if (useWeighted) {
-      // Calculate weighted grade by category
-      const categoryGroups = {};
-      
-      // Group assignments by category
-      assignmentsToCalculate.forEach(assignment => {
-        if (!categoryGroups[assignment.category]) {
-          categoryGroups[assignment.category] = { earned: 0, possible: 0 };
-        }
-        // Handle empty strings as 0
-        const earned = assignment.earned === "" ? 0 : (assignment.earned || 0);
-        const possible = assignment.possible === "" ? 0 : (assignment.possible || 0);
-        categoryGroups[assignment.category].earned += earned;
-        categoryGroups[assignment.category].possible += possible;
-      });
-      
-      // Calculate weighted average
-      let totalWeightedScore = 0;
-      let totalWeight = 0;
-      
-      Object.keys(categoryGroups).forEach(category => {
-        const { earned, possible } = categoryGroups[category];
-        const weight = weightsToUse[category] || 0;
-        
-        if (possible > 0 && weight > 0) {
-          const categoryPercent = (earned / possible) * 100;
-          totalWeightedScore += categoryPercent * weight;
-          totalWeight += weight;
-        }
-      });
-      
-      const baseGrade = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
-      // Add extra credit from assignments
-      const extraCreditTotal = assignmentsToCalculate
-        .filter(a => a.category === "Extra Credit")
-        .reduce((sum, a) => sum + (a.earned === "" ? 0 : (a.earned || 0)), 0);
-      
-      const percent = baseGrade + extraCreditTotal;
-      return { percent, letter: getLetterGrade(percent) };
-    } else {
-      // Simple average (all points equal weight)
-      const regularAssignments = assignmentsToCalculate.filter(a => a.category !== "Extra Credit");
-      const extraCreditTotal = assignmentsToCalculate
-        .filter(a => a.category === "Extra Credit")
-        .reduce((sum, a) => sum + (a.earned === "" ? 0 : (a.earned || 0)), 0);
-      
-      const totalEarned = regularAssignments.reduce((sum, a) => sum + (a.earned === "" ? 0 : (a.earned || 0)), 0);
-      const totalPossible = regularAssignments.reduce((sum, a) => sum + (a.possible === "" ? 0 : (a.possible || 0)), 0);
-      
-      const baseGrade = totalPossible > 0 ? (totalEarned / totalPossible) * 100 : 0;
-      const percent = baseGrade + extraCreditTotal;
-      return { percent, letter: getLetterGrade(percent) };
-    }
-  };
-
   const handleParse = () => {
     if (!pastedText.trim()) {
       alert("Please paste your gradebook data first");
       return;
     }
-    
+
     const parsed = parseGradebook(pastedText);
-    
-    // Update category weights if found in the gradebook
-    const finalWeights = { ...categoryWeights };
-    if (parsed.weights && Object.keys(parsed.weights).length > 0) {
-      Object.assign(finalWeights, parsed.weights);
-    }
-    
-    // Recalculate actual current grade from parsed assignments
-    const calculatedGrade = calculateGradeFromAssignments(
-      parsed.assignments,
-      finalWeights,
-      useWeightedGrading
-    );
-    
+    const hasParsedWeights = Object.keys(parsed.weights).length > 0;
+
     setCourseName(parsed.courseName);
-    setCurrentGrade(calculatedGrade.letter);
-    setCurrentPercent(calculatedGrade.percent);
+    setReportedGrade(parsed.currentGrade);
+    setReportedPercent(parsed.currentPercent);
     setAssignments(parsed.assignments.map(a => ({ ...a, isHypothetical: false })));
     // Store original assignments for comparison
     setOriginalAssignments(parsed.assignments.map(a => ({ ...a, isHypothetical: false })));
-    
-    // Update category weights
-    if (parsed.weights && Object.keys(parsed.weights).length > 0) {
-      setCategoryWeights(prev => ({
-        ...prev,
-        ...parsed.weights
-      }));
+    setHiddenCategories([]);
+
+    // The gradebook's own weights win over the chosen plan, so stale defaults don't leak in
+    if (hasParsedWeights) {
+      setCategoryWeights({ ...parsed.weights, "Extra Credit": 0, "Other": 0 });
+      setSelectedWeightPlan("Gradebook");
       setUseWeightedGrading(true);
     }
+  };
+
+  // Plans name a single formative weight; apply it to both Synergy formative category names
+  const applyPlanWeights = (weights) => {
+    setCategoryWeights({
+      ...DEFAULT_WEIGHTS,
+      ...weights,
+      "Formative Assessment": weights["Graded Formative"]
+    });
+    setUseWeightedGrading(true);
   };
 
   const handleWeightPlanSelect = (planKey) => {
     if (planKey === "Other") {
       setSelectedWeightPlan("Other");
     } else {
-      const plan = WEIGHT_PLANS[planKey];
-      setCategoryWeights(prev => ({
-        ...prev,
-        ...plan.weights
-      }));
-      setUseWeightedGrading(true);
+      applyPlanWeights(WEIGHT_PLANS[planKey].weights);
       setSelectedWeightPlan(planKey);
       setShowWeightPlanModal(false);
-      
-      if (assignments.length > 0) {
-        const recalculatedGrade = calculateGradeFromAssignments(
-          assignments.filter(a => !a.isHypothetical),
-          plan.weights,
-          true
-        );
-        setCurrentGrade(recalculatedGrade.letter);
-        setCurrentPercent(recalculatedGrade.percent);
-      }
     }
   };
 
@@ -706,43 +636,27 @@ export default function GradeCalculator() {
       return;
     }
     
-    setCategoryWeights(prev => ({
-      ...prev,
-      ...customWeights
-    }));
-    setUseWeightedGrading(true);
+    applyPlanWeights(customWeights);
     setShowWeightPlanModal(false);
-    
-    if (assignments.length > 0) {
-      const recalculatedGrade = calculateGradeFromAssignments(
-        assignments.filter(a => !a.isHypothetical),
-        customWeights,
-        true
-      );
-      setCurrentGrade(recalculatedGrade.letter);
-      setCurrentPercent(recalculatedGrade.percent);
-    }
   };
 
   const updateAssignment = (id, field, value) => {
-    const newAssignments = assignments.map(a => 
-      a.id === id ? { ...a, [field]: value } : a
-    );
-    setAssignments(newAssignments);
-    
-    // Recalculate current grade when category changes (only for non-hypothetical assignments)
-    if (field === 'category') {
-      const assignment = assignments.find(a => a.id === id);
-      if (assignment && !assignment.isHypothetical) {
-        const recalculatedGrade = calculateGradeFromAssignments(
-          newAssignments.filter(a => !a.isHypothetical),
-          categoryWeights,
-          useWeightedGrading
-        );
-        setCurrentGrade(recalculatedGrade.letter);
-        setCurrentPercent(recalculatedGrade.percent);
-      }
+    setAssignments(assignments.map(a =>
+      a.id === id
+        ? { ...a, [field]: value }
+        : a
+    ));
+    // Changing a category corrects the import, so it also applies to the current grade
+    if (field === "category") {
+      setOriginalAssignments(originalAssignments.map(a =>
+        a.id === id ? { ...a, category: value } : a
+      ));
     }
+  };
+
+  const updateCategoryWeight = (category, value) => {
+    setCategoryWeights({ ...categoryWeights, [category]: value === "" ? "" : parseFloat(value) || 0 });
+    setSelectedWeightPlan("Other");
   };
 
   const updateAssignmentScore = (id, newEarned, newPossible) => {
@@ -849,62 +763,19 @@ export default function GradeCalculator() {
     setAssignments(assignments.filter(a => a.id !== id));
   };
 
-  // Calculate new grade based on edited assignments
-  const calculateNewGrade = () => {
-    if (assignments.length === 0) return 0;
-    
-    if (useWeightedGrading) {
-      // Calculate weighted grade by category
-      const categoryGroups = {};
-      
-      // Group assignments by category
-      assignments.forEach(assignment => {
-        if (!categoryGroups[assignment.category]) {
-          categoryGroups[assignment.category] = { earned: 0, possible: 0 };
-        }
-        // Handle empty strings as 0
-        const earned = assignment.earned === "" ? 0 : (assignment.earned || 0);
-        const possible = assignment.possible === "" ? 0 : (assignment.possible || 0);
-        categoryGroups[assignment.category].earned += earned;
-        categoryGroups[assignment.category].possible += possible;
-      });
-      
-      // Calculate weighted average
-      let totalWeightedScore = 0;
-      let totalWeight = 0;
-      
-      Object.keys(categoryGroups).forEach(category => {
-        const { earned, possible } = categoryGroups[category];
-        const weight = categoryWeights[category] || 0;
-        
-        if (possible > 0 && weight > 0) {
-          const categoryPercent = (earned / possible) * 100;
-          totalWeightedScore += categoryPercent * weight;
-          totalWeight += weight;
-        }
-      });
-      
-      const baseGrade = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
-      // Add extra credit from assignments
-      const extraCreditTotal = assignments
-        .filter(a => a.category === "Extra Credit")
-        .reduce((sum, a) => sum + (a.earned === "" ? 0 : (a.earned || 0)), 0);
-      
-      return baseGrade + extraCreditTotal;
-    } else {
-      // Simple average (all points equal weight)
-      const regularAssignments = assignments.filter(a => a.category !== "Extra Credit");
-      const extraCreditTotal = assignments
-        .filter(a => a.category === "Extra Credit")
-        .reduce((sum, a) => sum + (a.earned === "" ? 0 : (a.earned || 0)), 0);
-      
-      const totalEarned = regularAssignments.reduce((sum, a) => sum + (a.earned === "" ? 0 : (a.earned || 0)), 0);
-      const totalPossible = regularAssignments.reduce((sum, a) => sum + (a.possible === "" ? 0 : (a.possible || 0)), 0);
-      
-      const baseGrade = totalPossible > 0 ? (totalEarned / totalPossible) * 100 : 0;
-      return baseGrade + extraCreditTotal;
-    }
-  };
+  const categories = [...new Set([...Object.keys(categoryWeights), ...assignments.map(a => a.category)])];
+  const gradedCategories = categories.filter(c =>
+    c !== "Extra Credit" && assignments.some(a => a.category === c)
+  );
+
+  // Both grades use the live weights, so fixing a weight or category updates the current grade too
+  const currentPercent = calculateGrade(originalAssignments, categoryWeights, useWeightedGrading);
+  const currentGrade = getLetterGrade(currentPercent);
+  const weightPlanName = selectedWeightPlan === "Other"
+    ? "Custom"
+    : selectedWeightPlan === "Gradebook"
+      ? "From gradebook"
+      : WEIGHT_PLANS[selectedWeightPlan]?.name || selectedWeightPlan;
 
   // Check if assignments were added, deleted, or modified
   const hasChanges = 
@@ -915,7 +786,7 @@ export default function GradeCalculator() {
       return a.earned !== original.originalEarned || a.possible !== original.originalPossible;
     }) ||
     originalAssignments.some(orig => !assignments.find(a => a.id === orig.id)); // Assignment was deleted
-  const newPercent = calculateNewGrade();
+  const newPercent = calculateGrade(assignments, categoryWeights, useWeightedGrading);
   const newGrade = getLetterGrade(newPercent);
 
   return (
@@ -969,8 +840,17 @@ export default function GradeCalculator() {
                     <span className="text-xl font-semibold text-muted-foreground">{currentPercent.toFixed(2)}%</span>
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {useWeightedGrading ? "Weighted grading detected" : "Points-based grading"}
+                    {!useWeightedGrading
+                      ? "Points-based grading"
+                      : selectedWeightPlan === "Gradebook"
+                        ? "Weights read from your gradebook"
+                        : `Weight plan: ${weightPlanName}`}
                   </p>
+                  {reportedGrade && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Synergy reports {reportedGrade} ({reportedPercent}%)
+                    </p>
+                  )}
                 </div>
                 <div className="rounded-2xl border border-border bg-background p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Projected grade</p>
@@ -1008,10 +888,59 @@ export default function GradeCalculator() {
 
               <div className="rounded-2xl border border-border bg-background p-4 shadow-sm md:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Category weights</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Plan: {weightPlanName}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={() => setShowWeightPlanModal(true)}
+                      className="rounded-lg border border-border bg-secondary px-3.5 py-2 text-sm font-medium text-secondary-foreground transition hover:bg-secondary/90"
+                    >
+                      Change plan
+                    </button>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={useWeightedGrading}
+                        onChange={(e) => setUseWeightedGrading(e.target.checked)}
+                        className="h-4 w-4"
+                      />
+                      Weighted grading
+                    </label>
+                  </div>
+                </div>
+                {useWeightedGrading && (
+                  <>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {gradedCategories.map((category) => (
+                        <label key={category} className="flex items-center gap-2 text-sm text-foreground">
+                          {category}
+                          <input
+                            type="number"
+                            value={categoryWeights[category] ?? 0}
+                            onChange={(e) => updateCategoryWeight(category, e.target.value)}
+                            className="w-20 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            step="any"
+                            min="0"
+                          />
+                          %
+                        </label>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Categories with no graded work are left out and the remaining weights are scaled up, the same way Synergy does it.
+                    </p>
+                  </>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background p-4 shadow-sm md:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-muted-foreground">
                     Showing{" "}
                     <span className="font-semibold text-foreground">
-                      {assignments.filter((assignment) => visibleCategories[assignment.category]).length}
+                      {assignments.filter((assignment) => !hiddenCategories.includes(assignment.category)).length}
                     </span>{" "}
                     of <span className="font-semibold text-foreground">{assignments.length}</span> assignments
                   </p>
@@ -1059,19 +988,20 @@ export default function GradeCalculator() {
                                   Visible categories
                                 </p>
                                 <div className="space-y-1">
-                                  {Object.keys(visibleCategories).map((category) => (
+                                  {categories.map((category) => (
                                     <label
                                       key={category}
                                       className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted/50"
                                     >
                                       <input
                                         type="checkbox"
-                                        checked={visibleCategories[category]}
+                                        checked={!hiddenCategories.includes(category)}
                                         onChange={(e) =>
-                                          setVisibleCategories({
-                                            ...visibleCategories,
-                                            [category]: e.target.checked,
-                                          })
+                                          setHiddenCategories(
+                                            e.target.checked
+                                              ? hiddenCategories.filter((c) => c !== category)
+                                              : [...hiddenCategories, category]
+                                          )
                                         }
                                         className="h-4 w-4"
                                       />
@@ -1090,7 +1020,7 @@ export default function GradeCalculator() {
                       </tr>
                     </thead>
                     <tbody>
-                      {assignments.filter((assignment) => visibleCategories[assignment.category]).map((assignment) => {
+                      {assignments.filter((assignment) => !hiddenCategories.includes(assignment.category)).map((assignment) => {
                         const earned = assignment.earned === "" ? 0 : (assignment.earned || 0);
                         const possible = assignment.possible === "" ? 0 : (assignment.possible || 0);
                         const percent = possible > 0 ? (earned / possible) * 100 : 0;
@@ -1119,11 +1049,9 @@ export default function GradeCalculator() {
                                 onChange={(e) => updateAssignment(assignment.id, "category", e.target.value)}
                                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                               >
-                                <option value="Major Summative">Major Summative</option>
-                                <option value="Minor Summative">Minor Summative</option>
-                                <option value="Graded Formative">Graded Formative</option>
-                                <option value="Extra Credit">Extra Credit</option>
-                                <option value="Other">Other</option>
+                                {categories.map((category) => (
+                                  <option key={category} value={category}>{category}</option>
+                                ))}
                               </select>
                             </td>
                             <td className="px-4 py-3">
@@ -1183,30 +1111,6 @@ export default function GradeCalculator() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            </section>
-          )}
-          
-          {assignments.length > 0 && (
-            <section className="mt-6 rounded-2xl border border-border bg-background p-4 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current Weight Plan</p>
-                  <p className="mt-1 text-sm font-medium text-foreground">
-                    {selectedWeightPlan === "Other" ? "Custom" : WEIGHT_PLANS[selectedWeightPlan]?.name || selectedWeightPlan}
-                  </p>
-                  {selectedWeightPlan === "Other" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Major: {categoryWeights["Major Summative"]}%, Minor: {categoryWeights["Minor Summative"]}%, Formative: {categoryWeights["Graded Formative"]}%
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => setShowWeightPlanModal(true)}
-                  className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition hover:bg-secondary/90"
-                >
-                  Change Plan
-                </button>
               </div>
             </section>
           )}
