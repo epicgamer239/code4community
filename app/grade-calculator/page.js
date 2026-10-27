@@ -748,6 +748,9 @@ export default function GradeCalculator() {
     setAssignments(assignments.filter(a => a.id !== id));
   };
 
+  // Options for the category dropdown and filter: known categories plus any parsed from the gradebook
+  const categories = [...new Set([...Object.keys(categoryWeights), ...assignments.map(a => a.category)])];
+
   // Both grades use the live weights, so fixing a weight or category updates the current grade too
   const currentPercent = calculateGrade(originalAssignments, categoryWeights, useWeightedGrading);
   const currentGrade = getLetterGrade(currentPercent);
