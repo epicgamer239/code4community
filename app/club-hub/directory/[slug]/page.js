@@ -13,13 +13,23 @@ export const dynamicParams = true;
 /** @param {string} slug */
 async function resolveClub(slug) {
   const db = getAdminFirestore();
-  if (db) await applyCustomClubsFromAdminDb(db);
+  if (db) {
+    try {
+      await applyCustomClubsFromAdminDb(db);
+    } catch {
+      // CI / local build without credentials — use static directory only.
+    }
+  }
   const fromDirectory = getClubBySlug(slug);
   if (fromDirectory) return fromDirectory;
   if (!db) return null;
-  const snap = await db.collection("clubHubCustomClubs").doc(slug).get();
-  if (!snap.exists) return null;
-  return normalizeCustomClub({ ...snap.data(), slug: snap.id }, snap.id);
+  try {
+    const snap = await db.collection("clubHubCustomClubs").doc(slug).get();
+    if (!snap.exists) return null;
+    return normalizeCustomClub({ ...snap.data(), slug: snap.id }, snap.id);
+  } catch {
+    return null;
+  }
 }
 
 export function generateStaticParams() {
