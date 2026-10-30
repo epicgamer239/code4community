@@ -10,8 +10,9 @@ import { CLUB_HUB_MAROON } from "@/lib/club-hub/theme";
  *   clubName: string,
  *   busy: boolean,
  *   requestMode?: boolean,
+ *   meetingDay?: "gold" | "maroon" | "both" | "general" | "",
  *   onClose: () => void,
- *   onConfirm: () => void,
+ *   onConfirm: (seminarDays: ("gold" | "maroon")[]) => void | Promise<void>,
  * }} props
  */
 export default function ClubJoinConfirmDialog({
@@ -19,13 +20,18 @@ export default function ClubJoinConfirmDialog({
   clubName,
   busy,
   requestMode = false,
+  meetingDay = "",
   onClose,
   onConfirm,
 }) {
   const titleId = useId();
   const descId = useId();
   const checkboxId = useId();
+  const seminarGroupId = useId();
   const [affirmed, setAffirmed] = useState(false);
+  /** @type {"gold" | "maroon" | "both"} */
+  const [seminarChoice, setSeminarChoice] = useState("both");
+  const needsSeminarChoice = meetingDay === "both";
 
   useEffect(() => {
     if (!open) return;
@@ -37,6 +43,18 @@ export default function ClubJoinConfirmDialog({
   }, [open, busy, onClose]);
 
   if (!open) return null;
+
+  /** @returns {("gold" | "maroon")[]} */
+  function seminarDaysFromChoice() {
+    if (meetingDay === "gold") return ["gold"];
+    if (meetingDay === "maroon") return ["maroon"];
+    if (meetingDay === "both") {
+      if (seminarChoice === "gold") return ["gold"];
+      if (seminarChoice === "maroon") return ["maroon"];
+      return ["gold", "maroon"];
+    }
+    return [];
+  }
 
   return (
     <div
@@ -60,6 +78,39 @@ export default function ClubJoinConfirmDialog({
             ? "A sponsor or board member must approve you before you are a member. Club membership is a commitment to participate regularly."
             : "Club membership is a commitment. If you join, we expect you to participate regularly and represent the club responsibly at meetings and activities."}
         </p>
+
+        {needsSeminarChoice ? (
+          <fieldset className="mt-4 space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+            <legend id={seminarGroupId} className="px-1 text-sm font-semibold text-neutral-900">
+              Seminar days
+            </legend>
+            <p className="text-xs text-neutral-700">
+              This club meets on Gold and Maroon days. Choose which days you will attend during
+              seminar.
+            </p>
+            {[
+              { value: "gold", label: "Gold days only" },
+              { value: "maroon", label: "Maroon days only" },
+              { value: "both", label: "Both Gold and Maroon days" },
+            ].map((option) => (
+              <label
+                key={option.value}
+                className="flex cursor-pointer items-center gap-2 text-sm text-neutral-800"
+              >
+                <input
+                  type="radio"
+                  name={seminarGroupId}
+                  value={option.value}
+                  checked={seminarChoice === option.value}
+                  disabled={busy}
+                  onChange={() => setSeminarChoice(/** @type {"gold" | "maroon" | "both"} */ (option.value))}
+                  className="size-4 border-neutral-300 text-[#5c1417] focus:ring-[#5c1417]"
+                />
+                {option.label}
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
 
         <label
           htmlFor={checkboxId}
@@ -90,7 +141,7 @@ export default function ClubJoinConfirmDialog({
           </button>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={() => onConfirm(seminarDaysFromChoice())}
             disabled={busy || !affirmed}
             aria-busy={busy}
             className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${clubHubButtonFocusClass}`}

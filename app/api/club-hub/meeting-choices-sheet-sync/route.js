@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase/admin";
-import {
-  CLUB_HUB_MEETING_CHOICES,
-  normalizeMeetingChoices,
-} from "@/lib/club-hub/clubMeetingChoices";
+import { deriveMeetingChoicesForUserAdmin } from "@/lib/club-hub/meetingChoicesFromMembershipsAdmin";
 import { syncStudentMeetingRowToSheet } from "@/lib/club-hub/meetingChoicesSheetSync";
 import { isClubRosterSheetSyncConfigured } from "@/lib/club-hub/rosterSheetConfig";
 import { withRateLimit } from "@/utils/rateLimit";
@@ -42,10 +39,7 @@ async function handler(request) {
     displayName = userSnap.data()?.displayName?.trim() || displayName;
   }
 
-  const choiceSnap = await db.collection(CLUB_HUB_MEETING_CHOICES).doc(uid).get();
-  const choices = choiceSnap.exists
-    ? normalizeMeetingChoices(choiceSnap.data())
-    : { goldClubSlug: "", maroonClubSlug: "" };
+  const choices = await deriveMeetingChoicesForUserAdmin(db, uid);
 
   const result = await syncStudentMeetingRowToSheet({
     userId: uid,

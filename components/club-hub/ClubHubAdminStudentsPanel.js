@@ -7,38 +7,26 @@ import ClubHubLiveMessage from "@/components/club-hub/ClubHubLiveMessage";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { membershipHasBoardGroup } from "@/lib/club-hub/boardMembersClient";
 import { formatJoinedAt } from "@/lib/club-hub/clubMemberships";
-import { getClubBySlug } from "@/lib/club-hub/broadRunClubDirectory";
 import { useMeetingDayOverrides } from "@/lib/club-hub/clubMeetingDays";
-import {
-  canPickClubForGoldMeetingDay,
-  canPickClubForMaroonMeetingDay,
-} from "@/lib/club-hub/meetingDayBoardAccess";
+import { meetingChoicesFromMemberships } from "@/lib/club-hub/seminarMembershipLimit";
 import {
   adminRemoveStudentFromClubClient,
-  adminSetStudentMeetingChoicesClient,
   adminSetStudentSpecialEventClient,
   fetchStudentHubProfileByEmailClient,
   fetchStudentHubProfileClient,
 } from "@/lib/club-hub/adminStudentsClient";
-import { CLUB_HUB_MAROON } from "@/lib/club-hub/theme";
 
 export default function ClubHubAdminStudentsPanel() {
   const { user } = useAuth();
-  const [selectedUserId, setSelectedUserId] = useState("");
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [goldClubSlug, setGoldClubSlug] = useState("");
-  const [maroonClubSlug, setMaroonClubSlug] = useState("");
-  const { version: meetingDaysVersion } = useMeetingDayOverrides();
+  useMeetingDayOverrides();
 
   const applyProfile = useCallback((data) => {
     setProfile(data);
-    setSelectedUserId(data.userId || "");
-    setGoldClubSlug(data.meetingChoices?.goldClubSlug || "");
-    setMaroonClubSlug(data.meetingChoices?.maroonClubSlug || "");
   }, []);
 
   const loadProfile = useCallback(
@@ -54,7 +42,6 @@ export default function ClubHubAdminStudentsPanel() {
         applyProfile(data);
       } catch (err) {
         setProfile(null);
-        setSelectedUserId("");
         setError(err.message || "Could not load student.");
       } finally {
         setLoading(false);
@@ -70,13 +57,11 @@ export default function ClubHubAdminStudentsPanel() {
       setError("");
       setMessage("");
       setProfile(null);
-      setSelectedUserId("");
       try {
         const data = await fetchStudentHubProfileByEmailClient(user, email);
         applyProfile(data);
       } catch (err) {
         setProfile(null);
-        setSelectedUserId("");
         setError(
           err.message ||
             `${displayName} has not created a site account yet.`,
@@ -88,19 +73,15 @@ export default function ClubHubAdminStudentsPanel() {
     [user, applyProfile],
   );
 
-  const goldOptions = useMemo(
-    () => (profile?.memberships || []).filter((m) => canPickClubForGoldMeetingDay(m)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-filter when admin meeting days load
-    [profile?.memberships, meetingDaysVersion],
+  const memberships = useMemo(() => profile?.memberships || [], [profile?.memberships]);
+  const seminarChoices = useMemo(
+    () => meetingChoicesFromMemberships(memberships),
+    [memberships],
   );
-
-  const maroonOptions = useMemo(
-    () => (profile?.memberships || []).filter((m) => canPickClubForMaroonMeetingDay(m)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-filter when admin meeting days load
-    [profile?.memberships, meetingDaysVersion],
-  );
-
-  const memberships = profile?.memberships || [];
+  const goldMembership =
+    memberships.find((m) => m.clubSlug === seminarChoices.goldClubSlug) || null;
+  const maroonMembership =
+    memberships.find((m) => m.clubSlug === seminarChoices.maroonClubSlug) || null;
 
   const handleRemoveClub = async (clubSlug, clubName) => {
     if (!user || !profile?.userId || busy) return;
@@ -117,27 +98,6 @@ export default function ClubHubAdminStudentsPanel() {
       await loadProfile(profile.userId);
     } catch (err) {
       setError(err.message || "Could not remove from club.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSaveMeetingChoices = async (e) => {
-    e.preventDefault();
-    if (!user || !profile?.userId || busy) return;
-    setBusy(true);
-    setError("");
-    setMessage("");
-    try {
-      await adminSetStudentMeetingChoicesClient(user, {
-        userId: profile.userId,
-        goldClubSlug,
-        maroonClubSlug,
-      });
-      setMessage("Meeting day choices updated.");
-      await loadProfile(profile.userId);
-    } catch (err) {
-      setError(err.message || "Could not save meeting choices.");
     } finally {
       setBusy(false);
     }
@@ -244,62 +204,29 @@ export default function ClubHubAdminStudentsPanel() {
           </section>
 
           <section className="rounded-[14px] bg-white p-5 shadow-sm ring-1 ring-black/5">
-            <h3 className="font-bold text-neutral-900">Gold &amp; Maroon meeting clubs</h3>
+            <h3 className="font-bold text-neutral-900">Seminar clubs</h3>
             <p className="mt-1 text-sm text-neutral-700">
-              Same choices as the student meeting-days page. Admin saves skip the 30-minute switch
-              cooldown.
+              One Gold day club and one Maroon day club, taken from the clubs this student has
+              joined. Change them by removing a club membership above.
             </p>
-            <form onSubmit={handleSaveMeetingChoices} className="mt-4 space-y-4">
-              <div>
-                <label htmlFor="admin-student-gold" className="block text-xs font-semibold text-neutral-700">
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-700">
                   Gold day club
-                </label>
-                <select
-                  id="admin-student-gold"
-                  value={goldClubSlug}
-                  disabled={busy}
-                  onChange={(e) => setGoldClubSlug(e.target.value)}
-                  className="mt-1 w-full max-w-md rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                >
-                  <option value="">— None —</option>
-                  {goldOptions.map((m) => (
-                    <option key={m.clubSlug} value={m.clubSlug}>
-                      {m.clubName || getClubBySlug(m.clubSlug)?.name || m.clubSlug}
-                    </option>
-                  ))}
-                </select>
+                </dt>
+                <dd className="mt-1 text-sm font-medium text-neutral-900">
+                  {goldMembership?.clubName || goldMembership?.clubSlug || "— None —"}
+                </dd>
               </div>
-              <div>
-                <label
-                  htmlFor="admin-student-maroon"
-                  className="block text-xs font-semibold text-neutral-700"
-                >
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-700">
                   Maroon day club
-                </label>
-                <select
-                  id="admin-student-maroon"
-                  value={maroonClubSlug}
-                  disabled={busy}
-                  onChange={(e) => setMaroonClubSlug(e.target.value)}
-                  className="mt-1 w-full max-w-md rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                >
-                  <option value="">— None —</option>
-                  {maroonOptions.map((m) => (
-                    <option key={m.clubSlug} value={m.clubSlug}>
-                      {m.clubName || getClubBySlug(m.clubSlug)?.name || m.clubSlug}
-                    </option>
-                  ))}
-                </select>
+                </dt>
+                <dd className="mt-1 text-sm font-medium text-neutral-900">
+                  {maroonMembership?.clubName || maroonMembership?.clubSlug || "— None —"}
+                </dd>
               </div>
-              <button
-                type="submit"
-                disabled={busy}
-                className={`rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${clubHubButtonFocusClass}`}
-                style={{ backgroundColor: CLUB_HUB_MAROON }}
-              >
-                {busy ? "Saving…" : "Save meeting choices"}
-              </button>
-            </form>
+            </dl>
           </section>
 
           <section className="rounded-[14px] bg-white p-5 shadow-sm ring-1 ring-black/5">

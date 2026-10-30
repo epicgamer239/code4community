@@ -28,6 +28,7 @@ import {
   WC_LIVE_STATUSES,
 } from "@/lib/writing-center/sessionQueries";
 import { useWritingCenterLiveSessions } from "@/lib/writing-center/useLiveSessions";
+import { writingCenterTabClass } from "@/lib/writing-center/tabClass";
 import { SessionRequestList } from "./SessionRequestList";
 import StudentDashboard from "./StudentDashboard";
 import TutorDashboard from "./TutorDashboard";
@@ -51,6 +52,14 @@ function simulateRoleLabel(viewRole) {
   if (viewRole === "TUTOR") return "tutor";
   if (viewRole === "TEACHER") return "teacher";
   return "student";
+}
+
+function AdminSessionTable({ children }) {
+  return (
+    <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden w-full">
+      {children}
+    </div>
+  );
 }
 
 export default function AdminDashboard() {
@@ -341,12 +350,7 @@ export default function AdminDashboard() {
     return sortSessionsNewestFirst(list);
   }, [sessions, miniLessonTutorFilter]);
 
-  const tabClass = (tab) =>
-    `whitespace-nowrap py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-      activeTab === tab
-        ? "bg-indigo-100 text-indigo-700"
-        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-    }`;
+  const tabClass = (tab) => writingCenterTabClass(activeTab, tab);
 
   return (
     <div className="w-full px-3 sm:px-4 lg:px-6 py-4">
@@ -511,7 +515,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden w-full">
+          <AdminSessionTable>
             <SessionRequestList
               sessions={filteredSessions}
               emptyMessage="No sessions found"
@@ -522,7 +526,7 @@ export default function AdminDashboard() {
                 <AdminSessionExpandedPanel session={session} formResponseUrl={formResponseUrl} />
               )}
             />
-          </div>
+          </AdminSessionTable>
         </div>
       ) : activeTab === "simulate" ? (
         <div className="w-full">
@@ -618,7 +622,7 @@ export default function AdminDashboard() {
         </div>
       ) : activeTab === "mini-lessons" ? (
         <div className="w-full">
-          <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden w-full">
+          <AdminSessionTable>
             <SessionRequestList
               sessions={miniLessonSessions}
               emptyMessage="No mini lessons yet. Assign one to track tutor work."
@@ -641,11 +645,11 @@ export default function AdminDashboard() {
                 )
               }
             />
-          </div>
+          </AdminSessionTable>
         </div>
       ) : activeTab === "tutor-assignments" ? (
         <div className="w-full">
-          <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden w-full">
+          <AdminSessionTable>
             <SessionRequestList
               sessions={tutorSessions}
               emptyMessage={
@@ -673,7 +677,7 @@ export default function AdminDashboard() {
                 </>
               )}
             />
-          </div>
+          </AdminSessionTable>
         </div>
       ) : null}
 

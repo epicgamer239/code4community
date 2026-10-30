@@ -20,7 +20,8 @@ import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
  *   joinBlockedLabel?: string,
  *   requiresApproval?: boolean,
  *   requestPending?: boolean,
- *   onJoin: () => void | Promise<void>,
+ *   meetingDay?: "gold" | "maroon" | "both" | "general" | "",
+ *   onJoin: (seminarDays: ("gold" | "maroon")[]) => void | Promise<void>,
  *   onLeave: () => void | Promise<void>,
  *   onCancelRequest?: () => void | Promise<void>,
  * }} props
@@ -38,6 +39,7 @@ export default function ClubMembershipButton({
   joinBlockedLabel = "Full",
   requiresApproval = false,
   requestPending = false,
+  meetingDay = "",
   onJoin,
   onLeave,
   onCancelRequest,
@@ -107,13 +109,14 @@ export default function ClubMembershipButton({
           open={joinDialogOpen}
           clubName={clubName}
           requestMode={requiresApproval}
+          meetingDay={meetingDay}
           busy={joinBusy}
           onClose={() => {
             if (!joinBusy) setJoinDialogOpen(false);
           }}
-          onConfirm={async () => {
+          onConfirm={async (seminarDays) => {
             try {
-              await onJoin();
+              await onJoin(seminarDays);
               setJoinDialogOpen(false);
             } catch {
               // Error surfaced on club page; keep dialog open.

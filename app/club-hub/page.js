@@ -10,7 +10,9 @@ import ClubHubSkipLink from "@/components/club-hub/ClubHubSkipLink";
 import { CLUB_HUB_MAIN_ID } from "@/lib/club-hub/a11y";
 import { buildClubHubHomeRankings } from "@/lib/club-hub/clubHubEngagementRankings";
 import { fetchClubSizeRankings } from "@/lib/club-hub/clubMembershipCounts";
+import { fetchAllManualRankingSlugs } from "@/lib/club-hub/manualRankings";
 import { logClientError } from "@/lib/auth/logClientError";
+import { useCustomClubs } from "@/lib/club-hub/customClubs";
 import {
   CLUB_HUB_MAROON,
   CLUB_HUB_MAROON_DARK,
@@ -27,6 +29,7 @@ function rankNameClass(rank, placeholder) {
 
 export default function ClubHubPage() {
   const [rankings, setRankings] = useState(() => buildClubHubHomeRankings([]));
+  const { version: customClubVersion } = useCustomClubs();
 
   useLayoutEffect(() => {
     document.title = "Broad Run Club Hub";
@@ -36,8 +39,11 @@ export default function ClubHubPage() {
     let cancelled = false;
     (async () => {
       try {
-        const sizeRows = await fetchClubSizeRankings(3);
-        if (!cancelled) setRankings(buildClubHubHomeRankings(sizeRows));
+        const [sizeRows, manual] = await Promise.all([
+          fetchClubSizeRankings(3),
+          fetchAllManualRankingSlugs(),
+        ]);
+        if (!cancelled) setRankings(buildClubHubHomeRankings(sizeRows, manual));
       } catch (err) {
         logClientError("ClubHubPage.rankings", err);
       }
@@ -45,7 +51,7 @@ export default function ClubHubPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [customClubVersion]);
 
   return (
     <div id="top" className="min-h-screen bg-neutral-100 text-neutral-900">

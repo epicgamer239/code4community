@@ -25,8 +25,8 @@ describe("special sheet column layout", () => {
     ]);
     expect(headers).toEqual([
       "Student name",
-      "Gold club",
-      "Maroon club",
+      "Gold day club",
+      "Maroon day club",
       "Seminar (Gold)",
       "Workshop (Maroon)",
       "User ID",

@@ -28,6 +28,7 @@ firestore-debug.log
 # misc
 .DS_Store
 *.pem
+/backups/
 
 # debug
 npm-debug.log*

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireClubHubAdminFromRequest } from "@/lib/club-hub/clubHubAdminRouteAuth";
 import {
-  adminSetStudentMeetingChoices,
   adminSetStudentSpecialEventEnrollment,
   getStudentHubProfileForAdmin,
   getStudentHubProfileForAdminByEmail,
@@ -82,12 +81,13 @@ async function postHandler(request) {
     }
 
     if (action === "setMeetingChoices") {
-      const choices = await adminSetStudentMeetingChoices(auth.db, {
-        userId,
-        goldClubSlug: typeof body.goldClubSlug === "string" ? body.goldClubSlug : "",
-        maroonClubSlug: typeof body.maroonClubSlug === "string" ? body.maroonClubSlug : "",
-      });
-      return NextResponse.json({ ok: true, meetingChoices: choices });
+      return NextResponse.json(
+        {
+          error:
+            "Seminar clubs come from club memberships now. Change the student’s club memberships instead.",
+        },
+        { status: 410 },
+      );
     }
 
     if (action === "setSpecialEventEnrollment") {

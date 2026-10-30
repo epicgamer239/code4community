@@ -36,6 +36,7 @@ import {
   formatMemberSignupStatus,
   isClubMembershipFull,
 } from "@/lib/club-hub/memberSignupLimit";
+import { clubRequiresBoardToJoin } from "@/lib/club-hub/clubBoardGroups";
 import { clubRequiresJoinApproval } from "@/lib/club-hub/joinPolicy";
 import {
   cancelJoinRequest,
@@ -44,6 +45,8 @@ import {
 } from "@/lib/club-hub/joinRequests";
 import { notifyRosterSheetSync } from "@/lib/club-hub/notifyRosterSheetSync";
 import { notifyMeetingChoicesSheetSync } from "@/lib/club-hub/notifyMeetingChoicesSheetSync";
+import { getEffectiveMeetingDayForSlug } from "@/lib/club-hub/clubDirectorySections";
+import { useMeetingDayOverrides } from "@/lib/club-hub/clubMeetingDays";
 import { resolveDisplayName } from "@/lib/profile";
 import {
   CLUB_HUB_CARD,
@@ -122,7 +125,12 @@ function ResourcesButton({ href, label, disabledTitle }) {
 export default function ClubDetailView({ club, slug }) {
   const { user, userData, loading: authLoading } = useAuth();
   const { sponsorOverrides, loading: accessLoading, canEdit } = useClubHubAccess();
+  const { version: meetingDaysVersion } = useMeetingDayOverrides();
   const canEditPage = canEdit(slug);
+  const meetingDay = useMemo(
+    () => (meetingDaysVersion >= 0 ? getEffectiveMeetingDayForSlug(slug) : "general"),
+    [slug, meetingDaysVersion],
+  );
 
   const emptyInfo = useMemo(
     () => ({ ...DEFAULT_CLUB_PAGE_INFO }),
@@ -245,6 +253,12 @@ export default function ClubDetailView({ club, slug }) {
     [liveMemberCount, info.memberSignupLimit],
   );
 
+  const boardInviteOnly = useMemo(() => {
+    // Recompute when meeting-day overrides load so board-only clubs stay gated.
+    void meetingDaysVersion;
+    return clubRequiresBoardToJoin(slug);
+  }, [slug, meetingDaysVersion]);
+
   const memberSignupStatus = useMemo(
     () => formatMemberSignupStatus(liveMemberCount, info.memberSignupLimit),
     [liveMemberCount, info.memberSignupLimit],
@@ -323,7 +337,8 @@ export default function ClubDetailView({ club, slug }) {
     }
   };
 
-  const handleJoinClub = async () => {
+  /** @param {("gold" | "maroon")[]} seminarDays */
+  const handleJoinClub = async (seminarDays = []) => {
     if (!user?.uid || joinBusy || isMember) return;
     setJoinBusy(true);
     setJoinMessage("");
@@ -334,6 +349,7 @@ export default function ClubDetailView({ club, slug }) {
       userId: user.uid,
       userEmail: user.email || userData?.email || "",
       displayName: resolveDisplayName(userData, user.displayName || "Member"),
+      seminarDays,
     };
     try {
       if (clubRequiresJoinApproval(info.joinPolicy)) {
@@ -343,6 +359,7 @@ export default function ClubDetailView({ club, slug }) {
       } else {
         await joinClub(profile);
         await notifyRosterSheetSync(user, "join", slug);
+        await notifyMeetingChoicesSheetSync(user);
         setIsMember(true);
         setJoinRequestPending(false);
         setLiveMemberCount((c) => c + 1);
@@ -528,10 +545,13 @@ export default function ClubDetailView({ club, slug }) {
                     membershipLoading={membershipLoading}
                     isMember={isMember}
                     joinBusy={joinBusy}
-                    joinBlocked={membershipFull}
-                    joinBlockedLabel="Full"
+                    joinBlocked={membershipFull || boardInviteOnly}
+                    joinBlockedLabel={
+                      boardInviteOnly ? "Board only — ask sponsor" : "Full"
+                    }
                     requiresApproval={clubRequiresJoinApproval(info.joinPolicy)}
                     requestPending={joinRequestPending}
+                    meetingDay={meetingDay}
                     onJoin={handleJoinClub}
                     onLeave={handleLeaveClub}
                     onCancelRequest={handleCancelJoinRequest}

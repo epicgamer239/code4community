@@ -9,7 +9,7 @@ import { CLUB_HUB_CARD } from "@/lib/club-hub/theme";
 
 export default function ClubMeetingDaysPage() {
   useLayoutEffect(() => {
-    document.title = "Gold and Maroon Club Selections — Broad Run Club Hub";
+    document.title = "Seminar Clubs — Broad Run Club Hub";
   }, []);
 
   return (
@@ -22,10 +22,10 @@ export default function ClubMeetingDaysPage() {
         className="mx-auto w-full max-w-2xl px-4 pb-16 pt-10 sm:px-6 sm:pt-12"
       >
         <div className={CLUB_HUB_CARD}>
-          <h1 className="text-2xl font-bold text-neutral-900">Gold and Maroon Club Selections</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">Seminar Clubs</h1>
           <p className="mt-2 text-sm leading-relaxed text-neutral-700">
-            Seminar is when Gold and Maroon clubs meet. Pick one joined club for Gold days and one
-            for Maroon days.
+            You may join one Gold day club and one Maroon day club. General clubs are unlimited. Your
+            seminar clubs below come from the clubs you have joined.
           </p>
           <div className="mt-6 border-t border-neutral-200 pt-6">
             <ClubMeetingDaysPanel />

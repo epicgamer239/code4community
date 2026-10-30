@@ -242,7 +242,7 @@ export default function ClubHubRostersPanel({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Total members" value={loading ? "…" : String(totals.members)} />
+        <MetricCard label="Total club memberships" value={loading ? "…" : String(totals.members)} />
         <MetricCard
           label="Upcoming events"
           value={loading ? "…" : String(totals.upcomingEventsCount)}

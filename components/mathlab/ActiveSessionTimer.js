@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatSessionTime } from "@/lib/mathlab/formatSessionTime";
+import { formatClockDuration } from "@/lib/firestoreDates";
 
 export default function ActiveSessionTimer({ startTime }) {
   const [duration, setDuration] = useState(0);
@@ -19,7 +19,7 @@ export default function ActiveSessionTimer({ startTime }) {
 
   return (
     <span className="font-mono font-medium text-primary">
-      {formatSessionTime(duration)}
+      {formatClockDuration(duration)}
     </span>
   );
 }

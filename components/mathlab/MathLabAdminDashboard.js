@@ -74,6 +74,22 @@ function ServiceBadges({ services }) {
   );
 }
 
+function TeamSection({ title, description, emptyMessage, users, listClassName = "px-6 pb-4", renderUser }) {
+  return (
+    <section className="card-elevated rounded-xl overflow-hidden">
+      <h2 className="text-lg font-semibold text-foreground px-6 pt-6 pb-2">{title}</h2>
+      <p className="text-sm text-muted-foreground px-6 pb-4">{description}</p>
+      <ul className={listClassName}>
+        {users.length === 0 ? (
+          <li className="text-sm text-muted-foreground py-2">{emptyMessage}</li>
+        ) : (
+          users.map((user) => renderUser(user))
+        )}
+      </ul>
+    </section>
+  );
+}
+
 function UserRow({
   user,
   badge,
@@ -777,103 +793,80 @@ export default function MathLabAdminDashboard() {
         )}
       </form>
 
-      <section className="card-elevated rounded-xl overflow-hidden">
-        <h2 className="text-lg font-semibold text-foreground px-6 pt-6 pb-2">Built-in admins</h2>
-        <p className="text-sm text-muted-foreground px-6 pb-4">
-          Permanent admins (cannot be removed in this dashboard).
-        </p>
-        <ul className="px-6 pb-4">
-          {protectedAdmins.length === 0 ? (
-            <li className="text-sm text-muted-foreground py-2">None listed</li>
-          ) : (
-            protectedAdmins.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                badge="Built-in"
-                removeDisabled
-                removeHint="Built-in admins cannot be removed"
-              />
-            ))
-          )}
-        </ul>
-      </section>
+      <TeamSection
+        title="Built-in admins"
+        description="Permanent admins (cannot be removed in this dashboard)."
+        emptyMessage="None listed"
+        users={protectedAdmins}
+        renderUser={(user) => (
+          <UserRow
+            key={user.id}
+            user={user}
+            badge="Built-in"
+            removeDisabled
+            removeHint="Built-in admins cannot be removed"
+          />
+        )}
+      />
 
-      <section className="card-elevated rounded-xl overflow-hidden">
-        <h2 className="text-lg font-semibold text-foreground px-6 pt-6 pb-2">Math Lab admins</h2>
-        <p className="text-sm text-muted-foreground px-6 pb-4">
-          Can manage Math Lab team and settings only (not Writing Center or site admin).
-        </p>
-        <ul className="px-6 pb-4">
-          {appointedAdmins.length === 0 ? (
-            <li className="text-sm text-muted-foreground py-2">No appointed admins yet</li>
-          ) : (
-            appointedAdmins.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                badge={user.pending ? "Pending" : "Admin"}
-                subtitle={user.pending ? "Has not signed up yet" : undefined}
-                onRemove={() => removeAppointedAdmin(user)}
-                removeLabel="Remove"
-                removeDisabled={saving}
-              />
-            ))
-          )}
-        </ul>
-      </section>
+      <TeamSection
+        title="Math Lab admins"
+        description="Can manage Math Lab team and settings only (not Writing Center or site admin)."
+        emptyMessage="No appointed admins yet"
+        users={appointedAdmins}
+        renderUser={(user) => (
+          <UserRow
+            key={user.id}
+            user={user}
+            badge={user.pending ? "Pending" : "Admin"}
+            subtitle={user.pending ? "Has not signed up yet" : undefined}
+            onRemove={() => removeAppointedAdmin(user)}
+            removeLabel="Remove"
+            removeDisabled={saving}
+          />
+        )}
+      />
 
-      <section className="card-elevated rounded-xl overflow-hidden">
-        <h2 className="text-lg font-semibold text-foreground px-6 pt-6 pb-2">Teachers</h2>
-        <p className="text-sm text-muted-foreground px-6 pb-4">
-          Teachers have tutor privileges and appear with a teacher role in Math Lab.
-        </p>
-        <ul className="px-6 pb-4">
-          {teachers.length === 0 ? (
-            <li className="text-sm text-muted-foreground py-2">No teachers yet</li>
-          ) : (
-            teachers.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                badge={user.pending ? "Pending" : "Teacher"}
-                subtitle={user.pending ? "Has not signed up yet" : undefined}
-                onRemove={() => removeTeacher(user)}
-                removeLabel="Remove"
-                removeDisabled={saving}
-              />
-            ))
-          )}
-        </ul>
-      </section>
+      <TeamSection
+        title="Teachers"
+        description="Teachers have tutor privileges and appear with a teacher role in Math Lab."
+        emptyMessage="No teachers yet"
+        users={teachers}
+        renderUser={(user) => (
+          <UserRow
+            key={user.id}
+            user={user}
+            badge={user.pending ? "Pending" : "Teacher"}
+            subtitle={user.pending ? "Has not signed up yet" : undefined}
+            onRemove={() => removeTeacher(user)}
+            removeLabel="Remove"
+            removeDisabled={saving}
+          />
+        )}
+      />
 
-      <section className="card-elevated rounded-xl overflow-hidden">
-        <h2 className="text-lg font-semibold text-foreground px-6 pt-6 pb-2">Tutors</h2>
-        <p className="text-sm text-muted-foreground px-6 pb-4">
-          Tutors only see the services they are assigned to. Badges show Math Lab and/or Writing Center.
-        </p>
-        <ul className="px-6 pb-6">
-          {tutors.length === 0 ? (
-            <li className="text-sm text-muted-foreground py-2">No tutors yet</li>
-          ) : (
-            tutors.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                badges={user.services}
-                subtitle={
-                  user.pending
-                    ? `Has not signed up yet${user.services?.length ? ` · ${tutorServicesLabel(user.services)}` : ""}`
-                    : eligibleCoursesLabel(user.mathLabEligibleCourses)
-                }
-                onRemove={() => removeTutor(user)}
-                removeLabel="Remove"
-                removeDisabled={saving}
-              />
-            ))
-          )}
-        </ul>
-      </section>
+      <TeamSection
+        title="Tutors"
+        description="Tutors only see the services they are assigned to. Badges show Math Lab and/or Writing Center."
+        emptyMessage="No tutors yet"
+        users={tutors}
+        listClassName="px-6 pb-6"
+        renderUser={(user) => (
+          <UserRow
+            key={user.id}
+            user={user}
+            badges={user.services}
+            subtitle={
+              user.pending
+                ? `Has not signed up yet${user.services?.length ? ` · ${tutorServicesLabel(user.services)}` : ""}`
+                : eligibleCoursesLabel(user.mathLabEligibleCourses)
+            }
+            onRemove={() => removeTutor(user)}
+            removeLabel="Remove"
+            removeDisabled={saving}
+          />
+        )}
+      />
         </>
       )}
     </div>

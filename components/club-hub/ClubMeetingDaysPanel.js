@@ -9,74 +9,25 @@ import {
   canPickClubForMaroonMeetingDay,
 } from "@/lib/club-hub/meetingDayBoardAccess";
 import {
-  fetchMeetingChoices,
-  getMeetingChoiceSwitchError,
-  saveMeetingChoices,
-} from "@/lib/club-hub/clubMeetingChoices";
-import { notifyMeetingChoicesSheetSync } from "@/lib/club-hub/notifyMeetingChoicesSheetSync";
-import { fetchMembershipsForUser } from "@/lib/club-hub/clubMemberships";
+  fetchMembershipsForUser,
+  updateMembershipSeminarDays,
+} from "@/lib/club-hub/clubMemberships";
+import { getEffectiveMeetingDayForSlug } from "@/lib/club-hub/clubDirectorySections";
 import { loadMeetingDayOverrides } from "@/lib/club-hub/clubMeetingDays";
-import ClubHubSelectField from "@/components/club-hub/ClubHubSelectField";
+import {
+  meetingChoicesFromMemberships,
+  resolveSeminarDays,
+} from "@/lib/club-hub/seminarMembershipLimit";
+import { notifyMeetingChoicesSheetSync } from "@/lib/club-hub/notifyMeetingChoicesSheetSync";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
-import { CLUB_HUB_MAROON } from "@/lib/club-hub/theme";
 
 export default function ClubMeetingDaysPanel() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingSlug, setSavingSlug] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [memberships, setMemberships] = useState([]);
-  const [goldClubSlug, setGoldClubSlug] = useState("");
-  const [maroonClubSlug, setMaroonClubSlug] = useState("");
-  const [savedChoices, setSavedChoices] = useState({
-    goldClubSlug: "",
-    maroonClubSlug: "",
-    choicesUpdatedAt: null,
-  });
-
-  const switchCooldownError = useMemo(
-    () =>
-      getMeetingChoiceSwitchError(
-        savedChoices,
-        { goldClubSlug, maroonClubSlug },
-        savedChoices.choicesUpdatedAt,
-      ),
-    [savedChoices, goldClubSlug, maroonClubSlug],
-  );
-
-  const joinedSlugs = useMemo(
-    () => new Set(memberships.map((m) => m.clubSlug)),
-    [memberships],
-  );
-
-  const goldOptions = useMemo(
-    () => memberships.filter((m) => canPickClubForGoldMeetingDay(m)),
-    [memberships],
-  );
-
-  const maroonOptions = useMemo(
-    () => memberships.filter((m) => canPickClubForMaroonMeetingDay(m)),
-    [memberships],
-  );
-
-  const goldSelectOptions = useMemo(
-    () =>
-      goldOptions.map((m) => ({
-        value: m.clubSlug,
-        label: m.clubName || m.clubSlug,
-      })),
-    [goldOptions],
-  );
-
-  const maroonSelectOptions = useMemo(
-    () =>
-      maroonOptions.map((m) => ({
-        value: m.clubSlug,
-        label: m.clubName || m.clubSlug,
-      })),
-    [maroonOptions],
-  );
 
   useEffect(() => {
     const uid = user?.uid;
@@ -91,28 +42,12 @@ export default function ClubMeetingDaysPanel() {
       setLoading(true);
       setError("");
       try {
-        const [rows, choices] = await Promise.all([
+        const [rows] = await Promise.all([
           fetchMembershipsForUser(uid),
-          fetchMeetingChoices(uid),
           loadMeetingDayOverrides(),
         ]);
         if (cancelled) return;
         setMemberships(rows);
-        const goldOpts = rows.filter((m) => canPickClubForGoldMeetingDay(m));
-        const maroonOpts = rows.filter((m) => canPickClubForMaroonMeetingDay(m));
-        const nextGold = goldOpts.some((m) => m.clubSlug === choices.goldClubSlug)
-          ? choices.goldClubSlug
-          : "";
-        const nextMaroon = maroonOpts.some((m) => m.clubSlug === choices.maroonClubSlug)
-          ? choices.maroonClubSlug
-          : "";
-        setGoldClubSlug(nextGold);
-        setMaroonClubSlug(nextMaroon);
-        setSavedChoices({
-          goldClubSlug: nextGold,
-          maroonClubSlug: nextMaroon,
-          choicesUpdatedAt: choices.choicesUpdatedAt,
-        });
       } catch (err) {
         if (!cancelled) setError(err.message || "Could not load your clubs.");
       } finally {
@@ -124,32 +59,54 @@ export default function ClubMeetingDaysPanel() {
     };
   }, [user?.uid]);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!user?.uid || saving) return;
-    setSaving(true);
+  const choices = useMemo(() => meetingChoicesFromMemberships(memberships), [memberships]);
+
+  const goldMembership = useMemo(
+    () => memberships.find((m) => m.clubSlug === choices.goldClubSlug) || null,
+    [memberships, choices.goldClubSlug],
+  );
+  const maroonMembership = useMemo(
+    () => memberships.find((m) => m.clubSlug === choices.maroonClubSlug) || null,
+    [memberships, choices.maroonClubSlug],
+  );
+
+  const dualDayMemberships = useMemo(
+    () =>
+      memberships.filter((m) => {
+        if (getEffectiveMeetingDayForSlug(m.clubSlug) !== "both") return false;
+        return canPickClubForGoldMeetingDay(m) || canPickClubForMaroonMeetingDay(m);
+      }),
+    [memberships],
+  );
+
+  const hasSeminarClub = Boolean(goldMembership || maroonMembership);
+  const hasAnyMembership = memberships.length > 0;
+  const joinedOnlyGeneral =
+    hasAnyMembership &&
+    !memberships.some(
+      (m) => canPickClubForGoldMeetingDay(m) || canPickClubForMaroonMeetingDay(m),
+    );
+
+  /** @param {string} clubSlug @param {("gold" | "maroon")[]} seminarDays */
+  const handleSeminarDaysChange = async (clubSlug, seminarDays) => {
+    if (!user?.uid || savingSlug) return;
+    setSavingSlug(clubSlug);
     setError("");
     setMessage("");
     try {
-      await saveMeetingChoices({
+      await updateMembershipSeminarDays({
+        clubSlug,
         userId: user.uid,
-        goldClubSlug,
-        maroonClubSlug,
-        joinedSlugs,
-        memberships,
+        seminarDays,
       });
-      const refreshed = await fetchMeetingChoices(user.uid);
-      setSavedChoices({
-        goldClubSlug: refreshed.goldClubSlug,
-        maroonClubSlug: refreshed.maroonClubSlug,
-        choicesUpdatedAt: refreshed.choicesUpdatedAt,
-      });
+      const rows = await fetchMembershipsForUser(user.uid);
+      setMemberships(rows);
       await notifyMeetingChoicesSheetSync(user);
-      setMessage("Meeting day clubs saved.");
+      setMessage("Seminar days updated.");
     } catch (err) {
-      setError(err.message || "Could not save.");
+      setError(err.message || "Could not update seminar days.");
     } finally {
-      setSaving(false);
+      setSavingSlug("");
     }
   };
 
@@ -159,7 +116,7 @@ export default function ClubMeetingDaysPanel() {
         <Link href="/login?redirectTo=%2Fclub-hub%2Fmeeting-days" className="text-[#5c1417] underline">
           Log in
         </Link>{" "}
-        to choose your Gold and Maroon Club Selections.
+        to see your Gold and Maroon seminar clubs.
       </p>
     );
   }
@@ -170,66 +127,132 @@ export default function ClubMeetingDaysPanel() {
 
   return (
     <div className="space-y-5">
-      <ClubHubLiveMessage message={switchCooldownError} variant="alert" />
       <ClubHubLiveMessage message={error} variant="alert" />
       <ClubHubLiveMessage message={message} />
 
-      {memberships.length === 0 ? (
+      {!hasAnyMembership ? (
         <p className="rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-neutral-800">
           You have not joined any clubs yet.{" "}
           <Link href="/club-hub/directory" className="font-semibold text-[#5c1417] hover:underline">
             Browse the directory
           </Link>{" "}
-          and use Join club on a club page.
+          and join one Gold day club and one Maroon day club (General clubs are unlimited).
         </p>
       ) : null}
 
-      <form onSubmit={handleSave} className="space-y-6">
+      {joinedOnlyGeneral ? (
+        <p className="rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-neutral-800">
+          Your joined clubs are General only, so none meet during seminar. Join a Gold day club and a
+          Maroon day club from the{" "}
+          <Link href="/club-hub/directory" className="font-semibold text-[#5c1417] hover:underline">
+            directory
+          </Link>
+          .
+        </p>
+      ) : null}
+
+      {hasSeminarClub || hasAnyMembership ? (
         <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
-          <div className="min-w-0">
-            <label htmlFor="gold-club" className="block text-sm font-semibold text-neutral-900">
-              Gold day club
-            </label>
-            <ClubHubSelectField
-              id="gold-club"
-              value={goldClubSlug}
-              onChange={setGoldClubSlug}
-              options={goldSelectOptions}
-            />
-            {memberships.length > 0 && goldOptions.length === 0 ? (
-              <p className="mt-1 text-sm text-neutral-700">
-                None of your joined clubs meet on Gold days.
-              </p>
-            ) : null}
-          </div>
-
-          <div className="min-w-0">
-            <label htmlFor="maroon-club" className="block text-sm font-semibold text-neutral-900">
-              Maroon day club
-            </label>
-            <ClubHubSelectField
-              id="maroon-club"
-              value={maroonClubSlug}
-              onChange={setMaroonClubSlug}
-              options={maroonSelectOptions}
-            />
-            {memberships.length > 0 && maroonOptions.length === 0 ? (
-              <p className="mt-1 text-sm text-neutral-700">
-                None of your joined clubs meet on Maroon days.
-              </p>
-            ) : null}
-          </div>
+          <SeminarClubCard
+            title="Gold day club"
+            membership={goldMembership}
+            emptyText="You have not joined a Gold day club."
+          />
+          <SeminarClubCard
+            title="Maroon day club"
+            membership={maroonMembership}
+            emptyText="You have not joined a Maroon day club."
+          />
         </div>
+      ) : null}
 
-        <button
-          type="submit"
-          disabled={saving || Boolean(switchCooldownError)}
-          className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto ${clubHubButtonFocusClass}`}
-          style={{ backgroundColor: CLUB_HUB_MAROON }}
+      {dualDayMemberships.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-neutral-900">Clubs that meet both days</h2>
+          <p className="text-sm text-neutral-700">
+            Choose whether you attend on Gold days only, Maroon days only, or both.
+          </p>
+          <ul className="space-y-3">
+            {dualDayMemberships.map((membership) => {
+              const days = resolveSeminarDays(membership);
+              const choice =
+                days.includes("gold") && days.includes("maroon")
+                  ? "both"
+                  : days.includes("gold")
+                    ? "gold"
+                    : "maroon";
+              const busy = savingSlug === membership.clubSlug;
+              return (
+                <li
+                  key={membership.clubSlug}
+                  className="rounded-lg border border-neutral-200 bg-white px-4 py-3"
+                >
+                  <Link
+                    href={`/club-hub/directory/${membership.clubSlug}`}
+                    className="font-medium text-[#5c1417] hover:underline"
+                  >
+                    {membership.clubName || membership.clubSlug}
+                  </Link>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[
+                      { value: "gold", label: "Gold only", days: /** @type {("gold"|"maroon")[]} */ (["gold"]) },
+                      {
+                        value: "maroon",
+                        label: "Maroon only",
+                        days: /** @type {("gold"|"maroon")[]} */ (["maroon"]),
+                      },
+                      {
+                        value: "both",
+                        label: "Both days",
+                        days: /** @type {("gold"|"maroon")[]} */ (["gold", "maroon"]),
+                      },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        disabled={busy || choice === option.value}
+                        onClick={() => handleSeminarDaysChange(membership.clubSlug, option.days)}
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${clubHubButtonFocusClass} ${
+                          choice === option.value
+                            ? "bg-[#5c1417] text-white"
+                            : "border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50"
+                        }`}
+                      >
+                        {busy && choice !== option.value ? "Saving…" : option.label}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * @param {{
+ *   title: string,
+ *   membership: { clubSlug: string, clubName?: string } | null,
+ *   emptyText: string,
+ * }} props
+ */
+function SeminarClubCard({ title, membership, emptyText }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+      <p className="text-sm font-semibold text-neutral-900">{title}</p>
+      {membership ? (
+        <Link
+          href={`/club-hub/directory/${membership.clubSlug}`}
+          className="mt-1 block text-base font-medium text-[#5c1417] hover:underline"
         >
-          {saving ? "Saving…" : "Save choices"}
-        </button>
-      </form>
+          {membership.clubName || membership.clubSlug}
+        </Link>
+      ) : (
+        <p className="mt-1 text-sm text-neutral-700">{emptyText}</p>
+      )}
     </div>
   );
 }

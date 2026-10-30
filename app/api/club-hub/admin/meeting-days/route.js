@@ -34,7 +34,7 @@ async function postHandler(request) {
       const sheet = await syncStudentMeetingRowsToSheet(result.rows);
       if (!sheet.ok) {
         sheetWarning =
-          sheet.error || "Signups were cleared, but the Student meeting clubs sheet did not update.";
+          sheet.error || "Meeting day saved, but the Student meeting clubs sheet did not update.";
       }
     }
     try {

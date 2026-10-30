@@ -1,25 +1,25 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import DashboardTopBar from "@/components/layout/DashboardTopBar";
-import MathLabSidebar from "@/components/mathlab/MathLabSidebar";
+import { Suspense } from "react";
+import MathLabPageShell from "@/components/mathlab/MathLabPageShell";
 import MathLabAdminDashboard from "@/components/mathlab/MathLabAdminDashboard";
 import MathLabLoginPrompt from "@/components/mathlab/MathLabLoginPrompt";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuth } from "@/utils/AuthContext";
 import { isMathLabAdminUser } from "@/lib/auth/productAdmins";
+import { useRequireAccess } from "@/hooks/useRequireAccess";
 
 function MathLabAdminPageContent() {
-  const router = useRouter();
   const { user, userData, loading } = useAuth();
-  const isAdmin = user && userData && isMathLabAdminUser(userData, user.email);
+  const isAdmin = Boolean(user && userData && isMathLabAdminUser(userData, user.email));
 
-  useEffect(() => {
-    if (!loading && user && userData && !isAdmin) {
-      router.replace("/mathlab");
-    }
-  }, [loading, user, userData, isAdmin, router]);
+  useRequireAccess({
+    loading,
+    user,
+    userData,
+    allowed: isAdmin,
+    redirectTo: "/mathlab",
+  });
 
   if (!loading && !user) {
     return (
@@ -44,15 +44,9 @@ function MathLabAdminPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardTopBar title="BRHS Math Lab" />
-      <Suspense fallback={null}>
-        <MathLabSidebar />
-      </Suspense>
-      <div className="ml-0 md:ml-16 px-6 py-8 pb-16 md:pb-8">
-        <MathLabAdminDashboard />
-      </div>
-    </div>
+    <MathLabPageShell contentClassName="ml-0 md:ml-16 px-6 py-8 pb-16 md:pb-8">
+      <MathLabAdminDashboard />
+    </MathLabPageShell>
   );
 }
 

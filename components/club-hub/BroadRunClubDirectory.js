@@ -60,8 +60,9 @@ export default function BroadRunClubDirectory() {
       </div>
 
       <p className="sr-only">
-        Clubs grouped by Gold day, Maroon day, and general meetings. Open a club page for details
-        and sponsors.
+        Clubs grouped by Gold day, Maroon day, and general meetings. You may join one Gold day club
+        and one Maroon day club; General clubs are unlimited. Open a club page for details and
+        sponsors.
       </p>
 
       <DirectorySection id="club-directory-gold" title="Gold Clubs">

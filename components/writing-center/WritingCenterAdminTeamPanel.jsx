@@ -22,17 +22,7 @@ import {
   WRITING_CENTER_TEAM_PENDING_COLLECTION,
 } from "@/lib/writing-center/teamPending";
 import { resolveDisplayName } from "@/lib/profile";
-
-async function findUserByEmail(normalized) {
-  const snap = await getDocs(collection(firestore, "users"));
-  for (const d of snap.docs) {
-    const data = d.data();
-    if (normalizeEmail(data.email) === normalized) {
-      return { id: d.id, ...data };
-    }
-  }
-  return null;
-}
+import { findUserByNormalizedEmailFromFirestore } from "@/lib/users/lookupByEmail";
 
 export function WritingCenterAdminTeamPanel() {
   const { user: authUser, userData } = useAuth();
@@ -46,6 +36,7 @@ export function WritingCenterAdminTeamPanel() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [cachedUsers, setCachedUsers] = useState([]);
 
   const load = useCallback(async () => {
     if (!firestore || !canManage) {
@@ -58,13 +49,9 @@ export function WritingCenterAdminTeamPanel() {
         getDocs(collection(firestore, "users")),
         getDocs(collection(firestore, WRITING_CENTER_TEAM_PENDING_COLLECTION)),
       ]);
-      const wcAdmins = [];
-      for (const d of usersSnap.docs) {
-        const data = d.data();
-        if (data.writingCenterAdmin === true) {
-          wcAdmins.push({ id: d.id, ...data });
-        }
-      }
+      const allUsers = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setCachedUsers(allUsers);
+      const wcAdmins = allUsers.filter((u) => u.writingCenterAdmin === true);
       wcAdmins.sort((a, b) =>
         resolveDisplayName(a).localeCompare(resolveDisplayName(b), undefined, {
           sensitivity: "base",
@@ -104,7 +91,7 @@ export function WritingCenterAdminTeamPanel() {
     setSaving(true);
     try {
       assertClientRateLimit("profileWrite", authUser?.uid);
-      const existing = await findUserByEmail(normalized);
+      const existing = await findUserByNormalizedEmailFromFirestore(normalized, { cachedUsers });
       if (existing) {
         if (existing.writingCenterAdmin === true) {
           setMessage("That user is already a Writing Center admin.");

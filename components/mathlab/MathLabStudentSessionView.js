@@ -2,7 +2,7 @@
 
 import MathLabPageShell from "@/components/mathlab/MathLabPageShell";
 import { formatRequestTime } from "@/lib/firestoreDates";
-import { formatSessionTime } from "@/lib/mathlab/formatSessionTime";
+import { formatClockDuration } from "@/lib/firestoreDates";
 import {
   formatScheduleLabel,
   isScheduledRequest,
@@ -67,7 +67,7 @@ export default function MathLabStudentSessionView({
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Session Duration</h3>
               <div className="text-3xl font-mono font-bold text-primary">
-                {formatSessionTime(sessionDuration)}
+                {formatClockDuration(sessionDuration)}
               </div>
               <p className="text-sm text-gray-500 mt-1">Live Timer</p>
             </div>

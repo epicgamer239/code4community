@@ -1,7 +1,7 @@
 "use client";
 
 import MathLabPageShell from "@/components/mathlab/MathLabPageShell";
-import { formatSessionTime } from "@/lib/mathlab/formatSessionTime";
+import { formatClockDuration } from "@/lib/firestoreDates";
 import {
   formatScheduleLabel,
   isScheduledRequest,
@@ -76,7 +76,7 @@ export default function MathLabTutorActiveSession({
             {isSessionStarted ? (
               <>
                 <div className="text-3xl font-mono font-bold text-primary">
-                  {formatSessionTime(sessionDuration)}
+                  {formatClockDuration(sessionDuration)}
                 </div>
                 <p className="text-sm text-gray-500 mt-1">Live Timer</p>
               </>

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRequireAccess } from "@/hooks/useRequireAccess";
 import { AppPageLayout, ContainerMain } from "@/components/common/AppPageLayout";
 import FullPageLoading from "@/components/common/FullPageLoading";
 import SignupAllowlistPanel from "@/components/admin/SignupAllowlistPanel";
@@ -10,15 +9,16 @@ import { useAuth } from "@/utils/AuthContext";
 import { isSiteAdminUser } from "@/lib/auth/productAdmins";
 
 export default function SiteAdminPage() {
-  const router = useRouter();
   const { user, userData, loading } = useAuth();
   const isAdmin = Boolean(user && userData && isSiteAdminUser(userData, user.email));
 
-  useEffect(() => {
-    if (!loading && user && userData && !isAdmin) {
-      router.replace("/");
-    }
-  }, [loading, user, userData, isAdmin, router]);
+  useRequireAccess({
+    loading,
+    user,
+    userData,
+    allowed: isAdmin,
+    redirectTo: "/",
+  });
 
   if (loading || (user && !userData)) {
     return <FullPageLoading />;

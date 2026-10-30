@@ -11,6 +11,7 @@ import {
 import { requiresBoardForMaroonMeetingPick } from "@/lib/club-hub/meetingDayBoardAccess";
 import { BROAD_RUN_CLUBS, clubNameToSlug } from "@/lib/club-hub/broadRunClubDirectory";
 import { setCustomClubs } from "@/lib/club-hub/customClubStore";
+import { setRemovedClubSlugs } from "@/lib/club-hub/removedClubsStore";
 
 describe("getClubsGroupedByMeetingDay", () => {
   it("covers every directory club in gold, maroon, or general", () => {
@@ -82,6 +83,7 @@ describe("admin meeting-day overrides", () => {
   afterEach(() => {
     setMeetingDayOverrides({});
     setCustomClubs([]);
+    setRemovedClubSlugs([]);
   });
 
   it("moves a General club to Gold", () => {

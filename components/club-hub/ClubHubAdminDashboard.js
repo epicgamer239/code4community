@@ -9,12 +9,9 @@ import ClubHubRostersPanel from "@/components/club-hub/ClubHubRostersPanel";
 import ClubHubOpportunityEventsPanel from "@/components/club-hub/ClubHubOpportunityEventsPanel";
 import ClubHubSpecialSheetEventsPanel from "@/components/club-hub/ClubHubSpecialSheetEventsPanel";
 import ClubHubMeetingDaysAdminPanel from "@/components/club-hub/ClubHubMeetingDaysAdminPanel";
+import ClubHubManualRankingsAdminPanel from "@/components/club-hub/ClubHubManualRankingsAdminPanel";
 import { getSortedClubOptions } from "@/lib/club-hub/broadRunClubDirectory";
 import { useCustomClubs } from "@/lib/club-hub/customClubs";
-import {
-  PROTECTED_CLUB_HUB_COORDINATOR_EMAIL,
-  isProtectedClubHubCoordinator,
-} from "@/lib/club-hub/access";
 import {
   fetchAllClubHubAccessRecords,
   setClubHubCoordinator,
@@ -70,23 +67,10 @@ export default function ClubHubAdminDashboard() {
     };
   }, [loadRecords]);
 
-  const coordinators = useMemo(() => {
-    const fromDb = records.filter((row) => row.isCoordinator);
-    const hasProtected = fromDb.some((row) =>
-      isProtectedClubHubCoordinator(row.email),
-    );
-    if (hasProtected) return fromDb;
-    return [
-      {
-        email: PROTECTED_CLUB_HUB_COORDINATOR_EMAIL,
-        isCoordinator: true,
-        manualClubSlugs: {},
-        directoryClubSlugs: {},
-        protected: true,
-      },
-      ...fromDb,
-    ];
-  }, [records]);
+  const coordinators = useMemo(
+    () => records.filter((row) => row.isCoordinator),
+    [records],
+  );
 
   const run = async (action) => {
     if (!user?.uid || busy) return;
@@ -170,6 +154,17 @@ export default function ClubHubAdminDashboard() {
           <button
             type="button"
             role="tab"
+            id="club-hub-tab-rankings"
+            aria-selected={tab === "rankings"}
+            aria-controls="club-hub-panel-rankings"
+            onClick={() => setTab("rankings")}
+            className={tabBtn(tab === "rankings")}
+          >
+            Rankings
+          </button>
+          <button
+            type="button"
+            role="tab"
             id="club-hub-tab-students"
             aria-selected={tab === "students"}
             aria-controls="club-hub-panel-students"
@@ -189,17 +184,6 @@ export default function ClubHubAdminDashboard() {
           >
             Events
           </button>
-          <button
-            type="button"
-            role="tab"
-            id="club-hub-tab-seminar-events"
-            aria-selected={tab === "seminar-events"}
-            aria-controls="club-hub-panel-seminar-events"
-            onClick={() => setTab("seminar-events")}
-            className={tabBtn(tab === "seminar-events")}
-          >
-            Seminar events
-          </button>
         </div>
       </div>
 
@@ -213,18 +197,21 @@ export default function ClubHubAdminDashboard() {
           aria-labelledby="club-hub-tab-events"
           tabIndex={0}
         >
-          <ClubHubOpportunityEventsPanel />
-        </div>
-      ) : null}
-
-      {tab === "seminar-events" ? (
-        <div
-          id="club-hub-panel-seminar-events"
-          role="tabpanel"
-          aria-labelledby="club-hub-tab-seminar-events"
-          tabIndex={0}
-        >
-          <ClubHubSpecialSheetEventsPanel />
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-neutral-900">Events</h2>
+            <p className="mt-1 text-sm text-neutral-700">
+              Publish Club resources opportunities, or add one-off seminar columns on the student
+              meeting sheet.
+            </p>
+          </div>
+          <div className="overflow-hidden rounded-[14px] bg-white shadow-sm ring-1 ring-black/5">
+            <div className="border-b border-neutral-200 p-5 sm:p-6">
+              <ClubHubOpportunityEventsPanel embedded />
+            </div>
+            <div className="p-5 sm:p-6">
+              <ClubHubSpecialSheetEventsPanel embedded />
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -236,6 +223,17 @@ export default function ClubHubAdminDashboard() {
           tabIndex={0}
         >
           <ClubHubMeetingDaysAdminPanel />
+        </div>
+      ) : null}
+
+      {tab === "rankings" ? (
+        <div
+          id="club-hub-panel-rankings"
+          role="tabpanel"
+          aria-labelledby="club-hub-tab-rankings"
+          tabIndex={0}
+        >
+          <ClubHubManualRankingsAdminPanel />
         </div>
       ) : null}
 
@@ -325,31 +323,24 @@ export default function ClubHubAdminDashboard() {
               <ul className="mt-4 divide-y divide-neutral-200">
                 {coordinators.map((row) => (
                   <li key={row.email} className="flex items-center justify-between gap-3 py-3">
-                    <div>
-                      <p className="font-medium text-neutral-900">{row.email}</p>
-                      {row.protected && (
-                        <p className="text-xs text-neutral-700">Built-in coordinator</p>
-                      )}
-                    </div>
-                    {!row.protected && (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() =>
-                          run(async () => {
-                            await setClubHubCoordinator({
-                              email: row.email,
-                              adminUid: user.uid,
-                              isCoordinator: false,
-                            });
-                            setMessage(`Removed coordinator: ${row.email}`);
-                          })
-                        }
-                        className="text-sm font-medium text-red-700 hover:underline disabled:opacity-50"
-                      >
-                        Remove
-                      </button>
-                    )}
+                    <p className="font-medium text-neutral-900">{row.email}</p>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        run(async () => {
+                          await setClubHubCoordinator({
+                            email: row.email,
+                            adminUid: user.uid,
+                            isCoordinator: false,
+                          });
+                          setMessage(`Removed coordinator: ${row.email}`);
+                        })
+                      }
+                      className="text-sm font-medium text-red-700 hover:underline disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
                   </li>
                 ))}
               </ul>

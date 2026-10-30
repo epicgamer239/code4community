@@ -15,6 +15,7 @@ import {
   validateSessionReportFile,
 } from "@/lib/writing-center/sessionReport";
 import { miniLessonNeedsTeacherReport, formatMiniLessonTutors } from "@/lib/writing-center/miniLesson";
+import { writingCenterTabClass } from "@/lib/writing-center/tabClass";
 
 function formatType(sessionType) {
   switch (sessionType) {
@@ -179,12 +180,7 @@ export default function TeacherDashboard({ asUser = null }) {
     }
   };
 
-  const tabClass = (tab) =>
-    `whitespace-nowrap py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-      activeTab === tab
-        ? "bg-indigo-100 text-indigo-700"
-        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-    }`;
+  const tabClass = (tab) => writingCenterTabClass(activeTab, tab);
 
   return (
     <div className="w-full px-3 sm:px-4 lg:px-6 py-4">

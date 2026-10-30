@@ -2,10 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from "react";
 import { fetchClubEventsInRange, groupEventsByDate } from "@/lib/club-hub/clubEvents";
-import {
-  LCPS_CALENDAR_SCHOOL_YEAR_LABEL,
-  mergeLcpsDaysIntoEventsByDate,
-} from "@/lib/club-hub/lcpsSchoolCalendar2026";
+import { mergeLcpsDaysIntoEventsByDate } from "@/lib/club-hub/lcpsSchoolCalendar2026";
 import {
   mergeActivityBusWednesdays,
   sortCalendarEventsByDateMap,
@@ -13,7 +10,6 @@ import {
 import {
   getSpartanDayHighlightKind,
   mergeSpartanScheduleIntoEventsByDate,
-  SPARTAN_SCHEDULE_LABEL,
 } from "@/lib/club-hub/spartanAdvisoryClubSchedule2026";
 import ClubHubCalendarDayDetailDialog from "@/components/club-hub/ClubHubCalendarDayDetailDialog";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
@@ -221,27 +217,31 @@ function scheduleStyles(kind) {
 }
 
 /** @param {string} dateKey @param {import("@/lib/club-hub/clubEvents.js").CalendarEventBlock[]} list @param {boolean} selected */
-function daySurfaceClass(dateKey, list, selected) {
+function daySurfaceClass(dateKey, list) {
   const highlight = getSpartanDayHighlightKind(dateKey);
   const styles = highlight ? scheduleStyles(highlight) : null;
   const hasNoSchool = hasNoSchoolDay(list);
 
-  if (selected) {
-    const base = hasNoSchool ? NO_SCHOOL_DAY_CELL : styles?.dayCell || "bg-white";
-    return `${base} ring-2 ring-inset ring-[#5c1417]`;
-  }
   if (hasNoSchool) return NO_SCHOOL_DAY_CELL;
   if (styles?.dayCell) return styles.dayCell;
   return "bg-white hover:bg-rose-50/40";
 }
 
-/** @param {string} dateKey @param {boolean} selected */
-function dayNumberClass(dateKey, selected) {
+/**
+ * @param {string} dateKey
+ * @param {{ noSchool?: boolean, week?: boolean }} [opts]
+ */
+function dayNumberClass(dateKey, opts = {}) {
   const highlight = getSpartanDayHighlightKind(dateKey);
   const styles = highlight ? scheduleStyles(highlight) : null;
-  if (selected) return "bg-[#5c1417] text-white";
   if (styles?.dayBadge) return styles.dayBadge;
-  return "text-neutral-900";
+  // Soft white wash so hatch doesn’t strike through the date — no ring/border chip.
+  if (opts.noSchool) {
+    return opts.week
+      ? "bg-white/95 text-[#5c1417] [text-shadow:0_0_6px_#fff,0_0_3px_#fff]"
+      : "bg-white/95 text-neutral-900 [text-shadow:0_0_6px_#fff,0_0_3px_#fff]";
+  }
+  return opts.week ? "text-[#5c1417]" : "text-neutral-900";
 }
 
 /** @param {import("@/lib/club-hub/clubEvents.js").CalendarEventBlock} ev */
@@ -387,8 +387,8 @@ function EventBlock({ ev, isSelectedCol }) {
     <div className={box}>
       {showTime ? <p className={timeCls}>{ev.time}</p> : null}
       <p className={showTime ? titleCls : titleCls.replace(/^mt-0\.5 /, "")}>{ev.title}</p>
-      <p className={locCls}>{ev.location}</p>
-      {ev.note ? <p className={noteCls}>{ev.note}</p> : null}
+      {ev.location?.trim() ? <p className={locCls}>{ev.location}</p> : null}
+      {ev.note?.trim() ? <p className={noteCls}>{ev.note}</p> : null}
     </div>
   );
 }
@@ -447,11 +447,11 @@ function MonthView({ year, month, selectedDay, onDayClick, eventsByDate }) {
               onClick={() => onDayClick(day)}
               aria-label={`${dayLabel}${list.length ? `, ${list.length} event${list.length === 1 ? "" : "s"}` : ""}. Open day details.`}
               aria-pressed={selected}
-              className={`flex min-h-0 flex-col border-b border-r border-neutral-200 p-1 text-left transition-colors last:border-r-0 sm:p-1.5 ${clubHubButtonFocusClass} ${daySurfaceClass(key, list, selected)}`}
+              className={`flex min-h-0 flex-col border-b border-r border-neutral-200 p-1 text-left transition-colors last:border-r-0 sm:p-1.5 ${clubHubButtonFocusClass} ${daySurfaceClass(key, list)}`}
             >
               {noSchool ? <NoSchoolCellOverlay /> : null}
               <span
-                className={`relative z-[2] mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold sm:text-xs ${dayNumberClass(key, selected)}`}
+                className={`relative z-[2] mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold sm:text-xs ${dayNumberClass(key, { noSchool })}`}
               >
                 {day.getDate()}
               </span>
@@ -666,10 +666,6 @@ export default function ClubHubWeekCalendar() {
                 Month
               </button>
             </div>
-            <p className="max-w-xl text-center text-[11px] leading-relaxed text-neutral-600 sm:text-xs">
-              Includes {LCPS_CALENDAR_SCHOOL_YEAR_LABEL} holidays and breaks, plus{" "}
-              {SPARTAN_SCHEDULE_LABEL}.
-            </p>
             <CalendarColorLegend />
           </div>
         </div>
@@ -721,17 +717,15 @@ export default function ClubHubWeekCalendar() {
                         onClick={() => handleDayClick(day)}
                         aria-label={`${dayLabel}${list.length ? `, ${list.length} event${list.length === 1 ? "" : "s"}` : ""}. Open day details.`}
                         aria-pressed={isSelected}
-                        className={`flex min-h-0 min-w-0 flex-col border-r border-neutral-200 text-left last:border-r-0 ${clubHubButtonFocusClass} ${daySurfaceClass(key, list, isSelected)}`}
+                        className={`flex min-h-0 min-w-0 flex-col border-r border-neutral-200 text-left last:border-r-0 ${clubHubButtonFocusClass} ${daySurfaceClass(key, list)}`}
                       >
                         {noSchool ? <NoSchoolCellOverlay /> : null}
                         <div className="relative z-[2] shrink-0 px-1 py-2.5 text-center">
                           <div
-                            className={`inline-block rounded-md px-2 py-1 text-sm font-bold leading-none sm:text-[15px] ${
-                              isSelected
-                                ? "bg-[#5c1417] text-white"
-                                : getSpartanDayHighlightKind(key)
-                                  ? `${dayNumberClass(key, false)} rounded-md px-2.5 py-1`
-                                  : "text-[#5c1417]"
+                            className={`inline-block text-sm font-bold leading-none sm:text-[15px] ${
+                              noSchool
+                                ? `px-1 ${dayNumberClass(key, { noSchool, week: true })}`
+                                : `rounded-md px-2 py-1 ${dayNumberClass(key, { noSchool, week: true })}`
                             }`}
                           >
                             {dateStr}
@@ -773,18 +767,14 @@ export default function ClubHubWeekCalendar() {
                         aria-expanded={isSelected}
                         aria-controls={`${key}-events`}
                         aria-label={`${dateStr}. Open day details.`}
-                        className={`relative flex w-full items-center justify-between overflow-hidden px-3 py-2.5 text-left ${clubHubButtonFocusClass} ${
-                          isSelected ? "bg-[#5c1417]" : daySurfaceClass(key, list, false)
-                        }`}
+                        className={`relative flex w-full items-center justify-between overflow-hidden px-3 py-2.5 text-left ${clubHubButtonFocusClass} ${daySurfaceClass(key, list)}`}
                       >
-                        {!isSelected && noSchool ? <NoSchoolCellOverlay /> : null}
+                        {noSchool ? <NoSchoolCellOverlay /> : null}
                         <span
-                          className={`relative z-[2] rounded-md px-2 py-0.5 text-sm font-semibold ${
-                            isSelected
-                              ? "text-white"
-                              : getSpartanDayHighlightKind(key)
-                                ? dayNumberClass(key, false)
-                                : "text-[#5c1417]"
+                          className={`relative z-[2] text-sm font-semibold ${
+                            noSchool
+                              ? `px-1 ${dayNumberClass(key, { noSchool, week: true })}`
+                              : `rounded-md px-2 py-0.5 ${dayNumberClass(key, { noSchool, week: true })}`
                           }`}
                         >
                           {dateStr}
@@ -792,7 +782,7 @@ export default function ClubHubWeekCalendar() {
                       </button>
                       <div
                         id={`${key}-events`}
-                        className={`relative space-y-0 overflow-hidden py-1 ${daySurfaceClass(key, list, false)}`}
+                        className={`relative space-y-0 overflow-hidden py-1 ${daySurfaceClass(key, list)}`}
                       >
                         {noSchool ? <NoSchoolCellOverlay /> : null}
                         <div className="relative z-[2]">

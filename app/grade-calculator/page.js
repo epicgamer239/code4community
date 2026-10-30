@@ -3,21 +3,39 @@ import { useState, useEffect, useLayoutEffect } from "react";
 import { AppPageLayout } from "@/components/common/AppPageLayout";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useRunEffect } from "@/hooks/useRunEffect";
-
-// LCPS secondary weighting; Synergy's chart view doesn't copy as text, so this is usually what applies.
-const DEFAULT_WEIGHTS = {
-  "Major Summative": 80,
-  "Minor Summative": 10,
-  "Graded Formative": 10,
-  "Formative Assessment": 10,
-  "Extra Credit": 0,
-  "Other": 0
-};
-
-// Synergy category names vary by school ("Graded Formative" vs "Formative Assessment", etc.).
-const CATEGORY_PATTERN = /^((Major|Minor|Graded|Diagnostic)\s+(Summative|Formative)|(Formative|Summative)\s+Assessments?)$/i;
+import { DEFAULT_WEIGHTS } from "@/lib/grade-calculator/constants";
+import { parseGradebook } from "@/lib/grade-calculator/parseSynergyGradebook";
 
 const toNumber = (value) => (value === "" ? 0 : (value || 0));
+
+function AssignmentScoreInput({
+  assignmentId,
+  field,
+  value,
+  isChanged,
+  onScoreChange,
+  onScoreFocus,
+  onScoreBlur,
+}) {
+  const inputClass = `w-24 rounded-lg border bg-background px-3 py-2 text-sm text-foreground transition focus:outline-none focus:ring-2 ${
+    isChanged
+      ? "border-primary ring-1 ring-primary/40 focus:ring-primary/30"
+      : "border-border focus:border-primary focus:ring-primary/20"
+  }`;
+
+  return (
+    <input
+      type="number"
+      value={value === "" ? "" : (value || 0)}
+      onChange={(e) => onScoreChange(assignmentId, field, e.target.value)}
+      onFocus={onScoreFocus}
+      onBlur={(e) => onScoreBlur(assignmentId, field, e.target.value)}
+      className={inputClass}
+      step="1"
+      min="0"
+    />
+  );
+}
 
 // Points-based within each category, then weighted across categories that have graded work.
 const calculateGrade = (assignmentsToCalculate, weights, useWeighted) => {
@@ -117,435 +135,6 @@ export default function GradeCalculator() {
   useRunEffect(() => {
     setShowWeightPlanModal(true);
   }, []);
-
-
-  const parseGradebook = (text) => {
-    const lines = text.split('\n').filter(line => line.trim());
-    let parsedCourseName = "";
-    let parsedCurrentGrade = "";
-    let parsedCurrentPercent = 0;
-    const parsedAssignments = [];
-    const parsedWeights = {};
-    
-    // Common navigation items to filter out
-    const navigationItems = ['Home', 'Synergy', 'Mail', 'Calendar', 'Attendance', 'Class Schedule', 
-                            'Course History', 'Grade Book', 'MTSS', 'School Information', 
-                            'Student Info', 'Test History', 'Documents', 'Totals'];
-
-    // Category names come from the built-in list, the common Synergy patterns, and any weights row in the paste.
-    const knownCategories = new Set(Object.keys(DEFAULT_WEIGHTS).map(c => c.toLowerCase()));
-    const matchCategory = (s) => {
-      const t = s.trim().replace(/\s+/g, " ");
-      if (!t) return null;
-      if (knownCategories.has(t.toLowerCase()) || CATEGORY_PATTERN.test(t)) {
-        const known = Object.keys({ ...DEFAULT_WEIGHTS, ...parsedWeights }).find(c => c.toLowerCase() === t.toLowerCase());
-        return known || t.replace(/\b\w/g, ch => ch.toUpperCase());
-      }
-      return null;
-    };
-    // Synergy uses lines like "Major Summative" as categories but assignment titles can include "Summative" (e.g. "Summative Polar").
-    const isSynergyCategoryHeaderLine = (s) => !!matchCategory(s.split("\t")[0]);
-    const isSynergyScoreMetadataLine = (s) =>
-      /^(Raw\s+Score|Percentage)\b/i.test(s.trim());
-    const isPlausibleAssignmentTitleLine = (s) => {
-      const t = s.trim();
-      if (!t || t.length < 3) return false;
-      if (/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(t)) return false;
-      if (isSynergyCategoryHeaderLine(t)) return false;
-      if (isSynergyScoreMetadataLine(t)) return false;
-      if (/\d\s+out\s+of\s+\d/i.test(t)) return false;
-      return true;
-    };
-
-    // Find course name and overall grade (appears early in the text)
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      
-      // Look for overall grade like "A- (91%)" or "A+ (100%)"
-      // Try to find it in the header area
-      if (i < 20) {
-        const gradeMatch = line.match(/([A-F][+-]?)\s*(\d+)%/);
-        if (gradeMatch && !parsedCurrentGrade) {
-          parsedCurrentGrade = gradeMatch[1];
-          parsedCurrentPercent = parseInt(gradeMatch[2]);
-        }
-      }
-
-      // Look for course name (usually before "Marking Period")
-      if (line.includes("Marking Period") && i > 0) {
-        parsedCourseName = lines[i - 1].trim();
-      }
-    }
-    
-    // Parse category weights from the summary/grid table, e.g. "Major Summative	60%	299.00	300.00"
-    // or "Formative Assessment	10.00%	...". A header row naming a "Weight" / "% of Grade" column picks
-    // which percentage is the weight; otherwise the first percentage after the category name is used.
-    let foundSummary = false;
-    let weightColumn = -1;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}/.test(line)) continue;
-
-      if (line.includes("Grade Calculation Summary")) {
-        foundSummary = true;
-        continue;
-      }
-      if (line.includes("Assignments")) foundSummary = false;
-
-      const parts = line.split(/\t|\s{2,}/).map(p => p.trim()).filter(Boolean);
-      const headerIndex = parts.findIndex(p => /^(weight|% of grade)$/i.test(p));
-      if (headerIndex > 0) {
-        weightColumn = headerIndex;
-        continue;
-      }
-      if (parts.length < 2 || /TOTAL/i.test(parts[0])) continue;
-
-      const categoryName = matchCategory(parts[0]) || (foundSummary ? parts[0] : null);
-      if (!categoryName) continue;
-
-      const weightCell = weightColumn > 0 ? parts[weightColumn] : parts.slice(1).find(p => /%$/.test(p));
-      const weightMatch = weightCell && weightCell.match(/^(\d+(?:\.\d+)?)%$/);
-      if (weightMatch) {
-        parsedWeights[categoryName] = parseFloat(weightMatch[1]);
-        knownCategories.add(categoryName.toLowerCase());
-      }
-    }
-    
-    // Also check the "Totals" section at the end for overall grade
-    for (let i = lines.length - 1; i >= Math.max(0, lines.length - 10); i--) {
-      const line = lines[i];
-      const gradeMatch = line.match(/([A-F][+-]?)\s*\((\d+)%\)/);
-      if (gradeMatch) {
-        parsedCurrentGrade = gradeMatch[1];
-        parsedCurrentPercent = parseInt(gradeMatch[2]);
-        break;
-      }
-    }
-
-    // Parse assignments - redesigned to handle Synergy's structured format
-    // Find the "Assignments" section
-    let assignmentsStartIndex = -1;
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes("Assignments") || lines[i].includes("Data grid")) {
-        assignmentsStartIndex = i;
-        break;
-      }
-    }
-    
-    // If we found assignments section, parse from there
-    if (assignmentsStartIndex >= 0) {
-      // Parse assignments systematically
-      // Pattern: Date -> Name -> Category -> Score info
-      let i = assignmentsStartIndex;
-      
-      while (i < lines.length) {
-        const line = lines[i].trim();
-        
-        // Look for date pattern M/D/YY, MM/DD/YY, or MM/DD/YYYY (at start or after tabs/spaces)
-        // Handle both single-digit and double-digit months/days
-        // Also check the raw line in case there are tabs
-        const rawLine = lines[i];
-        // Match dates like: 11/6/25, 9/24/25, 10/28/25, etc.
-        const dateMatch = line.match(/^(\d{1,2}\/\d{1,2}\/\d{2,4})/) || rawLine.match(/^[\s\t]*(\d{1,2}\/\d{1,2}\/\d{2,4})/);
-        
-        if (dateMatch) {
-          const date = dateMatch[1];
-          let assignmentName = "";
-          let category = "Other";
-          let earned = 0;
-          let possible = 0;
-          let foundScore = false;
-          
-          // Look ahead for assignment data (next 15 lines to be safe)
-          let j = i + 1;
-          let nameFound = false;
-          let categoryFound = false;
-          let shouldBreak = false;
-          
-          
-          // Extract assignment name (usually the next non-empty line after date)
-          while (j < Math.min(i + 15, lines.length) && !shouldBreak) {
-            const nextLine = lines[j].trim();
-            
-            // Skip empty lines
-            if (!nextLine) {
-              j++;
-              continue;
-            }
-            
-            // Skip if it's another date (next assignment) - but only if we've found some data
-            // Handle both single-digit and double-digit dates
-            if (nextLine.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}/)) {
-              // If we haven't found anything useful yet, this might be part of the current assignment
-              // Only break if we've found at least name or category
-              if (nameFound || categoryFound || foundScore) {
-                shouldBreak = true;
-                break;
-              }
-            }
-            
-            // Skip navigation items
-            // Exact match only: titles like "Homework Unit 2" contain nav words such as "Home"
-            if (navigationItems.includes(nextLine.replace(/^(gs\s+)?icon\s+/i, ""))) {
-              j++;
-              continue;
-            }
-            
-            // Skip assignments marked as "Not For Grading", "Not Due", or "Not Graded"
-            if (nextLine.includes("Not For Grading") || nextLine.includes("(Not For Grading)") ||
-                nextLine.includes("Not Due") || nextLine.includes("Not Graded")) {
-              shouldBreak = true;
-              break;
-            }
-            
-            // Check for diagnostic formatives
-            if (nextLine.includes("Diagnostic Formative")) {
-              shouldBreak = true;
-              break;
-            }
-            
-            // Extract assignment name (first substantial line that is not a category or "Raw Score" metadata)
-            if (!nameFound && isPlausibleAssignmentTitleLine(nextLine)) {
-              // Check if it's tab-separated
-              const tabParts = nextLine.split('\t');
-              if (tabParts.length > 0) {
-                const potentialName = tabParts[0].trim();
-                if (potentialName && potentialName.length > 2 && !potentialName.match(/^\d+$/) && 
-                    !potentialName.match(/^\d+\.?\d*\/\d+\.?\d*$/) && !potentialName.match(/out of/i)) {
-                  assignmentName = potentialName;
-                  nameFound = true;
-                }
-              } else {
-                // Not tab-separated, use the whole line if it's substantial
-                if (nextLine.length > 2 && !nextLine.match(/^\d+\.?\d*\/\d+\.?\d*$/) && 
-                    !nextLine.match(/out of/i) && !nextLine.match(/^\d+$/)) {
-                  assignmentName = nextLine;
-                  nameFound = true;
-                }
-              }
-            }
-            
-            // Extract category
-            if (!categoryFound) {
-              const matched = nextLine.split('\t').map(matchCategory).find(Boolean);
-              if (matched) {
-                category = matched;
-                categoryFound = true;
-              }
-            }
-            
-            // Extract score - try multiple formats (keep trying even after name/category found)
-            // "Raw Score	X.XX/Y.YYY" is the points value that counts toward the grade. It can differ from the
-            // displayed "X out of Y" (e.g. "39 out of 40" worth 9.75/10), so it overrides any earlier match.
-            const rawScoreMatch = nextLine.match(/(?:Raw\s+Score|Percentage)\s+(\d+\.?\d*)\/(\d+\.?\d*)/i);
-            if (rawScoreMatch) {
-              earned = parseFloat(rawScoreMatch[1]);
-              possible = parseFloat(rawScoreMatch[2]);
-              foundScore = true;
-            }
-            if (!foundScore) {
-              // Format 1: "X out of Y" - example: "105 out of 100.0000"
-              const outOfMatch = nextLine.match(/(\d+\.?\d*)\s+out\s+of\s+(\d+\.?\d*)/i);
-              if (outOfMatch) {
-                earned = parseFloat(outOfMatch[1]);
-                possible = parseFloat(outOfMatch[2]);
-                foundScore = true;
-              }
-
-              // Format 3: "X.XX/Y.YYY" (but not dates)
-              if (!foundScore) {
-                const scoreMatch = nextLine.match(/(\d+\.?\d*)\/(\d+\.?\d*)/);
-                if (scoreMatch) {
-                  const num1 = parseFloat(scoreMatch[1]);
-                  const num2 = parseFloat(scoreMatch[2]);
-                  // Valid score: num2 should be > 10 (not a date) and reasonable
-                  if (num2 > 10 && num2 < 10000 && num1 <= num2) {
-                    // Make sure it's not a date pattern
-                    const beforeMatch = nextLine.substring(0, scoreMatch.index);
-                    if (!beforeMatch.match(/\d{2}\/\d{2}$/)) {
-                      earned = num1;
-                      possible = num2;
-                      foundScore = true;
-                    }
-                  }
-                }
-              }
-              
-              // Format 4: Look for two separate numbers that could be earned/possible
-              // This handles cases where they're on separate lines or separated differently
-              if (!foundScore) {
-                // Look for patterns like "11	11" (tab-separated numbers)
-                const tabParts = nextLine.split('\t');
-                if (tabParts.length >= 2) {
-                  const num1 = parseFloat(tabParts[0].trim());
-                  const num2 = parseFloat(tabParts[1].trim());
-                  if (!isNaN(num1) && !isNaN(num2) && num2 > 0 && num1 >= 0 && num1 <= num2 && num2 < 10000) {
-                    earned = num1;
-                    possible = num2;
-                    foundScore = true;
-                  }
-                }
-              }
-            }
-            
-            j++;
-          }
-          
-          // Only add if we found a valid score
-          if (foundScore && possible > 0) {
-            // If we don't have a name but have a category, try to get name from context
-            if (!assignmentName && category !== "Other") {
-              // Look back a few lines for potential name
-              for (let k = Math.max(0, i - 3); k < i; k++) {
-                const prevLine = lines[k].trim();
-                if (prevLine && isPlausibleAssignmentTitleLine(prevLine)) {
-                  assignmentName = prevLine.split('\t')[0].trim();
-                  if (assignmentName && !navigationItems.includes(assignmentName)) {
-                    break;
-                  }
-                }
-              }
-            }
-            
-            // Filter out entries with very generic names (but allow if we have a category)
-            if (assignmentName && assignmentName.length < 3 && category === "Other") {
-              i = shouldBreak ? j - 1 : j;
-              continue;
-            }
-            
-            // If we still don't have a name, generate one
-            if (!assignmentName) {
-              assignmentName = `Assignment ${parsedAssignments.length + 1}`;
-            }
-            
-            // Check for duplicates
-            const isDuplicate = parsedAssignments.some(a => 
-              a.date === date && a.name === assignmentName && Math.abs(a.earned - earned) < 0.01
-            );
-            
-            if (!isDuplicate) {
-              parsedAssignments.push({
-                id: parsedAssignments.length,
-                date,
-                name: assignmentName,
-                category,
-                earned: earned,
-                possible: possible,
-                originalEarned: earned,
-                originalPossible: possible
-              });
-            }
-            
-            // Move to the next assignment
-            // If we broke because we found the next date at line j, set i = j - 1
-            // Then the loop will check j-1 (no date), increment to j, and next iteration will process j (the date)
-            // Otherwise, continue from where we stopped looking
-            if (shouldBreak) {
-              i = j - 1; // j is the line with the next date
-            } else {
-              i = j - 1; // Continue from where we stopped (j was incremented at end of inner loop)
-            }
-          } else {
-            // Move forward even if we didn't find a complete assignment
-            i++;
-          }
-        } else {
-          i++;
-        }
-      }
-    } else {
-      // Fallback: try to find assignments without "Assignments" header
-      // Use the old method as backup
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        const dateMatch = line.match(/^(\d{1,2}\/\d{1,2}\/\d{2,4})/);
-        
-        if (dateMatch) {
-          const date = dateMatch[1];
-          const contextLines = lines.slice(i, Math.min(i + 10, lines.length)).join('\n');
-          
-          // Skip if it's in the summary section
-          if (contextLines.includes("Grade Calculation Summary")) {
-            continue;
-          }
-          
-          // Try to extract assignment data
-          const outOfMatch = contextLines.match(/(\d+\.?\d*)\s+out\s+of\s+(\d+\.?\d*)/i);
-          if (outOfMatch) {
-            const earned = parseFloat(outOfMatch[1]);
-            const possible = parseFloat(outOfMatch[2]);
-            
-            // Find category (only within this assignment's lines, not the next one's)
-            let category = "Other";
-            for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
-              if (/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}/.test(lines[j])) break;
-              const matched = lines[j].split('\t').map(matchCategory).find(Boolean);
-              if (matched) {
-                category = matched;
-                break;
-              }
-            }
-            
-            // Skip if diagnostic or not graded
-            if (contextLines.includes("Diagnostic Formative") || 
-                contextLines.includes("Not For Grading") || 
-                contextLines.includes("Not Due") || 
-                contextLines.includes("Not Graded")) {
-              continue;
-            }
-            
-            // Find assignment name
-            let assignmentName = "";
-            for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-              const nextLine = lines[j].trim();
-              if (nextLine && isPlausibleAssignmentTitleLine(nextLine) &&
-                  !nextLine.match(/out of/i) && nextLine.length > 2) {
-                assignmentName = nextLine.split('\t')[0].trim();
-                break;
-              }
-            }
-            
-            if (assignmentName && !navigationItems.includes(assignmentName)) {
-              const isDuplicate = parsedAssignments.some(a => 
-                a.date === date && a.name === assignmentName && Math.abs(a.earned - earned) < 0.01
-              );
-              
-              if (!isDuplicate && category !== "Other") {
-                parsedAssignments.push({
-                  id: parsedAssignments.length,
-                  date,
-                  name: assignmentName,
-                  category,
-                  earned: earned,
-                  possible: possible,
-                  originalEarned: earned,
-                  originalPossible: possible
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // If we couldn't find course name, try to find it elsewhere
-    if (!parsedCourseName) {
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes("Grade Book") && i + 1 < lines.length) {
-          parsedCourseName = lines[i + 1].trim();
-          break;
-        }
-      }
-    }
-
-    return {
-      courseName: parsedCourseName || "Unknown Course",
-      currentGrade: parsedCurrentGrade,
-      currentPercent: parsedCurrentPercent,
-      assignments: parsedAssignments,
-      weights: parsedWeights
-    };
-  };
 
   const getLetterGrade = (percent) => {
     if (percent >= 98) return "A+";
@@ -989,35 +578,25 @@ export default function GradeCalculator() {
                               </select>
                             </td>
                             <td className="px-4 py-3">
-                              <input
-                                type="number"
-                                value={assignment.earned === "" ? "" : (assignment.earned || 0)}
-                                onChange={(e) => handleScoreChange(assignment.id, "earned", e.target.value)}
-                                onFocus={handleScoreFocus}
-                                onBlur={(e) => handleScoreBlur(assignment.id, "earned", e.target.value)}
-                                className={`w-24 rounded-lg border bg-background px-3 py-2 text-sm text-foreground transition focus:outline-none focus:ring-2 ${
-                                  isChanged
-                                    ? "border-primary ring-1 ring-primary/40 focus:ring-primary/30"
-                                    : "border-border focus:border-primary focus:ring-primary/20"
-                                }`}
-                                step="1"
-                                min="0"
+                              <AssignmentScoreInput
+                                assignmentId={assignment.id}
+                                field="earned"
+                                value={assignment.earned}
+                                isChanged={isChanged}
+                                onScoreChange={handleScoreChange}
+                                onScoreFocus={handleScoreFocus}
+                                onScoreBlur={handleScoreBlur}
                               />
                             </td>
                             <td className="px-4 py-3">
-                              <input
-                                type="number"
-                                value={assignment.possible === "" ? "" : (assignment.possible || 0)}
-                                onChange={(e) => handleScoreChange(assignment.id, "possible", e.target.value)}
-                                onFocus={handleScoreFocus}
-                                onBlur={(e) => handleScoreBlur(assignment.id, "possible", e.target.value)}
-                                className={`w-24 rounded-lg border bg-background px-3 py-2 text-sm text-foreground transition focus:outline-none focus:ring-2 ${
-                                  isChanged
-                                    ? "border-primary ring-1 ring-primary/40 focus:ring-primary/30"
-                                    : "border-border focus:border-primary focus:ring-primary/20"
-                                }`}
-                                step="1"
-                                min="0"
+                              <AssignmentScoreInput
+                                assignmentId={assignment.id}
+                                field="possible"
+                                value={assignment.possible}
+                                isChanged={isChanged}
+                                onScoreChange={handleScoreChange}
+                                onScoreFocus={handleScoreFocus}
+                                onScoreBlur={handleScoreBlur}
                               />
                             </td>
                             <td className="px-4 py-3 text-sm font-semibold text-foreground">{percent.toFixed(2)}%</td>
@@ -1080,56 +659,47 @@ export default function GradeCalculator() {
               <div className="mb-6 rounded-xl border border-border bg-muted/30 p-4">
                 <h3 className="mb-3 text-sm font-semibold text-foreground">Custom Weights</h3>
                 <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-foreground">Major Summative %</label>
-                    <input
-                      type="number"
-                      value={customWeights["Major Summative"]}
-                      onChange={(e) => handleCustomWeightChange("Major Summative", e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      step="0.1"
-                      min="0"
-                      max="100"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-foreground">Minor Summative %</label>
-                    <input
-                      type="number"
-                      value={customWeights["Minor Summative"]}
-                      onChange={(e) => handleCustomWeightChange("Minor Summative", e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      step="0.1"
-                      min="0"
-                      max="100"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-foreground">Graded Formative %</label>
-                    <input
-                      type="number"
-                      value={customWeights["Graded Formative"]}
-                      onChange={(e) => handleCustomWeightChange("Graded Formative", e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      step="0.1"
-                      min="0"
-                      max="100"
-                    />
-                  </div>
+                  {[
+                    ["Major Summative", "Major Summative %"],
+                    ["Minor Summative", "Minor Summative %"],
+                    ["Graded Formative", "Graded Formative %"],
+                  ].map(([key, label]) => (
+                    <div key={key}>
+                      <label className="mb-1 block text-xs font-medium text-foreground">{label}</label>
+                      <input
+                        type="number"
+                        value={customWeights[key]}
+                        onChange={(e) => handleCustomWeightChange(key, e.target.value)}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                  ))}
                 </div>
-                <div className="mt-3 text-xs text-muted-foreground">
-                  Total: {customWeights["Major Summative"] + customWeights["Minor Summative"] + customWeights["Graded Formative"]}%
-                  {Math.abs((customWeights["Major Summative"] + customWeights["Minor Summative"] + customWeights["Graded Formative"]) - 100) > 0.01 && (
-                    <span className="ml-2 text-red-600">(Must equal 100%)</span>
-                  )}
-                </div>
-                <button
-                  onClick={handleCustomWeightsApply}
-                  disabled={Math.abs((customWeights["Major Summative"] + customWeights["Minor Summative"] + customWeights["Graded Formative"]) - 100) > 0.01}
-                  className="mt-3 w-full rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Apply Custom Weights
-                </button>
+                {(() => {
+                  const total =
+                    customWeights["Major Summative"] +
+                    customWeights["Minor Summative"] +
+                    customWeights["Graded Formative"];
+                  const invalid = Math.abs(total - 100) > 0.01;
+                  return (
+                    <>
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        Total: {total}%
+                        {invalid && <span className="ml-2 text-red-600">(Must equal 100%)</span>}
+                      </div>
+                      <button
+                        onClick={handleCustomWeightsApply}
+                        disabled={invalid}
+                        className="mt-3 w-full rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Apply Custom Weights
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>

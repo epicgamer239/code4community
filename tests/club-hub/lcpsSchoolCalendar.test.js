@@ -11,7 +11,8 @@ describe("lcpsSchoolCalendar2026", () => {
     const block = merged["2026-10-28"]?.[0];
     expect(block?.title).toBe("End of quarter");
     expect(block?.isLcpsNoSchool).toBe(false);
-    expect(block?.location).toBe("School in session");
+    expect(block?.note).toBe("");
+    expect(block?.location).toBe("");
   });
 
   it("marks student holidays as no school", () => {

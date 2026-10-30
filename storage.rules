@@ -108,18 +108,11 @@ service firebase.storage {
       return slugMap is map && slug in slugMap && slugMap[slug] == true;
     }
 
-    function isProtectedClubHubCoordinator() {
+    function isClubHubCoordinatorAccess() {
       return isSignedIn() &&
         request.auth.token.email is string &&
-        request.auth.token.email.lower() == 'katrice.white@lcps.org';
-    }
-
-    function isClubHubCoordinatorAccess() {
-      return isProtectedClubHubCoordinator() ||
-        (isSignedIn() &&
-          request.auth.token.email is string &&
-          firestore.exists(clubHubAccessDocPath(request.auth.token.email)) &&
-          firestore.get(clubHubAccessDocPath(request.auth.token.email)).data.isCoordinator == true);
+        firestore.exists(clubHubAccessDocPath(request.auth.token.email)) &&
+        firestore.get(clubHubAccessDocPath(request.auth.token.email)).data.isCoordinator == true;
     }
 
     function canEditClubHubPage(slug) {
