@@ -36,6 +36,9 @@ const EXTRA_PATHS = [
   "/student-groups",
   "/seating-chart",
   "/grade-calculator",
+  "/school-forum",
+  "/school-forum/moderate",
+  "/school-forum/admin",
   "/yearbook-formatting",
 ];
 

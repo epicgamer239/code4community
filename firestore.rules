@@ -1579,6 +1579,42 @@
         allow update: if false;
       }
 
+      // School Concerns Forum — server-only. Every read and write goes through
+      // /api/school-forum (Admin SDK), which resolves school + role from the ID token and
+      // filters poster identity out of every non-admin response. Clients get nothing directly,
+      // so identity can't be read from the browser even with a valid login.
+      match /forumConcerns/{concernId} {
+        allow read, write: if false;
+      }
+
+      match /forumConcernAuthors/{concernId} {
+        allow read, write: if false;
+      }
+
+      match /forumConcernPrivate/{concernId} {
+        allow read, write: if false;
+      }
+
+      match /forumBallots/{ballotId} {
+        allow read, write: if false;
+      }
+
+      match /forumCycles/{cycleId} {
+        allow read, write: if false;
+      }
+
+      match /forumResponses/{responseId} {
+        allow read, write: if false;
+      }
+
+      match /forumStaff/{staffId} {
+        allow read, write: if false;
+      }
+
+      match /forumIdentityAccessLog/{entryId} {
+        allow read, write: if false;
+      }
+
       match /{document=**} {
         allow read, write: if false;
       }

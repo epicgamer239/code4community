@@ -15,6 +15,7 @@ export default function SitemapPage() {
     { path: "/mathlab/history", title: "Math Lab History", description: "Completed tutoring sessions" },
     { path: "/mathlab/session-tracking", title: "Math Lab Session Tracking", description: "Admin session overview" },
     { path: "/club-hub", title: "Broad Run Club Hub", description: "Engagement rankings and calendar" },
+    { path: "/school-forum", title: "School Concerns Forum", description: "Anonymous school concerns, voting, and status updates with the SCA" },
     {
       path: "/club-hub/directory",
       title: "Broad Run Club Directory",

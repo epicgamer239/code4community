@@ -35,6 +35,12 @@ export default function Welcome() {
         path: "/mathlab",
       },
       {
+        name: "School Concerns Forum",
+        description: "Share concerns anonymously and vote with the SCA",
+        isActive: true,
+        path: "/school-forum",
+      },
+      {
         name: "Grade Calculator",
         description: "Calculate your grades",
         isActive: true,
