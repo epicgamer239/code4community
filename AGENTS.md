@@ -52,5 +52,8 @@ Firebase CLI aliases in `.firebaserc`: `dev`, `prod` (default).
 ### Writing Center async (Google Form)
 Async requests use an external Google Form; Apps Script posts to `/api/writing-center/google-form-sync`. Setup: `docs/writing-center-google-form.md`, script in `google-apps-script/writing-center-form-sync.gs`.
 
+### School Concerns Forum (`/school-forum`)
+Anonymous concerns board run with the SCA. Students are whoever is on a school roster in `lib/school-forum/schools.js` (Broad Run uses `lib/club-hub/broadRunRoster.js`); moderators/admins are appointed per school in `forumStaff`. All forum data is server-only: Firestore rules deny every `forum*` collection and the UI goes through `/api/school-forum/**` (Admin SDK). Poster identity lives only in `forumConcernAuthors` and is returned only by the logged admin reveal route; every other response is built by `lib/school-forum/serializers.js`. Demo data: `SCHOOL_FORUM_SEED_ADMIN_EMAIL=you@lcps.org npm run seed:school-forum` (refuses the prod project).
+
 ### Testing
 Vitest covers Club Hub pure functions (`normalizeClubEvent`, `getEditableClubSlugsForUser`, `normalizeEmail`) and Firestore security rules for membership/events via `@firebase/rules-unit-testing`. Run `npm run test:rules` (Java required) before merging Club Hub rules changes.

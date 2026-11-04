@@ -17,6 +17,7 @@
     "test:rules": "firebase emulators:exec --only firestore --project code4community-rules-test \"vitest run tests/firestore\"",
     "bootstrap:club-roster-sheet": "RUN_CLUB_ROSTER_BOOTSTRAP=1 vitest run tests/club-hub/rosterSheetBootstrap.manual.test.js",
     "bootstrap:club-roster-sheets-all": "RUN_CLUB_ROSTER_BOOTSTRAP=1 vitest run tests/club-hub/rosterSheetFullBootstrap.manual.test.js",
+    "seed:school-forum": "RUN_SCHOOL_FORUM_SEED=1 vitest run tests/school-forum/seedSchoolForum.manual.test.js",
     "sync:roster-display-names": "node scripts/sync-broad-run-display-names.mjs",
     "sync:roster-display-names:apply": "node scripts/sync-broad-run-display-names.mjs --apply --rebuild-sheets",
     "check:admin-emails": "node scripts/check-admin-emails.mjs",

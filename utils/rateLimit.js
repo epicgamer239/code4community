@@ -14,6 +14,10 @@ export const RATE_LIMIT_PRESETS = {
   /** Google Form → Firestore sync webhook. */
   syncWebhook: { maxRequests: 60, windowMs: 60_000 },
   debug: { maxRequests: 5, windowMs: 60_000 },
+  /** School Concerns Forum — per signed-in user (students share school IPs). */
+  schoolForum: { maxRequests: 60, windowMs: 60_000 },
+  /** School Concerns Forum new posts — per signed-in user. */
+  schoolForumPost: { maxRequests: 5, windowMs: 10 * 60_000 },
 };
 
 function nowMs() {
