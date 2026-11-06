@@ -137,11 +137,11 @@ export default function ClubDetailView({ club, slug }) {
 
   const emptyInfo = useMemo(() => {
     const about =
-      typeof club?.description === "string" && club.description.trim()
+      typeof club.description === "string" && club.description.trim()
         ? club.description.trim()
         : DEFAULT_CLUB_PAGE_INFO.about;
     return { ...DEFAULT_CLUB_PAGE_INFO, about };
-  }, [club?.description]);
+  }, [club.description]);
 
   const [info, setInfo] = useState(emptyInfo);
   const [loadingInfo, setLoadingInfo] = useState(true);
