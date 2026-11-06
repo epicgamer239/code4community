@@ -19,8 +19,8 @@ import {
 } from "@/lib/club-hub/recurringClubEvents";
 import ClubEventDescriptionField from "@/components/club-hub/ClubEventDescriptionField";
 import ClubEventDescriptionView from "@/components/club-hub/ClubEventDescriptionView";
-
-const MAROON = "#5c1417";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
+import { clubHubBrand, hexToRgba } from "@/lib/club-hub/theme";
 
 const EMPTY_FORM = {
   title: "",
@@ -52,6 +52,8 @@ export default function ClubEventsEditor({
   adminUid,
   onChanged,
 }) {
+  const school = useClubHubSchool();
+  const brand = clubHubBrand(school);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -347,9 +349,18 @@ export default function ClubEventsEditor({
                             key={value}
                             className={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium ${
                               checked
-                                ? "border-[#5c1417] bg-rose-50 text-[#5c1417]"
+                                ? "font-semibold"
                                 : "border-neutral-300 text-neutral-800"
                             }`}
+                            style={
+                              checked
+                                ? {
+                                    borderColor: brand.primary,
+                                    color: brand.primary,
+                                    backgroundColor: hexToRgba(brand.primary, 0.08),
+                                  }
+                                : undefined
+                            }
                           >
                             <input
                               type="checkbox"
@@ -421,7 +432,7 @@ export default function ClubEventsEditor({
                 type="submit"
                 disabled={saving}
                 className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                style={{ backgroundColor: MAROON }}
+                style={{ backgroundColor: brand.primary }}
               >
                 {saving ? "Saving…" : editingId ? "Update event" : "Add event"}
               </button>
@@ -473,7 +484,8 @@ export default function ClubEventsEditor({
                         type="button"
                         disabled={saving}
                         onClick={() => startEdit(ev)}
-                        className="rounded-md px-2 py-1 text-xs font-semibold text-[#5c1417] hover:bg-rose-50 disabled:opacity-50"
+                        className="rounded-md px-2 py-1 text-xs font-semibold disabled:opacity-50"
+                        style={{ color: brand.primary }}
                       >
                         Edit
                       </button>

@@ -4,6 +4,8 @@ import { createCustomClub, deleteCustomClub } from "@/lib/club-hub/customClubsSe
 import { syncStudentMeetingRowsToSheet } from "@/lib/club-hub/meetingChoicesSheetSync";
 import { removeClubRosterTabBySlug } from "@/lib/club-hub/rosterSheetSync";
 import { withRateLimit } from "@/utils/rateLimit";
+import { runWithClubHubSchool } from "@/lib/club-hub/activeSchool";
+import { getClubHubConfigBySchoolId } from "@/lib/club-hub/schoolConfig";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,7 +14,7 @@ async function postHandler(request) {
   const auth = await requireClubHubAdminFromRequest(request);
   if (auth.error) return auth.error;
 
-  /** @type {{ name?: string, meetingDay?: string, sponsors?: { name?: string, email?: string }[] }} */
+  /** @type {{ name?: string, meetingDay?: string, sponsors?: { name?: string, email?: string }[], schoolId?: string }} */
   let body;
   try {
     body = await request.json();
@@ -20,13 +22,16 @@ async function postHandler(request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
+  const school = getClubHubConfigBySchoolId(body.schoolId);
   try {
-    const club = await createCustomClub(auth.db, {
-      name: body.name || "",
-      meetingDay: body.meetingDay || "",
-      sponsors: body.sponsors || [],
-      adminUid: auth.uid,
-    });
+    const club = await runWithClubHubSchool(school, () =>
+      createCustomClub(auth.db, {
+        name: body.name || "",
+        meetingDay: body.meetingDay || (school.features.seminar ? "" : "general"),
+        sponsors: body.sponsors || [],
+        adminUid: auth.uid,
+      }),
+    );
     return NextResponse.json({ ok: true, club });
   } catch (err) {
     return NextResponse.json(
@@ -40,7 +45,7 @@ async function deleteHandler(request) {
   const auth = await requireClubHubAdminFromRequest(request);
   if (auth.error) return auth.error;
 
-  /** @type {{ slug?: string, confirmation?: string }} */
+  /** @type {{ slug?: string, confirmation?: string, schoolId?: string }} */
   let body;
   try {
     body = await request.json();
@@ -48,29 +53,34 @@ async function deleteHandler(request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
+  const school = getClubHubConfigBySchoolId(body.schoolId);
   try {
-    const result = await deleteCustomClub(auth.db, {
-      slug: body.slug || "",
-      confirmation: body.confirmation || "",
-      adminUid: auth.uid,
-    });
+    const result = await runWithClubHubSchool(school, () =>
+      deleteCustomClub(auth.db, {
+        slug: body.slug || "",
+        confirmation: body.confirmation || "",
+        adminUid: auth.uid,
+      }),
+    );
 
     let sheetWarning = "";
-    if (result.meetingRows.length) {
-      const sheet = await syncStudentMeetingRowsToSheet(result.meetingRows);
-      if (!sheet.ok) {
+    if (school.features.sheets) {
+      if (result.meetingRows.length) {
+        const sheet = await syncStudentMeetingRowsToSheet(result.meetingRows);
+        if (!sheet.ok) {
+          sheetWarning =
+            sheet.error || "Club deleted, but the Student meeting clubs sheet did not update.";
+        }
+      }
+      try {
+        const tabs = await removeClubRosterTabBySlug(result.club.slug);
+        if (!tabs.ok) {
+          sheetWarning = sheetWarning || tabs.error || "Club roster tab did not update.";
+        }
+      } catch (err) {
         sheetWarning =
-          sheet.error || "Club deleted, but the Student meeting clubs sheet did not update.";
+          sheetWarning || (err instanceof Error ? err.message : "Club roster tab did not update.");
       }
-    }
-    try {
-      const tabs = await removeClubRosterTabBySlug(result.club.slug);
-      if (!tabs.ok) {
-        sheetWarning = sheetWarning || tabs.error || "Club roster tab did not update.";
-      }
-    } catch (err) {
-      sheetWarning =
-        sheetWarning || (err instanceof Error ? err.message : "Club roster tab did not update.");
     }
 
     return NextResponse.json({

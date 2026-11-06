@@ -1,4 +1,5 @@
 import { ClubHubAccessProvider } from "@/lib/club-hub/ClubHubAccessProvider";
+import { ClubHubSchoolProvider } from "@/lib/club-hub/ClubHubSchoolProvider";
 
 /** Overrides root viewport so Club Hub passes Lighthouse zoom (WCAG 1.4.4). */
 export const viewport = {
@@ -9,5 +10,9 @@ export const viewport = {
 };
 
 export default function ClubHubLayout({ children }) {
-  return <ClubHubAccessProvider>{children}</ClubHubAccessProvider>;
+  return (
+    <ClubHubSchoolProvider schoolId="broad-run">
+      <ClubHubAccessProvider>{children}</ClubHubAccessProvider>
+    </ClubHubSchoolProvider>
+  );
 }

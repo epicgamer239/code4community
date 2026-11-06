@@ -6,6 +6,7 @@ import {
   requireAuthFromBearerToken,
 } from "@/lib/club-hub/sponsorAuthServer";
 import { withRateLimit } from "@/utils/rateLimit";
+import { runWithClubHubSchoolFromRequest } from "@/lib/club-hub/requestSchool";
 
 export const runtime = "nodejs";
 
@@ -32,13 +33,15 @@ async function deleteHandler(request) {
   }
 
   try {
-    const auth = await requireAuthFromBearerToken(token);
-    await assertCanRemoveClubRosterMembers({ ...auth, clubSlug });
-    const result = await removeClubMemberFromClub(db, { clubSlug, userId });
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error || "Remove failed." }, { status: 500 });
-    }
-    return NextResponse.json(result);
+    return await runWithClubHubSchoolFromRequest(request, body, async () => {
+      const auth = await requireAuthFromBearerToken(token);
+      await assertCanRemoveClubRosterMembers({ ...auth, clubSlug });
+      const result = await removeClubMemberFromClub(db, { clubSlug, userId });
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error || "Remove failed." }, { status: 500 });
+      }
+      return NextResponse.json(result);
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request failed.";
     const status =

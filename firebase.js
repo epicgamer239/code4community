@@ -23,7 +23,7 @@ import {
   reauthenticateWithCredential,
   applyActionCode,
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
@@ -94,7 +94,15 @@ let provider;
 try {
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   auth = getAuth(app);
-  firestore = getFirestore(app);
+  // School / corporate networks often block Firestore WebChannel; long polling
+  // avoids the intermittent "Failed to get document because the client is offline."
+  try {
+    firestore = initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true,
+    });
+  } catch {
+    firestore = getFirestore(app);
+  }
   storage = getStorage(app);
   provider = new GoogleAuthProvider();
 } catch {

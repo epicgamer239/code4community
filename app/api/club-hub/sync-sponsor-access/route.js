@@ -1,4 +1,5 @@
 import { syncSponsorAccessForAuthToken } from "@/lib/club-hub/syncSponsorAccessServer";
+import { runWithClubHubSchoolFromRequest } from "@/lib/club-hub/requestSchool";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,17 @@ export async function POST(request) {
       return Response.json({ error: "Missing auth token." }, { status: 401 });
     }
 
-    const result = await syncSponsorAccessForAuthToken(token);
-    return Response.json({ ok: true, ...result });
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {
+      body = {};
+    }
+
+    return await runWithClubHubSchoolFromRequest(request, body, async () => {
+      const result = await syncSponsorAccessForAuthToken(token);
+      return Response.json({ ok: true, ...result });
+    });
   } catch (err) {
     return Response.json(
       { error: err?.message || "Could not sync sponsor access." },

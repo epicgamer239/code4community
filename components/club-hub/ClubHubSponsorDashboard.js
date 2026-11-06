@@ -2,14 +2,14 @@
 
 import { useAuth } from "@/utils/AuthContext";
 import ClubHubRostersPanel from "@/components/club-hub/ClubHubRostersPanel";
-import { getSortedClubOptions } from "@/lib/club-hub/broadRunClubDirectory";
+import { getSortedClubOptionsForActiveSchool } from "@/lib/club-hub/directoryForSchool";
 
 /**
  * @param {{ allowedSlugs: string[], accessLoading?: boolean }} props
  */
 export default function ClubHubSponsorDashboard({ allowedSlugs, accessLoading = false }) {
   const { user } = useAuth();
-  const clubOptions = getSortedClubOptions();
+  const clubOptions = getSortedClubOptionsForActiveSchool();
 
   if (accessLoading) {
     return (

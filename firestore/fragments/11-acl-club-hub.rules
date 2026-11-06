@@ -1,0 +1,421 @@
+      // Academies of Loudoun Club Hub — parallel collections (no seminar / sheets).
+      // Same access model as Broad Run Club Hub; clients never share BRHS clubHub* docs.
+
+      function aclClubHubAccessDocPath(email) {
+        return /databases/$(database)/documents/aclClubHubAccess/$(normalizeEmail(email));
+      }
+
+      function aclClubHubAccessForAuthUser() {
+        return get(aclClubHubAccessDocPath(request.auth.token.email)).data;
+      }
+
+      function aclClubHubSlugAllowedInMap(slugMap, slug) {
+        return slugMap is map &&
+              slug in slugMap &&
+              slugMap[slug] == true;
+      }
+
+      function acl_isClubHubCoordinatorAccess() {
+        return isAuthenticated() &&
+              request.auth.token.email is string &&
+              exists(aclClubHubAccessDocPath(request.auth.token.email)) &&
+              aclClubHubAccessForAuthUser().isCoordinator == true;
+      }
+
+      function acl_isClubHubAdmin() {
+        return isSiteAdmin() || acl_isClubHubCoordinatorAccess();
+      }
+
+      function acl_canEditClubHubPage(slug) {
+        return acl_isClubHubAdmin() ||
+              (isAuthenticated() &&
+                request.auth.token.email is string &&
+                exists(aclClubHubAccessDocPath(request.auth.token.email)) &&
+                (
+                  aclClubHubSlugAllowedInMap(aclClubHubAccessForAuthUser().get('directoryClubSlugs', {}), slug) ||
+                  aclClubHubSlugAllowedInMap(aclClubHubAccessForAuthUser().get('manualClubSlugs', {}), slug) ||
+                  aclClubHubSlugAllowedInMap(aclClubHubAccessForAuthUser().get('boardClubSlugs', {}), slug) ||
+                  aclClubHubSlugAllowedInMap(aclClubHubAccessForAuthUser().get('clubSlugs', {}), slug)
+                ));
+      }
+
+      function acl_isValidClubHubSlugMap(field) {
+        return field is map && field.size() <= 120;
+      }
+
+      function acl_isValidClubHubAccessWrite(emailKey) {
+        return request.resource.data.email is string &&
+              isValidEmail(request.resource.data.email) &&
+              request.resource.data.email == normalizeEmail(request.resource.data.email) &&
+              normalizeEmail(request.resource.data.email) == normalizeEmail(emailKey) &&
+              request.resource.data.isCoordinator is bool &&
+              acl_isValidClubHubSlugMap(request.resource.data.get('manualClubSlugs', {})) &&
+              acl_isValidClubHubSlugMap(request.resource.data.get('directoryClubSlugs', {})) &&
+              acl_isValidClubHubSlugMap(request.resource.data.get('boardClubSlugs', {})) &&
+              request.resource.data.updatedAt is timestamp &&
+              request.resource.data.updatedBy == request.auth.uid;
+      }
+
+      match /aclClubHubSponsors/{slug} {
+        allow read: if true;
+        allow create, update: if acl_isClubHubAdmin() &&
+                                request.resource.data.slug == slug &&
+                                request.resource.data.slug is string &&
+                                request.resource.data.slug.size() > 0 &&
+                                request.resource.data.slug.size() <= 120 &&
+                                request.resource.data.clubName is string &&
+                                request.resource.data.clubName.size() > 0 &&
+                                request.resource.data.clubName.size() <= 120 &&
+                                request.resource.data.sponsors is list &&
+                                request.resource.data.sponsors.size() <= 10 &&
+                                request.resource.data.updatedAt is timestamp &&
+                                request.resource.data.updatedBy == request.auth.uid;
+        allow delete: if acl_isClubHubAdmin();
+      }
+
+
+      // Home page Engagement / Volunteer top-3 (admin-set). Writes go through Admin SDK API.
+      match /aclClubHubManualRankings/{kind} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      match /aclClubHubCustomClubs/{slug} {
+        allow read: if true;
+        allow create, update: if acl_isClubHubAdmin() &&
+                                request.resource.data.slug == slug &&
+                                request.resource.data.slug is string &&
+                                request.resource.data.slug.size() > 0 &&
+                                request.resource.data.slug.size() <= 120 &&
+                                request.resource.data.name is string &&
+                                request.resource.data.name.size() > 0 &&
+                                request.resource.data.name.size() <= 120 &&
+                                request.resource.data.meetingDay in ['gold', 'maroon', 'both', 'general'] &&
+                                request.resource.data.sponsors is list &&
+                                request.resource.data.sponsors.size() > 0 &&
+                                request.resource.data.sponsors.size() <= 8 &&
+                                request.resource.data.updatedAt is timestamp &&
+                                request.resource.data.updatedBy == request.auth.uid;
+        allow delete: if acl_isClubHubAdmin();
+      }
+
+      match /aclClubHubRemovedClubs/{slug} {
+        allow read: if true;
+        allow create, update: if acl_isClubHubAdmin() &&
+                                request.resource.data.keys().hasOnly(
+                                  ['slug', 'name', 'removedAt', 'removedBy']) &&
+                                request.resource.data.slug == slug &&
+                                request.resource.data.slug is string &&
+                                request.resource.data.slug.size() > 0 &&
+                                request.resource.data.slug.size() <= 120 &&
+                                request.resource.data.name is string &&
+                                request.resource.data.name.size() > 0 &&
+                                request.resource.data.name.size() <= 120 &&
+                                request.resource.data.removedAt is timestamp &&
+                                request.resource.data.removedBy == request.auth.uid;
+        allow delete: if acl_isClubHubAdmin();
+      }
+
+      match /aclClubHubAccess/{emailKey} {
+        allow read: if isAuthenticated() && (
+          acl_isClubHubAdmin() ||
+          emailsMatch(request.auth.token.email, emailKey)
+        );
+        allow create, update: if acl_isClubHubAdmin() && acl_isValidClubHubAccessWrite(emailKey);
+        allow delete: if acl_isClubHubAdmin();
+      }
+
+      match /aclClubHubBoardMembers/{clubSlug} {
+        allow read: if acl_canEditClubHubPage(clubSlug);
+        allow write: if false;
+      }
+
+      match /aclClubHubBoardMembersByEmail/{emailKey} {
+        allow read: if acl_isClubHubAdmin();
+        allow write: if false;
+      }
+
+      // Club Hub editable page copy
+      match /aclClubHubPages/{slug} {
+        allow read: if true;
+        allow create, update: if acl_canEditClubHubPage(slug) &&
+                                request.resource.data.keys().hasAll([
+                                  'slug', 'about', 'updatedAt', 'updatedBy'
+                                ]) &&
+                                request.resource.data.slug == slug &&
+                                request.resource.data.slug is string &&
+                                request.resource.data.slug.size() > 0 &&
+                                request.resource.data.slug.size() <= 120 &&
+                                request.resource.data.about is string &&
+                                request.resource.data.about.size() > 0 &&
+                                request.resource.data.about.size() <= 4000 &&
+                                request.resource.data.updatedAt is timestamp &&
+                                request.resource.data.updatedBy == request.auth.uid &&
+                                (!('resourcesUrl' in request.resource.data) ||
+                                  (request.resource.data.resourcesUrl is string &&
+                                    request.resource.data.resourcesUrl.size() <= 500)) &&
+                                (!('resourcesLabel' in request.resource.data) ||
+                                  (request.resource.data.resourcesLabel is string &&
+                                    request.resource.data.resourcesLabel.size() <= 80)) &&
+                                (!('clubLeaders' in request.resource.data) ||
+                                  (request.resource.data.clubLeaders is string &&
+                                    request.resource.data.clubLeaders.size() <= 500)) &&
+                                (!('facultyAdvisor' in request.resource.data) ||
+                                  (request.resource.data.facultyAdvisor is string &&
+                                    request.resource.data.facultyAdvisor.size() <= 500)) &&
+                                (!('contactEmails' in request.resource.data) ||
+                                  (request.resource.data.contactEmails is string &&
+                                    request.resource.data.contactEmails.size() <= 1000)) &&
+                                (!('meetingFrequency' in request.resource.data) ||
+                                  (request.resource.data.meetingFrequency is string &&
+                                    request.resource.data.meetingFrequency.size() <= 200)) &&
+                                (!('memberCount' in request.resource.data) ||
+                                  (request.resource.data.memberCount is string &&
+                                    request.resource.data.memberCount.size() <= 40)) &&
+                                (!('headerImageUrl' in request.resource.data) ||
+                                  (request.resource.data.headerImageUrl is string &&
+                                    request.resource.data.headerImageUrl.size() <= 2000)) &&
+                                (!('memberSignupLimit' in request.resource.data) ||
+                                  request.resource.data.memberSignupLimit == null ||
+                                  (request.resource.data.memberSignupLimit is int &&
+                                    request.resource.data.memberSignupLimit >= 1 &&
+                                    request.resource.data.memberSignupLimit <= 5000)) &&
+                                (!('joinPolicy' in request.resource.data) ||
+                                  request.resource.data.joinPolicy == 'open' ||
+                                  request.resource.data.joinPolicy == 'approval');
+        allow delete: if acl_isClubHubAdmin();
+      }
+
+      function aclClubHubMemberSignupLimitForSlug(clubSlug) {
+        let pagePath = /databases/$(database)/documents/aclClubHubPages/$(clubSlug);
+        return exists(pagePath) &&
+               ('memberSignupLimit' in get(pagePath).data) &&
+               get(pagePath).data.memberSignupLimit is int &&
+               get(pagePath).data.memberSignupLimit >= 1
+               ? get(pagePath).data.memberSignupLimit
+               : null;
+      }
+
+      function aclClubHubHasMemberSignupLimit(clubSlug) {
+        return aclClubHubMemberSignupLimitForSlug(clubSlug) != null;
+      }
+
+      function aclClubHubMembershipCountForSlug(clubSlug) {
+        let countPath = /databases/$(database)/documents/aclClubHubMembershipCounts/$(clubSlug);
+        return exists(countPath) ? get(countPath).data.memberCount : 0;
+      }
+
+      function aclClubHubCanAcceptNewMember(clubSlug) {
+        return !aclClubHubHasMemberSignupLimit(clubSlug) ||
+               aclClubHubMembershipCountForSlug(clubSlug) < aclClubHubMemberSignupLimitForSlug(clubSlug);
+      }
+
+      function aclClubHubJoinRequiresApproval(clubSlug) {
+        let pagePath = /databases/$(database)/documents/aclClubHubPages/$(clubSlug);
+        return exists(pagePath) && get(pagePath).data.get('joinPolicy', 'open') == 'approval';
+      }
+
+      function aclClubHubMembershipCountIncrementAllowed(clubSlug, newCount) {
+        return !aclClubHubHasMemberSignupLimit(clubSlug) ||
+               newCount <= aclClubHubMemberSignupLimitForSlug(clubSlug);
+      }
+
+      function acl_isValidClubHubEventWrite() {
+        return request.resource.data.clubSlug is string &&
+              request.resource.data.clubSlug.size() > 0 &&
+              request.resource.data.clubSlug.size() <= 120 &&
+              request.resource.data.clubName is string &&
+              request.resource.data.clubName.size() > 0 &&
+              request.resource.data.clubName.size() <= 120 &&
+              request.resource.data.title is string &&
+              request.resource.data.title.size() > 0 &&
+              request.resource.data.title.size() <= 120 &&
+              request.resource.data.date is string &&
+              request.resource.data.date.size() == 10 &&
+              request.resource.data.time is string &&
+              request.resource.data.time.size() > 0 &&
+              request.resource.data.time.size() <= 40 &&
+              (!('description' in request.resource.data) ||
+                (request.resource.data.description is string &&
+                  request.resource.data.description.size() <= 500)) &&
+              (!('location' in request.resource.data) ||
+                (request.resource.data.location is string &&
+                  request.resource.data.location.size() <= 120)) &&
+              request.resource.data.updatedAt is timestamp &&
+              request.resource.data.updatedBy == request.auth.uid;
+      }
+
+      match /aclClubHubEvents/{eventId} {
+        allow read: if true;
+        allow create: if isAuthenticated() &&
+                        acl_isValidClubHubEventWrite() &&
+                        acl_canEditClubHubPage(request.resource.data.clubSlug) &&
+                        request.resource.data.createdAt is timestamp &&
+                        request.resource.data.createdBy == request.auth.uid;
+        allow update: if isAuthenticated() &&
+                        acl_isValidClubHubEventWrite() &&
+                        acl_canEditClubHubPage(resource.data.clubSlug) &&
+                        request.resource.data.clubSlug == resource.data.clubSlug &&
+                        request.resource.data.createdAt == resource.data.createdAt &&
+                        request.resource.data.createdBy == resource.data.createdBy;
+        allow delete: if isAuthenticated() &&
+                        acl_canEditClubHubPage(resource.data.clubSlug);
+      }
+
+      function acl_isValidClubHubSeminarDays(value) {
+        return value is list &&
+              value.size() <= 2 &&
+              value.hasOnly(['gold', 'maroon']);
+      }
+
+      function acl_isValidClubHubMembershipWrite() {
+        return request.resource.data.clubSlug is string &&
+              request.resource.data.clubSlug.size() > 0 &&
+              request.resource.data.clubSlug.size() <= 120 &&
+              request.resource.data.clubName is string &&
+              request.resource.data.clubName.size() > 0 &&
+              request.resource.data.clubName.size() <= 120 &&
+              request.resource.data.userId is string &&
+              request.resource.data.userId == request.auth.uid &&
+              request.resource.data.userEmail is string &&
+              request.resource.data.userEmail.size() > 0 &&
+              request.resource.data.userEmail.size() <= 128 &&
+              request.resource.data.userEmail == normalizeEmail(request.resource.data.userEmail) &&
+              emailsMatch(request.resource.data.userEmail, request.auth.token.email) &&
+              request.resource.data.displayName is string &&
+              request.resource.data.displayName.size() > 0 &&
+              request.resource.data.displayName.size() <= 100 &&
+              request.resource.data.joinedAt is timestamp &&
+              (!('seminarDays' in request.resource.data) ||
+                acl_isValidClubHubSeminarDays(request.resource.data.seminarDays));
+      }
+
+      function aclClubHubMembershipDocIdForWrite() {
+        return request.resource.data.clubSlug + '__' + request.auth.uid;
+      }
+
+      function aclClubHubMembershipIdForAuthUser(membershipId) {
+        return membershipId.matches('^.+__' + request.auth.uid + '$');
+      }
+
+      match /aclClubHubMemberships/{membershipId} {
+        // Own doc get must work when the membership doc does not exist yet (pre-join).
+        allow get: if isAuthenticated() && (
+          aclClubHubMembershipIdForAuthUser(membershipId) ||
+          acl_isClubHubAdmin() ||
+          (resource != null && acl_canEditClubHubPage(resource.data.clubSlug))
+        );
+        allow list: if isAuthenticated() && (
+          acl_isClubHubAdmin() ||
+          resource.data.userId == request.auth.uid ||
+          acl_canEditClubHubPage(resource.data.clubSlug)
+        );
+        allow create: if isAuthenticated() &&
+                        membershipId == aclClubHubMembershipDocIdForWrite() &&
+                        acl_isValidClubHubMembershipWrite() &&
+                        aclClubHubCanAcceptNewMember(request.resource.data.clubSlug) &&
+                        !aclClubHubJoinRequiresApproval(request.resource.data.clubSlug) &&
+                        !aclClubHubJoinRequiresBoardInvite(request.resource.data.clubSlug);
+        allow update: if isAuthenticated() &&
+                        resource.data.userId == request.auth.uid &&
+                        request.resource.data.userId == resource.data.userId &&
+                        request.resource.data.clubSlug == resource.data.clubSlug &&
+                        request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['seminarDays', 'updatedAt']) &&
+                        acl_isValidClubHubSeminarDays(request.resource.data.seminarDays) &&
+                        request.resource.data.seminarDays.size() > 0 &&
+                        request.resource.data.updatedAt is timestamp;
+        allow delete: if isAuthenticated() &&
+                        resource.data.userId == request.auth.uid;
+      }
+
+      function acl_isValidClubHubJoinRequestCreate() {
+        return request.resource.data.clubSlug is string &&
+              request.resource.data.clubSlug.size() > 0 &&
+              request.resource.data.clubSlug.size() <= 120 &&
+              request.resource.data.clubName is string &&
+              request.resource.data.clubName.size() > 0 &&
+              request.resource.data.clubName.size() <= 120 &&
+              request.resource.data.userId is string &&
+              request.resource.data.userId == request.auth.uid &&
+              request.resource.data.userEmail is string &&
+              request.resource.data.userEmail.size() > 0 &&
+              request.resource.data.userEmail.size() <= 128 &&
+              request.resource.data.userEmail == normalizeEmail(request.resource.data.userEmail) &&
+              emailsMatch(request.resource.data.userEmail, request.auth.token.email) &&
+              request.resource.data.displayName is string &&
+              request.resource.data.displayName.size() > 0 &&
+              request.resource.data.displayName.size() <= 100 &&
+              request.resource.data.status == 'pending' &&
+              request.resource.data.requestedAt is timestamp &&
+              aclClubHubJoinRequiresApproval(request.resource.data.clubSlug) &&
+              aclClubHubCanAcceptNewMember(request.resource.data.clubSlug) &&
+              !aclClubHubJoinRequiresBoardInvite(request.resource.data.clubSlug) &&
+              !exists(/databases/$(database)/documents/aclClubHubMemberships/$(request.resource.data.clubSlug + '__' + request.auth.uid));
+      }
+
+      match /aclClubHubJoinRequests/{requestId} {
+        allow get: if isAuthenticated() && (
+          requestId.matches('^.+__' + request.auth.uid + '$') ||
+          (resource != null && acl_canEditClubHubPage(resource.data.clubSlug))
+        );
+        allow list: if isAuthenticated() && (
+          resource.data.userId == request.auth.uid ||
+          acl_canEditClubHubPage(resource.data.clubSlug)
+        );
+        allow create: if isAuthenticated() &&
+                        requestId == request.resource.data.clubSlug + '__' + request.auth.uid &&
+                        acl_isValidClubHubJoinRequestCreate();
+        allow update: if false;
+        allow delete: if isAuthenticated() &&
+                        resource.data.userId == request.auth.uid &&
+                        resource.data.status == 'pending';
+      }
+
+      function acl_isValidClubHubMembershipCountFields() {
+        return request.resource.data.clubSlug is string &&
+              request.resource.data.clubSlug.size() > 0 &&
+              request.resource.data.clubSlug.size() <= 120 &&
+              request.resource.data.clubName is string &&
+              request.resource.data.clubName.size() > 0 &&
+              request.resource.data.clubName.size() <= 120 &&
+              request.resource.data.memberCount is int &&
+              request.resource.data.memberCount >= 0 &&
+              request.resource.data.memberCount <= 5000 &&
+              request.resource.data.updatedAt is timestamp;
+      }
+
+      // Keep in sync with lib/club-hub/clubBoardGroups.js (clubRequiresBoardToJoin).
+      // Only board-only fair rows (no open Gold/Maroon listing) — sponsor must add.
+      // Gold/Maroon seminar slots are derived from aclClubHubMemberships (+ seminarDays);
+      // the old aclClubHubMeetingChoices collection is no longer used.
+      function aclClubHubJoinRequiresBoardInvite(slug) {
+        return slug == 'key-club' ||
+               slug == 'interact' ||
+               slug == 'national-art-honor-society-nahs';
+      }
+
+      match /aclClubHubMembershipCounts/{slug} {
+        allow read: if true;
+        allow create: if isAuthenticated() &&
+                        request.resource.data.clubSlug == slug &&
+                        acl_isValidClubHubMembershipCountFields() &&
+                        request.resource.data.memberCount == 1 &&
+                        aclClubHubMembershipCountIncrementAllowed(slug, 1);
+        allow update: if isAuthenticated() &&
+                        request.resource.data.clubSlug == slug &&
+                        acl_isValidClubHubMembershipCountFields() &&
+                        (
+                          (
+                            request.resource.data.memberCount == resource.data.memberCount + 1 &&
+                            aclClubHubMembershipCountIncrementAllowed(slug, request.resource.data.memberCount)
+                          ) ||
+                          request.resource.data.memberCount == resource.data.memberCount - 1
+                        );
+        allow delete: if acl_isClubHubAdmin();
+      }
+
+      match /aclClubHubOpportunityEvents/{eventId} {
+        allow read: if resource.data.published != false;
+        allow write: if false;
+      }

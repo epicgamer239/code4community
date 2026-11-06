@@ -9,6 +9,7 @@ import { fetchMembershipCountMap } from "@/lib/club-hub/clubMembershipCounts";
 import { fetchClubMembershipRoster } from "@/lib/club-hub/clubMemberships";
 import { removeClubRosterMemberClient } from "@/lib/club-hub/rosterMembersClient";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
+import { firestoreUserMessage, withFirestoreRetry } from "@/lib/firestoreRetry";
 
 const MAROON = "#5c1417";
 
@@ -67,10 +68,12 @@ export default function ClubHubRostersPanel({
     setLoading(true);
     setError("");
     try {
-      const [countMap, eventRows] = await Promise.all([
-        fetchMembershipCountMap(mode === "admin" ? null : allowedSlugs),
-        fetchAllUpcomingClubEvents(),
-      ]);
+      const [countMap, eventRows] = await withFirestoreRetry(() =>
+        Promise.all([
+          fetchMembershipCountMap(mode === "admin" ? null : allowedSlugs),
+          fetchAllUpcomingClubEvents(),
+        ]),
+      );
       setMemberCountBySlug(countMap);
       setUpcomingEvents(
         mode === "admin"
@@ -78,7 +81,7 @@ export default function ClubHubRostersPanel({
           : eventRows.filter((ev) => allowedSlugs.includes(ev.clubSlug)),
       );
     } catch (err) {
-      setError(err.message || "Could not load club metrics.");
+      setError(firestoreUserMessage(err, "Could not load club metrics."));
     } finally {
       setLoading(false);
     }
@@ -107,10 +110,10 @@ export default function ClubHubRostersPanel({
       if (cancelled) return;
       setRosterLoading(true);
       try {
-        const rows = await fetchClubMembershipRoster(slug);
+        const rows = await withFirestoreRetry(() => fetchClubMembershipRoster(slug));
         if (!cancelled) setRoster(rows);
       } catch (err) {
-        if (!cancelled) setError(err.message || "Could not load roster.");
+        if (!cancelled) setError(firestoreUserMessage(err, "Could not load roster."));
       } finally {
         if (!cancelled) setRosterLoading(false);
       }

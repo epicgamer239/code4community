@@ -21,6 +21,7 @@ const FRAGMENTS = [
   "firestore/fragments/08-site-config.rules",
   "firestore/fragments/09-unicef.rules",
   "firestore/fragments/10-school-forum.rules",
+  "firestore/fragments/11-acl-club-hub.rules",
   "firestore/fragments/99-footer.rules",
 ];
 

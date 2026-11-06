@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/utils/AuthContext";
 import ClubHubLiveMessage from "@/components/club-hub/ClubHubLiveMessage";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
-import { getSortedClubOptions } from "@/lib/club-hub/broadRunClubDirectory";
+import { getSortedClubOptionsForActiveSchool } from "@/lib/club-hub/directoryForSchool";
 import { useCustomClubs } from "@/lib/club-hub/customClubs";
 import {
   MANUAL_RANKING_KINDS,
@@ -18,7 +18,7 @@ export default function ClubHubManualRankingsAdminPanel() {
   const { user } = useAuth();
   const { version: customClubVersion } = useCustomClubs();
   const clubOptions = useMemo(
-    () => (customClubVersion >= 0 ? getSortedClubOptions() : []),
+    () => (customClubVersion >= 0 ? getSortedClubOptionsForActiveSchool() : []),
     [customClubVersion],
   );
 
@@ -38,7 +38,8 @@ export default function ClubHubManualRankingsAdminPanel() {
     setError("");
     try {
       const token = await user.getIdToken();
-      const res = await fetch("/api/club-hub/admin/manual-rankings", {
+      const { clubHubSchoolIdQuery } = await import("@/lib/club-hub/schoolIdClient");
+      const res = await fetch(`/api/club-hub/admin/manual-rankings?${clubHubSchoolIdQuery()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));

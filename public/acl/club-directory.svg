@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="School building illustration">
+  <rect width="640" height="640" fill="#e8eef7"/>
+  <rect x="120" y="220" width="400" height="280" rx="8" fill="#1e3a5f"/>
+  <polygon points="100,220 320,80 540,220" fill="#5c1417"/>
+  <rect x="280" y="360" width="80" height="140" fill="#f4e4a6"/>
+  <rect x="160" y="280" width="70" height="70" fill="#9ec5e8"/>
+  <rect x="250" y="280" width="70" height="70" fill="#9ec5e8"/>
+  <rect x="320" y="280" width="70" height="70" fill="#9ec5e8"/>
+  <rect x="410" y="280" width="70" height="70" fill="#9ec5e8"/>
+  <circle cx="320" cy="150" r="22" fill="#f4e4a6"/>
+  <rect x="80" y="500" width="480" height="24" fill="#2f4a6e"/>
+</svg>

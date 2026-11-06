@@ -9,6 +9,8 @@ import {
 } from "@/lib/club-hub/adminStudentHubServer";
 import { removeClubMemberFromClub } from "@/lib/club-hub/membershipServer";
 import { withRateLimit } from "@/utils/rateLimit";
+import { runWithClubHubSchool } from "@/lib/club-hub/activeSchool";
+import { getClubHubConfigBySchoolId } from "@/lib/club-hub/schoolConfig";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,25 +24,30 @@ async function getHandler(request) {
   const q = request.nextUrl.searchParams.get("q")?.trim() || "";
   const accountEmails =
     request.nextUrl.searchParams.get("accountEmails") === "1";
+  const school = getClubHubConfigBySchoolId(
+    request.nextUrl.searchParams.get("schoolId")?.trim() || "broad-run",
+  );
 
   try {
-    if (accountEmails) {
-      const emails = await listRegisteredStudentEmails(auth.db);
-      return NextResponse.json({ emails });
-    }
-    if (userId) {
-      const profile = await getStudentHubProfileForAdmin(auth.db, userId);
-      return NextResponse.json(profile);
-    }
-    if (email) {
-      const profile = await getStudentHubProfileForAdminByEmail(auth.db, email);
-      return NextResponse.json(profile);
-    }
-    if (q.length < 2) {
-      return NextResponse.json({ results: [] });
-    }
-    const results = await searchStudentsForAdmin(auth.db, q);
-    return NextResponse.json({ results });
+    return await runWithClubHubSchool(school, async () => {
+      if (accountEmails) {
+        const emails = await listRegisteredStudentEmails(auth.db);
+        return NextResponse.json({ emails });
+      }
+      if (userId) {
+        const profile = await getStudentHubProfileForAdmin(auth.db, userId);
+        return NextResponse.json(profile);
+      }
+      if (email) {
+        const profile = await getStudentHubProfileForAdminByEmail(auth.db, email);
+        return NextResponse.json(profile);
+      }
+      if (q.length < 2) {
+        return NextResponse.json({ results: [] });
+      }
+      const results = await searchStudentsForAdmin(auth.db, q);
+      return NextResponse.json({ results });
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Request failed." },
@@ -67,43 +74,55 @@ async function postHandler(request) {
     return NextResponse.json({ error: "Missing userId." }, { status: 400 });
   }
 
+  const school = getClubHubConfigBySchoolId(
+    typeof body.schoolId === "string" ? body.schoolId.trim() : "broad-run",
+  );
+
   try {
-    if (action === "removeMembership") {
-      const clubSlug = typeof body.clubSlug === "string" ? body.clubSlug.trim() : "";
-      if (!clubSlug) {
-        return NextResponse.json({ error: "Missing clubSlug." }, { status: 400 });
+    return await runWithClubHubSchool(school, async () => {
+      if (action === "removeMembership") {
+        const clubSlug = typeof body.clubSlug === "string" ? body.clubSlug.trim() : "";
+        if (!clubSlug) {
+          return NextResponse.json({ error: "Missing clubSlug." }, { status: 400 });
+        }
+        const result = await removeClubMemberFromClub(auth.db, { clubSlug, userId });
+        if (!result.ok) {
+          return NextResponse.json({ error: result.error || "Remove failed." }, { status: 500 });
+        }
+        return NextResponse.json(result);
       }
-      const result = await removeClubMemberFromClub(auth.db, { clubSlug, userId });
-      if (!result.ok) {
-        return NextResponse.json({ error: result.error || "Remove failed." }, { status: 500 });
+
+      if (action === "setMeetingChoices") {
+        return NextResponse.json(
+          {
+            error:
+              "Seminar clubs come from club memberships now. Change the student’s club memberships instead.",
+          },
+          { status: 410 },
+        );
       }
-      return NextResponse.json(result);
-    }
 
-    if (action === "setMeetingChoices") {
-      return NextResponse.json(
-        {
-          error:
-            "Seminar clubs come from club memberships now. Change the student’s club memberships instead.",
-        },
-        { status: 410 },
-      );
-    }
-
-    if (action === "setSpecialEventEnrollment") {
-      const eventId = typeof body.eventId === "string" ? body.eventId.trim() : "";
-      if (!eventId) {
-        return NextResponse.json({ error: "Missing eventId." }, { status: 400 });
+      if (action === "setSpecialEventEnrollment") {
+        if (!school.features.sheets) {
+          return NextResponse.json(
+            { error: "Special sheet events are not available for this school." },
+            { status: 400 },
+          );
+        }
+        const eventId = typeof body.eventId === "string" ? body.eventId.trim() : "";
+        if (!eventId) {
+          return NextResponse.json({ error: "Missing eventId." }, { status: 400 });
+        }
+        const result = await adminSetStudentSpecialEventEnrollment(auth.db, {
+          eventId,
+          userId,
+          enrolled: Boolean(body.enrolled),
+        });
+        return NextResponse.json({ ok: true, ...result });
       }
-      const result = await adminSetStudentSpecialEventEnrollment(auth.db, {
-        eventId,
-        userId,
-        enrolled: Boolean(body.enrolled),
-      });
-      return NextResponse.json({ ok: true, ...result });
-    }
 
-    return NextResponse.json({ error: "Unknown action." }, { status: 400 });
+      return NextResponse.json({ error: "Unknown action." }, { status: 400 });
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Request failed." },

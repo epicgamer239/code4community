@@ -6,6 +6,7 @@ import {
   listClubHubOpportunityEvents,
 } from "@/lib/club-hub/clubHubOpportunityEventsServer";
 import { withRateLimit } from "@/utils/rateLimit";
+import { runWithClubHubSchoolFromRequest } from "@/lib/club-hub/requestSchool";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,8 +16,10 @@ async function getHandler(request) {
   if (auth.error) return auth.error;
 
   try {
-    const events = await listClubHubOpportunityEvents(auth.db, { publishedOnly: false });
-    return NextResponse.json({ events });
+    return await runWithClubHubSchoolFromRequest(request, null, async () => {
+      const events = await listClubHubOpportunityEvents(auth.db, { publishedOnly: false });
+      return NextResponse.json({ events });
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Could not load events." },
@@ -29,7 +32,7 @@ async function postHandler(request) {
   const auth = await requireClubHubAdminFromRequest(request);
   if (auth.error) return auth.error;
 
-  /** @type {{ title?: string, description?: string, eventDate?: string, signUpUrl?: string }} */
+  /** @type {{ title?: string, description?: string, eventDate?: string, signUpUrl?: string, schoolId?: string }} */
   let body;
   try {
     body = await request.json();
@@ -38,15 +41,17 @@ async function postHandler(request) {
   }
 
   try {
-    const event = await createClubHubOpportunityEvent(auth.db, {
-      title: body.title || "",
-      description: body.description || "",
-      eventDate: body.eventDate || "",
-      signUpUrl: body.signUpUrl || "",
-      createdByEmail: auth.email,
-      createdByUid: auth.uid,
+    return await runWithClubHubSchoolFromRequest(request, body, async () => {
+      const event = await createClubHubOpportunityEvent(auth.db, {
+        title: body.title || "",
+        description: body.description || "",
+        eventDate: body.eventDate || "",
+        signUpUrl: body.signUpUrl || "",
+        createdByEmail: auth.email,
+        createdByUid: auth.uid,
+      });
+      return NextResponse.json({ event });
     });
-    return NextResponse.json({ event });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Could not create event." },
@@ -61,8 +66,10 @@ async function deleteHandler(request) {
 
   const eventId = request.nextUrl.searchParams.get("eventId")?.trim() || "";
   try {
-    const result = await deleteClubHubOpportunityEvent(auth.db, eventId);
-    return NextResponse.json(result);
+    return await runWithClubHubSchoolFromRequest(request, null, async () => {
+      const result = await deleteClubHubOpportunityEvent(auth.db, eventId);
+      return NextResponse.json(result);
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Could not delete event." },

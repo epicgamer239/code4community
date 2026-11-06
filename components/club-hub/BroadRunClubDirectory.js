@@ -4,17 +4,23 @@ import Link from "next/link";
 import { getClubsGroupedByMeetingDay } from "@/lib/club-hub/clubDirectorySections";
 import { useMeetingDayOverrides } from "@/lib/club-hub/clubMeetingDays";
 import { useCustomClubs } from "@/lib/club-hub/customClubs";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
+import {
+  clubNameToSlug as aclClubNameToSlug,
+  listAllAclDirectoryClubs,
+} from "@/lib/acl/aclClubDirectory";
+
 /**
- * @param {{ clubs: { name: string, slug: string, key: string }[], buttonClassName: string }} props
+ * @param {{ clubs: { name: string, slug: string, key: string }[], buttonClassName: string, basePath: string }} props
  */
-function ClubLinkGrid({ clubs, buttonClassName }) {
+function ClubLinkGrid({ clubs, buttonClassName, basePath }) {
   if (!clubs.length) return null;
   return (
     <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-4">
       {clubs.map((club) => (
         <Link
           key={club.key}
-          href={`/club-hub/directory/${club.slug}`}
+          href={`${basePath}/directory/${club.slug}`}
           className={`flex min-h-[3.5rem] items-center justify-center rounded-[10px] px-2 py-3 text-center text-[11px] font-semibold leading-snug text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5c1417] focus-visible:ring-offset-2 sm:min-h-[3.75rem] sm:text-xs md:text-sm ${buttonClassName}`}
         >
           <span className="line-clamp-4">{club.name}</span>
@@ -25,15 +31,16 @@ function ClubLinkGrid({ clubs, buttonClassName }) {
 }
 
 /**
- * @param {{ id: string, title: string, subtitle?: string, children: React.ReactNode }} props
+ * @param {{ id: string, title: string, subtitle?: string, titleColor?: string, children: React.ReactNode }} props
  */
-function DirectorySection({ id, title, subtitle, children }) {
+function DirectorySection({ id, title, subtitle, titleColor = "#5c1417", children }) {
   return (
     <section className="mt-10 first:mt-6" aria-labelledby={id}>
       <div className="border-y border-neutral-900 py-4 sm:py-5">
         <h2
           id={id}
-          className="text-center text-base font-bold uppercase tracking-[0.06em] text-[#5c1417] sm:text-lg"
+          className="text-center text-base font-bold uppercase tracking-[0.06em] sm:text-lg"
+          style={{ color: titleColor }}
         >
           {title}
         </h2>
@@ -47,8 +54,37 @@ function DirectorySection({ id, title, subtitle, children }) {
 }
 
 export default function BroadRunClubDirectory() {
+  const school = useClubHubSchool();
   useMeetingDayOverrides();
-  useCustomClubs();
+  const { version } = useCustomClubs();
+
+  if (school.schoolId === "acl") {
+    void version;
+    const clubs = listAllAclDirectoryClubs().map((club) => ({
+      name: club.name,
+      slug: aclClubNameToSlug(club.name),
+      key: aclClubNameToSlug(club.name),
+    }));
+    return (
+      <DirectorySection
+        id="acl-club-directory-all"
+        title="Academies Club List"
+        titleColor={school.brand.primary}
+        subtitle={
+          clubs.length
+            ? undefined
+            : "No clubs yet. A Club Hub admin can add clubs from the admin panel."
+        }
+      >
+        <ClubLinkGrid
+          clubs={clubs}
+          basePath={school.basePath}
+          buttonClassName="bg-[#013367] hover:bg-[#0e315c]"
+        />
+      </DirectorySection>
+    );
+  }
+
   const { gold, maroon, general } = getClubsGroupedByMeetingDay();
 
   return (
@@ -68,6 +104,7 @@ export default function BroadRunClubDirectory() {
       <DirectorySection id="club-directory-gold" title="Gold Clubs">
         <ClubLinkGrid
           clubs={gold}
+          basePath={school.basePath}
           buttonClassName="bg-[#9a7b2f] hover:bg-[#7d6325]"
         />
       </DirectorySection>
@@ -75,6 +112,7 @@ export default function BroadRunClubDirectory() {
       <DirectorySection id="club-directory-maroon" title="Maroon Clubs">
         <ClubLinkGrid
           clubs={maroon}
+          basePath={school.basePath}
           buttonClassName="bg-[#5c1417] hover:bg-[#731a1f]"
         />
       </DirectorySection>
@@ -82,6 +120,7 @@ export default function BroadRunClubDirectory() {
       <DirectorySection id="club-directory-general" title="General clubs">
         <ClubLinkGrid
           clubs={general}
+          basePath={school.basePath}
           buttonClassName="bg-neutral-700 hover:bg-neutral-800"
         />
       </DirectorySection>

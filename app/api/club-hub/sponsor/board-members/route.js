@@ -10,6 +10,7 @@ import {
   requireAuthFromBearerToken,
 } from "@/lib/club-hub/sponsorAuthServer";
 import { withRateLimit } from "@/utils/rateLimit";
+import { runWithClubHubSchoolFromRequest } from "@/lib/club-hub/requestSchool";
 
 export const runtime = "nodejs";
 
@@ -27,10 +28,12 @@ async function getHandler(request) {
   }
 
   try {
-    const auth = await requireAuthFromBearerToken(token);
-    await assertCanManageBoardMembersForClub({ ...auth, clubSlug });
-    const members = await fetchBoardMembersForClub(db, clubSlug);
-    return NextResponse.json({ members });
+    return await runWithClubHubSchoolFromRequest(request, null, async () => {
+      const auth = await requireAuthFromBearerToken(token);
+      await assertCanManageBoardMembersForClub({ ...auth, clubSlug });
+      const members = await fetchBoardMembersForClub(db, clubSlug);
+      return NextResponse.json({ members });
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request failed.";
     const status = message.includes("permission") ? 403 : 400;
@@ -59,15 +62,17 @@ async function postHandler(request) {
   }
 
   try {
-    const auth = await requireAuthFromBearerToken(token);
-    await assertCanManageBoardMembersForClub({ ...auth, clubSlug });
-    const result = await addBoardMemberForClub(db, {
-      clubSlug,
-      memberEmail: email,
-      displayName,
-      actorUid: auth.uid,
+    return await runWithClubHubSchoolFromRequest(request, body, async () => {
+      const auth = await requireAuthFromBearerToken(token);
+      await assertCanManageBoardMembersForClub({ ...auth, clubSlug });
+      const result = await addBoardMemberForClub(db, {
+        clubSlug,
+        memberEmail: email,
+        displayName,
+        actorUid: auth.uid,
+      });
+      return NextResponse.json({ ok: true, ...result });
     });
-    return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request failed.";
     const status = message.includes("permission") ? 403 : 400;
@@ -95,14 +100,16 @@ async function deleteHandler(request) {
   }
 
   try {
-    const auth = await requireAuthFromBearerToken(token);
-    await assertCanManageBoardMembersForClub({ ...auth, clubSlug });
-    const result = await removeBoardMemberForClub(db, {
-      clubSlug,
-      memberEmail: email,
-      actorUid: auth.uid,
+    return await runWithClubHubSchoolFromRequest(request, body, async () => {
+      const auth = await requireAuthFromBearerToken(token);
+      await assertCanManageBoardMembersForClub({ ...auth, clubSlug });
+      const result = await removeBoardMemberForClub(db, {
+        clubSlug,
+        memberEmail: email,
+        actorUid: auth.uid,
+      });
+      return NextResponse.json({ ok: true, ...result });
     });
-    return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request failed.";
     const status = message.includes("permission") ? 403 : 400;

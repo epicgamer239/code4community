@@ -130,6 +130,22 @@
         { "fieldPath": "clubSlug", "order": "ASCENDING" },
         { "fieldPath": "joinedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "aclClubHubEvents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clubSlug", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "aclClubHubMemberships",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clubSlug", "order": "ASCENDING" },
+        { "fieldPath": "joinedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

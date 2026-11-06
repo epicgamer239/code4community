@@ -79,6 +79,24 @@ export async function GET() {
       changeFrequency: 'monthly',
       priority: 0.8,
     },
+    {
+      url: `${baseUrl}/acl`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/acl/club-hub`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/acl/club-hub/directory`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.75,
+    },
     ...getAllClubSlugs().map((slug) => ({
       url: `${baseUrl}/club-hub/directory/${slug}`,
       lastModified: new Date(),

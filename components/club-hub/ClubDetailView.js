@@ -7,8 +7,8 @@ import { useAuth } from "@/utils/AuthContext";
 import { logClientError } from "@/lib/auth/logClientError";
 import { useClubHubAccess } from "@/lib/club-hub/useClubHubAccess";
 import {
-  DEFAULT_CLUB_HEADER_IMAGE,
   DEFAULT_CLUB_PAGE_INFO,
+  defaultClubHeaderImageForSchool,
   fetchClubPageInfo,
   saveClubPageInfo,
   uploadClubHeaderImage,
@@ -47,21 +47,21 @@ import { notifyRosterSheetSync } from "@/lib/club-hub/notifyRosterSheetSync";
 import { notifyMeetingChoicesSheetSync } from "@/lib/club-hub/notifyMeetingChoicesSheetSync";
 import { getEffectiveMeetingDayForSlug } from "@/lib/club-hub/clubDirectorySections";
 import { useMeetingDayOverrides } from "@/lib/club-hub/clubMeetingDays";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
 import { resolveDisplayName } from "@/lib/profile";
 import {
   CLUB_HUB_CARD,
-  CLUB_HUB_HEADING,
-  CLUB_HUB_MAROON,
   CLUB_HUB_PAGE_BG,
+  clubHubBrand,
 } from "@/lib/club-hub/theme";
 
-function SectionTitle({ children }) {
+function SectionTitle({ children, color }) {
   return (
     <h2
       className="w-fit text-[1.35rem] font-bold leading-tight tracking-tight"
       style={{
-        color: CLUB_HUB_HEADING,
-        borderBottom: `2px solid ${CLUB_HUB_HEADING}`,
+        color,
+        borderBottom: `2px solid ${color}`,
         paddingBottom: "2px",
       }}
     >
@@ -86,7 +86,7 @@ function emailList(text) {
     .filter(Boolean);
 }
 
-function ResourcesButton({ href, label, disabledTitle }) {
+function ResourcesButton({ href, label, disabledTitle, color }) {
   const className =
     "inline-flex min-h-[2.85rem] min-w-[14rem] max-w-full items-center justify-center rounded-[10px] px-6 py-2.5 text-center text-[14px] font-semibold leading-snug text-white shadow-[0_1px_3px_rgba(0,0,0,0.18)] transition hover:opacity-92 sm:min-w-[16rem]";
   if (href) {
@@ -96,7 +96,7 @@ function ResourcesButton({ href, label, disabledTitle }) {
         target="_blank"
         rel="noopener noreferrer"
         className={`${className} ${clubHubButtonFocusClass}`}
-        style={{ backgroundColor: CLUB_HUB_MAROON }}
+        style={{ backgroundColor: color }}
       >
         {label}
         <span className="sr-only"> (opens in new tab)</span>
@@ -106,7 +106,7 @@ function ResourcesButton({ href, label, disabledTitle }) {
   return (
     <span
       className={`${className} cursor-default opacity-75`}
-      style={{ backgroundColor: CLUB_HUB_MAROON }}
+      style={{ backgroundColor: color }}
       title={disabledTitle}
       aria-disabled="true"
     >
@@ -118,24 +118,30 @@ function ResourcesButton({ href, label, disabledTitle }) {
 
 /**
  * @param {{
- *   club: { name: string, sponsors: { name: string, email: string }[] },
+ *   club: { name: string, description?: string, sponsors: { name: string, email: string }[] },
  *   slug: string,
  * }} props
  */
 export default function ClubDetailView({ club, slug }) {
   const { user, userData, loading: authLoading } = useAuth();
   const { sponsorOverrides, loading: accessLoading, canEdit } = useClubHubAccess();
+  const school = useClubHubSchool();
+  const brand = clubHubBrand(school);
   const { version: meetingDaysVersion } = useMeetingDayOverrides();
   const canEditPage = canEdit(slug);
-  const meetingDay = useMemo(
-    () => (meetingDaysVersion >= 0 ? getEffectiveMeetingDayForSlug(slug) : "general"),
-    [slug, meetingDaysVersion],
-  );
+  const defaultHeaderImage = defaultClubHeaderImageForSchool();
+  const meetingDay = useMemo(() => {
+    if (!school.features.seminar) return "general";
+    return meetingDaysVersion >= 0 ? getEffectiveMeetingDayForSlug(slug) : "general";
+  }, [slug, meetingDaysVersion, school.features.seminar]);
 
-  const emptyInfo = useMemo(
-    () => ({ ...DEFAULT_CLUB_PAGE_INFO }),
-    [],
-  );
+  const emptyInfo = useMemo(() => {
+    const about =
+      typeof club?.description === "string" && club.description.trim()
+        ? club.description.trim()
+        : DEFAULT_CLUB_PAGE_INFO.about;
+    return { ...DEFAULT_CLUB_PAGE_INFO, about };
+  }, [club?.description]);
 
   const [info, setInfo] = useState(emptyInfo);
   const [loadingInfo, setLoadingInfo] = useState(true);
@@ -426,8 +432,8 @@ export default function ClubDetailView({ club, slug }) {
     (editing
       ? headerPreview ||
         (!clearHeader ? draft.headerImageUrl : "") ||
-        DEFAULT_CLUB_HEADER_IMAGE
-      : info.headerImageUrl) || DEFAULT_CLUB_HEADER_IMAGE;
+        defaultHeaderImage
+      : info.headerImageUrl) || defaultHeaderImage;
 
   return (
     <div className="min-h-screen text-neutral-900" style={{ backgroundColor: CLUB_HUB_PAGE_BG }}>
@@ -458,7 +464,8 @@ export default function ClubDetailView({ club, slug }) {
           {slug === "unicef" ? (
             <Link
               href="/unicef"
-              className={`mt-4 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#5c1417] shadow-sm ${clubHubButtonFocusClass}`}
+              className={`mt-4 rounded-lg bg-white px-4 py-2 text-sm font-semibold shadow-sm ${clubHubButtonFocusClass}`}
+              style={{ color: brand.primary }}
             >
               Open hour tracker
             </Link>
@@ -467,7 +474,7 @@ export default function ClubDetailView({ club, slug }) {
       </section>
 
       <ClubHubNav
-        loginRedirect={`/club-hub/directory/${slug}`}
+        loginRedirect={`${school.basePath}/directory/${slug}`}
       />
 
       <main id={CLUB_HUB_MAIN_ID} className="w-full px-4 pt-4.5 pb-4 sm:px-6 sm:pt-6 sm:pb-5 lg:px-10">
@@ -501,13 +508,13 @@ export default function ClubDetailView({ club, slug }) {
             onCancel={cancelEdit}
             onSubmit={handleSave}
             saving={saving}
-            headingColor={CLUB_HUB_HEADING}
+            headingColor={brand.heading}
             cardClass={CLUB_HUB_CARD}
           />
         ) : (
           <div className="grid w-full items-stretch gap-4 md:grid-cols-2 md:gap-5">
             <section className={`${CLUB_HUB_CARD} flex h-full flex-col`}>
-              <SectionTitle>About Us</SectionTitle>
+              <SectionTitle color={brand.heading}>About Us</SectionTitle>
               <p className="mt-3 flex-1 whitespace-pre-wrap text-[15px] leading-[1.55] text-[#1f2937]">
                 {loadingInfo ? "Loading…" : info.about}
               </p>
@@ -516,6 +523,7 @@ export default function ClubDetailView({ club, slug }) {
                 <ResourcesButton
                   href={resourcesHref}
                   label={resourcesLabel}
+                  color={brand.primary}
                   disabledTitle={
                     canEditPage ? "Add a resources URL in Edit page" : undefined
                   }
@@ -525,13 +533,13 @@ export default function ClubDetailView({ club, slug }) {
 
             <section className={`${CLUB_HUB_CARD} h-full`}>
               <div className="flex items-start justify-between gap-3">
-                <SectionTitle>Club Information</SectionTitle>
+                <SectionTitle color={brand.heading}>Club Information</SectionTitle>
                 {!authLoading && !accessLoading && canEditPage ? (
                   <button
                     type="button"
                     onClick={startEdit}
                     className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 sm:px-3.5 sm:py-1.5 sm:text-sm ${clubHubButtonFocusClass}`}
-                    style={{ backgroundColor: CLUB_HUB_MAROON }}
+                    style={{ backgroundColor: brand.primary }}
                   >
                     Edit page
                   </button>
@@ -575,7 +583,8 @@ export default function ClubDetailView({ club, slug }) {
                         <li key={email} className="break-all font-normal text-[#1f2937]">
                           <a
                             href={`mailto:${email}`}
-                            className="text-[#5c1417] underline underline-offset-2 hover:text-[#731a1f] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5c1417] focus-visible:ring-offset-1"
+                            className="underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                            style={{ color: brand.primary }}
                           >
                             {email}
                           </a>
@@ -622,15 +631,16 @@ export default function ClubDetailView({ club, slug }) {
 
       <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-700">
         <Link
-          href="/club-hub/directory"
-          className={`text-[#5c1417] hover:underline ${clubHubButtonFocusClass}`}
+          href={`${school.basePath}/directory`}
+          className={`hover:underline ${clubHubButtonFocusClass}`}
+          style={{ color: brand.primary }}
         >
           ← Club Directory
         </Link>
         <span className="mx-2 text-neutral-500" aria-hidden>
           ·
         </span>
-        <Link href="/club-hub" className={`hover:underline ${clubHubButtonFocusClass}`}>
+        <Link href={school.basePath} className={`hover:underline ${clubHubButtonFocusClass}`}>
           Club Hub
         </Link>
         <span className="mx-2 text-neutral-500" aria-hidden>

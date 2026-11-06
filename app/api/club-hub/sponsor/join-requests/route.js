@@ -9,6 +9,7 @@ import {
   requireAuthFromBearerToken,
 } from "@/lib/club-hub/sponsorAuthServer";
 import { withRateLimit } from "@/utils/rateLimit";
+import { runWithClubHubSchoolFromRequest } from "@/lib/club-hub/requestSchool";
 
 export const runtime = "nodejs";
 
@@ -26,10 +27,12 @@ async function getHandler(request) {
   }
 
   try {
-    const auth = await requireAuthFromBearerToken(token);
-    await assertCanReviewClubJoinRequests({ ...auth, clubSlug });
-    const requests = await listPendingJoinRequests(db, clubSlug);
-    return NextResponse.json({ requests });
+    return await runWithClubHubSchoolFromRequest(request, null, async () => {
+      const auth = await requireAuthFromBearerToken(token);
+      await assertCanReviewClubJoinRequests({ ...auth, clubSlug });
+      const requests = await listPendingJoinRequests(db, clubSlug);
+      return NextResponse.json({ requests });
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request failed.";
     const status = message.includes("Only a") || message.includes("permission") ? 403 : 400;
@@ -61,13 +64,15 @@ async function postHandler(request) {
   }
 
   try {
-    const auth = await requireAuthFromBearerToken(token);
-    await assertCanReviewClubJoinRequests({ ...auth, clubSlug });
-    const result = await reviewClubJoinRequest(db, { clubSlug, userId, action });
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error || "Could not update the request." }, { status: 400 });
-    }
-    return NextResponse.json(result);
+    return await runWithClubHubSchoolFromRequest(request, body, async () => {
+      const auth = await requireAuthFromBearerToken(token);
+      await assertCanReviewClubJoinRequests({ ...auth, clubSlug });
+      const result = await reviewClubJoinRequest(db, { clubSlug, userId, action });
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error || "Could not update the request." }, { status: 400 });
+      }
+      return NextResponse.json(result);
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request failed.";
     const status = message.includes("Only a") || message.includes("permission") ? 403 : 400;

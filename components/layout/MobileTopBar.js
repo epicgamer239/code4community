@@ -72,7 +72,11 @@ export default function MobileTopBar({ title = "Code4Community", showNavLinks = 
       {/* Top bar: always same layout */}
       <header
         className={`md:hidden relative z-40 ${
-          !showNavLinks || pathname === "/" || pathname === "/services" || pathname === "/work"
+          !showNavLinks ||
+          pathname === "/" ||
+          pathname === "/services" ||
+          pathname === "/work" ||
+          pathname === "/acl"
             ? "mb-0"
             : "mb-6"
         }`}

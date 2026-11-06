@@ -15,9 +15,11 @@ import {
   fetchStudentHubProfileByEmailClient,
   fetchStudentHubProfileClient,
 } from "@/lib/club-hub/adminStudentsClient";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
 
 export default function ClubHubAdminStudentsPanel() {
   const { user } = useAuth();
+  const school = useClubHubSchool();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -203,62 +205,66 @@ export default function ClubHubAdminStudentsPanel() {
             )}
           </section>
 
-          <section className="rounded-[14px] bg-white p-5 shadow-sm ring-1 ring-black/5">
-            <h3 className="font-bold text-neutral-900">Seminar clubs</h3>
-            <p className="mt-1 text-sm text-neutral-700">
-              One Gold day club and one Maroon day club, taken from the clubs this student has
-              joined. Change them by removing a club membership above.
-            </p>
-            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                  Gold day club
-                </dt>
-                <dd className="mt-1 text-sm font-medium text-neutral-900">
-                  {goldMembership?.clubName || goldMembership?.clubSlug || "— None —"}
-                </dd>
-              </div>
-              <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                  Maroon day club
-                </dt>
-                <dd className="mt-1 text-sm font-medium text-neutral-900">
-                  {maroonMembership?.clubName || maroonMembership?.clubSlug || "— None —"}
-                </dd>
-              </div>
-            </dl>
-          </section>
+          {school.features.seminar ? (
+            <section className="rounded-[14px] bg-white p-5 shadow-sm ring-1 ring-black/5">
+              <h3 className="font-bold text-neutral-900">Seminar clubs</h3>
+              <p className="mt-1 text-sm text-neutral-700">
+                One Gold day club and one Maroon day club, taken from the clubs this student has
+                joined. Change them by removing a club membership above.
+              </p>
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                    Gold day club
+                  </dt>
+                  <dd className="mt-1 text-sm font-medium text-neutral-900">
+                    {goldMembership?.clubName || goldMembership?.clubSlug || "— None —"}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                    Maroon day club
+                  </dt>
+                  <dd className="mt-1 text-sm font-medium text-neutral-900">
+                    {maroonMembership?.clubName || maroonMembership?.clubSlug || "— None —"}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+          ) : null}
 
-          <section className="rounded-[14px] bg-white p-5 shadow-sm ring-1 ring-black/5">
-            <h3 className="font-bold text-neutral-900">Seminar signups</h3>
-            <p className="mt-1 text-sm text-neutral-700">
-              One-off seminars from the Seminar events tab (columns on the student meeting sheet).
-            </p>
-            {(profile.specialEvents || []).length === 0 ? (
-              <p className="mt-2 text-sm text-neutral-700">No special events configured.</p>
-            ) : (
-              <ul className="mt-3 divide-y divide-neutral-200">
-                {profile.specialEvents.map((ev) => (
-                  <li key={ev.id} className="flex items-start gap-3 py-3">
-                    <input
-                      id={`special-ev-${ev.id}`}
-                      type="checkbox"
-                      checked={Boolean(ev.enrolled)}
-                      disabled={busy}
-                      onChange={(e) =>
-                        handleToggleSpecialEvent(ev.id, e.target.checked, ev.title)
-                      }
-                      className="mt-1 h-4 w-4 rounded border-neutral-300"
-                    />
-                    <label htmlFor={`special-ev-${ev.id}`} className="min-w-0 flex-1 text-sm">
-                      <span className="font-medium text-neutral-900">{ev.title}</span>
-                      <span className="block text-neutral-600">{ev.columnLabel}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          {school.features.sheets ? (
+            <section className="rounded-[14px] bg-white p-5 shadow-sm ring-1 ring-black/5">
+              <h3 className="font-bold text-neutral-900">Seminar signups</h3>
+              <p className="mt-1 text-sm text-neutral-700">
+                One-off seminars from the Seminar events tab (columns on the student meeting sheet).
+              </p>
+              {(profile.specialEvents || []).length === 0 ? (
+                <p className="mt-2 text-sm text-neutral-700">No special events configured.</p>
+              ) : (
+                <ul className="mt-3 divide-y divide-neutral-200">
+                  {profile.specialEvents.map((ev) => (
+                    <li key={ev.id} className="flex items-start gap-3 py-3">
+                      <input
+                        id={`special-ev-${ev.id}`}
+                        type="checkbox"
+                        checked={Boolean(ev.enrolled)}
+                        disabled={busy}
+                        onChange={(e) =>
+                          handleToggleSpecialEvent(ev.id, e.target.checked, ev.title)
+                        }
+                        className="mt-1 h-4 w-4 rounded border-neutral-300"
+                      />
+                      <label htmlFor={`special-ev-${ev.id}`} className="min-w-0 flex-1 text-sm">
+                        <span className="font-medium text-neutral-900">{ev.title}</span>
+                        <span className="block text-neutral-600">{ev.columnLabel}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ) : null}
         </div>
       ) : null}
     </div>

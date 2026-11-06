@@ -12,6 +12,7 @@ import {
 } from "@/lib/club-hub/rosterSheetSync";
 import { isClubRosterSheetSyncConfigured } from "@/lib/club-hub/rosterSheetConfig";
 import { withRateLimit } from "@/utils/rateLimit";
+import { clubHubCol } from "@/lib/club-hub/activeSchool";
 
 export const runtime = "nodejs";
 
@@ -53,7 +54,7 @@ async function handler(request) {
     return NextResponse.json({ error: "Invalid auth token." }, { status: 401 });
   }
 
-  const membershipRef = db.collection(CLUB_HUB_MEMBERSHIPS).doc(clubMembershipDocId(clubSlug, uid));
+  const membershipRef = db.collection(clubHubCol("memberships")).doc(clubMembershipDocId(clubSlug, uid));
   const membershipSnap = await membershipRef.get();
 
   if (action === "join") {

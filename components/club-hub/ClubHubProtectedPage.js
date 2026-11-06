@@ -7,7 +7,8 @@ import { useAuth } from "@/utils/AuthContext";
 import ClubHubNav from "@/components/club-hub/ClubHubNav";
 import ClubHubSkipLink from "@/components/club-hub/ClubHubSkipLink";
 import { CLUB_HUB_MAIN_ID, clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
-import { CLUB_HUB_MAROON, CLUB_HUB_PAGE_BG } from "@/lib/club-hub/theme";
+import { CLUB_HUB_PAGE_BG, clubHubBrand } from "@/lib/club-hub/theme";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
 
 /**
  * Shared shell for Club Hub admin/sponsor pages: auth loading, logged-out CTA, redirect, nav.
@@ -32,12 +33,14 @@ export default function ClubHubProtectedPage({
 }) {
   const router = useRouter();
   const { user, userData, loading } = useAuth();
+  const school = useClubHubSchool();
+  const brand = clubHubBrand(school);
 
   useEffect(() => {
     if (!loading && !accessLoading && user && userData && !allowed) {
-      router.replace("/club-hub");
+      router.replace(school.basePath);
     }
-  }, [loading, accessLoading, user, userData, allowed, router]);
+  }, [loading, accessLoading, user, userData, allowed, router, school.basePath]);
 
   if (loading || accessLoading) {
     return (
@@ -64,7 +67,7 @@ export default function ClubHubProtectedPage({
             <Link
               href={`/login?redirectTo=${encodeURIComponent(loginRedirect)}`}
               className={`inline-block rounded-md px-4 py-2 text-sm font-semibold text-white ${clubHubButtonFocusClass}`}
-              style={{ backgroundColor: CLUB_HUB_MAROON }}
+              style={{ backgroundColor: brand.primary }}
             >
               Log in
             </Link>

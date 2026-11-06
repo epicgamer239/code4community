@@ -12,14 +12,19 @@ import {
 } from "@/lib/club-hub/access";
 import { useClubHubAccess } from "@/lib/club-hub/useClubHubAccess";
 import { clubHubNavLinkActiveClass, clubHubNavLinkClass } from "@/lib/club-hub/a11y";
-import { CLUB_HUB_MAROON } from "@/lib/club-hub/theme";
+import { clubHubBrand } from "@/lib/club-hub/theme";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
 import { auth, signOut } from "@/firebase";
 
 /**
  * Club Hub top nav — same Firebase session as the rest of the site.
  * @param {{ active?: "home" | "directory" | "resources" | "meeting-days" | "admin" | "sponsor" | null, loginRedirect?: string }} props
  */
-export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" }) {
+export default function ClubHubNav({ active = null, loginRedirect }) {
+  const school = useClubHubSchool();
+  const brand = clubHubBrand(school);
+  const base = school.basePath;
+  const resolvedLoginRedirect = loginRedirect || base;
   const { user, userData, loading } = useAuth();
   const { accessRecord, sponsorOverrides } = useClubHubAccess();
   const router = useRouter();
@@ -73,7 +78,7 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
   };
 
   const displayName = user?.displayName || user?.email?.split("@")[0] || "Account";
-  const authRedirectQuery = `redirectTo=${encodeURIComponent(loginRedirect)}`;
+  const authRedirectQuery = `redirectTo=${encodeURIComponent(resolvedLoginRedirect)}`;
   const loginHref = `/login?${authRedirectQuery}`;
   const signupHref = `/signup?${authRedirectQuery}`;
 
@@ -97,18 +102,20 @@ export default function ClubHubNav({ active = null, loginRedirect = "/club-hub" 
   return (
     <nav
       className="border-b border-black/10 shadow-md"
-      style={{ backgroundColor: CLUB_HUB_MAROON }}
+      style={{ backgroundColor: brand.primary }}
       aria-label="Club Hub"
     >
       <div className="mx-auto flex w-full max-w-7xl flex-nowrap items-center justify-center gap-6 px-4 py-[1.006rem] text-sm font-semibold tracking-wide text-white sm:gap-10 sm:text-base md:gap-12">
-        {navItem("Home", active === "home", "/club-hub")}
-        {navItem("Club Directory", active === "directory", "/club-hub/directory")}
-        {navItem("Opportunities & Resources", active === "resources", "/club-hub/resources")}
-        {user
-          ? navItem("Seminar Clubs", active === "meeting-days", "/club-hub/meeting-days")
+        {navItem("Home", active === "home", base)}
+        {navItem("Club Directory", active === "directory", `${base}/directory`)}
+        {school.features.resources
+          ? navItem("Opportunities & Resources", active === "resources", `${base}/resources`)
           : null}
-        {showSponsorLink ? navItem("My clubs", active === "sponsor", "/club-hub/sponsor") : null}
-        {showAdminLink ? navItem(adminNavLabel, active === "admin", "/club-hub/admin") : null}
+        {user && school.features.meetingDaysNav
+          ? navItem("Seminar Clubs", active === "meeting-days", `${base}/meeting-days`)
+          : null}
+        {showSponsorLink ? navItem("My clubs", active === "sponsor", `${base}/sponsor`) : null}
+        {showAdminLink ? navItem(adminNavLabel, active === "admin", `${base}/admin`) : null}
         <div className="relative shrink-0" ref={dropdownRef} suppressHydrationWarning>
           {!loading && user ? (
             <>

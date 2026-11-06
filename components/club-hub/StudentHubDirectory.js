@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { filterBroadRunRosterEntries } from "@/lib/club-hub/broadRunRosterSearch";
+import { filterAclRosterEntries } from "@/lib/acl/aclRosterSearch";
 import { fetchRegisteredStudentEmailsClient } from "@/lib/club-hub/adminStudentsClient";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
 
 const PAGE_SIZE = 50;
 
@@ -18,6 +20,7 @@ const PAGE_SIZE = 50;
 /** @typedef {"all" | "accounts"} StudentAccountFilter */
 
 export default function StudentHubDirectory({ user, selectedEmail = "", onSelect, id = "admin-student-filter" }) {
+  const school = useClubHubSchool();
   const [query, setQuery] = useState("");
   /** @type {StudentAccountFilter} */
   const [accountFilter, setAccountFilter] = useState("all");
@@ -49,12 +52,15 @@ export default function StudentHubDirectory({ user, selectedEmail = "", onSelect
   }, [user]);
 
   const filtered = useMemo(() => {
-    let rows = filterBroadRunRosterEntries(query);
+    let rows =
+      school.schoolId === "acl"
+        ? filterAclRosterEntries(query)
+        : filterBroadRunRosterEntries(query);
     if (accountFilter === "accounts" && accountEmails) {
       rows = rows.filter((row) => accountEmails.has(row.email));
     }
     return rows;
-  }, [query, accountFilter, accountEmails]);
+  }, [query, accountFilter, accountEmails, school.schoolId]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);

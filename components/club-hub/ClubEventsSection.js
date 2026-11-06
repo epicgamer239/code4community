@@ -1,6 +1,7 @@
 "use client";
 
-import { CLUB_HUB_MAROON_DARK } from "@/lib/club-hub/theme";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
+import { clubHubBrand, hexToRgba } from "@/lib/club-hub/theme";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { formatEventDateLabel } from "@/lib/club-hub/clubEvents";
 import ClubEventDescriptionView from "@/components/club-hub/ClubEventDescriptionView";
@@ -23,13 +24,15 @@ export default function ClubEventsSection({
   accessLoading,
   onOpenEditor,
 }) {
+  const school = useClubHubSchool();
+  const brand = clubHubBrand(school);
+
   return (
     <section
       className="relative mt-4 border-t border-black/10 w-[calc(100%+2rem)] max-w-none -mx-4 sm:w-[calc(100%+3rem)] sm:-mx-6 lg:w-[calc(100%+5rem)] lg:-mx-10"
       style={{
-        backgroundColor: CLUB_HUB_MAROON_DARK,
-        backgroundImage:
-          "linear-gradient(rgba(40,8,10,0.88), rgba(40,8,10,0.92)), url(/brand/brh.png)",
+        backgroundColor: brand.primaryDark,
+        backgroundImage: `linear-gradient(${hexToRgba(brand.primaryDark, 0.88)}, ${hexToRgba(brand.primaryDark, 0.92)}), url(${brand.bannerImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
@@ -42,7 +45,8 @@ export default function ClubEventsSection({
             <button
               type="button"
               onClick={onOpenEditor}
-              className={`shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#5c1417] shadow-sm hover:bg-neutral-100 sm:px-3.5 sm:py-2 sm:text-sm ${clubHubButtonFocusClass}`}
+              className={`shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold shadow-sm hover:bg-neutral-100 sm:px-3.5 sm:py-2 sm:text-sm ${clubHubButtonFocusClass}`}
+              style={{ color: brand.primary }}
             >
               Edit meetings &amp; activities
             </button>

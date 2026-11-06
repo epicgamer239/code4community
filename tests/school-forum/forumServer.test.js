@@ -12,6 +12,7 @@ import {
   listModerationQueue,
   listMyConcerns,
   moderateConcern,
+  listStaff,
   setPresentationFlag,
   setStaffRole,
   submitConcern,
@@ -259,6 +260,29 @@ describe("school isolation", () => {
       status: 403,
     });
     await expect(setStaffRole(db, otherAdmin, { email: "mod@lcps.org", role: "moderator" }, NOW)).rejects.toThrow(/another school/);
+  });
+
+  it("forum staff can't change their own role, but site admins can appoint themselves", async () => {
+    await expect(setStaffRole(db, admin, { email: admin.email, role: "moderator" }, NOW)).rejects.toThrow(
+      /own role/,
+    );
+    const siteAdmin = {
+      uid: "site",
+      email: "site-admin@lcps.org",
+      schoolId: null,
+      role: null,
+      onRoster: false,
+      isSiteAdmin: true,
+    };
+    await setStaffRole(
+      db,
+      siteAdmin,
+      { schoolId: "broad-run", email: siteAdmin.email, role: "admin" },
+      NOW,
+    );
+    expect((await listStaff(db, { ...siteAdmin, schoolId: "broad-run", role: "admin" }, { schoolId: "broad-run" })).some((r) => r.email === siteAdmin.email)).toBe(
+      true,
+    );
   });
 });
 

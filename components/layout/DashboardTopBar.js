@@ -60,9 +60,14 @@ export default function DashboardTopBar({ title = "Code4Community", onNavigation
     pathname?.startsWith("/office-hours") ||
     pathname?.startsWith("/library-pass") ||
     pathname?.startsWith("/writing-center");
+  const flushBelowHeader =
+    pathname === "/" ||
+    pathname === "/services" ||
+    pathname === "/work" ||
+    pathname === "/acl";
   const headerSticky = isToolShell
     ? "sticky top-0 z-50 bg-background shadow-sm"
-    : pathname === "/" || pathname === "/services" || pathname === "/work"
+    : flushBelowHeader
       ? "relative z-40"
       : "relative z-40 mb-6";
 

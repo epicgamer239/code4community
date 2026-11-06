@@ -14,11 +14,12 @@ import { fetchAllManualRankingSlugs } from "@/lib/club-hub/manualRankings";
 import { logClientError } from "@/lib/auth/logClientError";
 import { useCustomClubs } from "@/lib/club-hub/customClubs";
 import {
-  CLUB_HUB_MAROON,
-  CLUB_HUB_MAROON_DARK,
   CLUB_HUB_MUTED_TEXT_CLASS,
+  clubHubBrand,
+  hexToRgba,
 } from "@/lib/club-hub/theme";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
 
 function rankNameClass(rank, placeholder) {
   if (placeholder) return "text-neutral-700 italic";
@@ -28,12 +29,14 @@ function rankNameClass(rank, placeholder) {
 }
 
 export default function ClubHubPage() {
+  const school = useClubHubSchool();
+  const brand = clubHubBrand(school);
   const [rankings, setRankings] = useState(() => buildClubHubHomeRankings([]));
   const { version: customClubVersion } = useCustomClubs();
 
   useLayoutEffect(() => {
-    document.title = "Broad Run Club Hub";
-  }, []);
+    document.title = school.hubName;
+  }, [school.hubName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,10 +59,10 @@ export default function ClubHubPage() {
   return (
     <div id="top" className="min-h-screen bg-neutral-100 text-neutral-900">
       <ClubHubSkipLink />
-      <section className="relative min-h-[246px] sm:min-h-[299px]" aria-label="Broad Run Club Hub banner">
+      <section className="relative min-h-[246px] sm:min-h-[299px]" aria-label={`${school.hubName} banner`}>
         <Image
-          src="/brand/brh.png"
-          alt="Broad Run High School, Ashburn, Virginia"
+          src={brand.bannerImage}
+          alt={brand.bannerAlt}
           fill
           priority
           className="object-cover object-center"
@@ -68,17 +71,17 @@ export default function ClubHubPage() {
         <div
           className="absolute inset-0"
           style={{
-            background: `linear-gradient(to bottom, rgba(60,12,16,0.55) 0%, rgba(60,12,16,0.82) 100%)`,
+            background: `linear-gradient(to bottom, ${hexToRgba(brand.primaryDark, 0.55)} 0%, ${hexToRgba(brand.primaryDark, 0.82)} 100%)`,
           }}
         />
         <div className="relative z-10 flex min-h-[246px] flex-col items-center justify-center px-6 py-10 text-center sm:min-h-[299px] sm:py-12">
           <h1 className="max-w-4xl text-3xl font-bold tracking-tight text-white drop-shadow-md sm:text-4xl md:text-[2.75rem]">
-            Broad Run Club Hub
+            {school.hubName}
           </h1>
         </div>
       </section>
 
-      <ClubHubNav active="home" loginRedirect="/club-hub" />
+      <ClubHubNav active="home" />
 
       <main
         id={CLUB_HUB_MAIN_ID}
@@ -98,11 +101,11 @@ export default function ClubHubPage() {
               <div
                 id={`rank-col-${col.title.replace(/\s+/g, "-").toLowerCase()}`}
                 className="px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-white sm:text-xs"
-                style={{ backgroundColor: CLUB_HUB_MAROON }}
+                style={{ backgroundColor: brand.primary }}
               >
                 {col.title}
                 {col.placeholder ? (
-                  <span className="ml-1 font-normal normal-case text-rose-100">(preview)</span>
+                  <span className="ml-1 font-normal normal-case text-white/80">(preview)</span>
                 ) : null}
               </div>
               <ul className="space-y-1.5 bg-gradient-to-b from-neutral-50/90 to-white p-2 sm:p-2.5">
@@ -135,9 +138,8 @@ export default function ClubHubPage() {
       <section
         className="relative border-t border-black/10"
         style={{
-          backgroundColor: CLUB_HUB_MAROON_DARK,
-          backgroundImage:
-            "linear-gradient(rgba(40,8,10,0.88), rgba(40,8,10,0.92)), url(/brand/brh.png)",
+          backgroundColor: brand.primaryDark,
+          backgroundImage: `linear-gradient(${hexToRgba(brand.primaryDark, 0.88)}, ${hexToRgba(brand.primaryDark, 0.92)}), url(${brand.bannerImage})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -153,7 +155,8 @@ export default function ClubHubPage() {
       >
         <Link
           href="/"
-          className={`text-[#5c1417] hover:underline ${clubHubButtonFocusClass}`}
+          className={`hover:underline ${clubHubButtonFocusClass}`}
+          style={{ color: brand.primary }}
         >
           ← Back to Code4Community
         </Link>

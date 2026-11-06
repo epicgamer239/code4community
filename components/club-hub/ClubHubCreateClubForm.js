@@ -5,6 +5,7 @@ import { useAuth } from "@/utils/AuthContext";
 import { loadCustomClubs } from "@/lib/club-hub/customClubs";
 import { loadMeetingDayOverrides } from "@/lib/club-hub/clubMeetingDays";
 import { isValidEmail } from "@/lib/email";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
 
 const MEETING_DAY_LABELS = {
   gold: "Gold",
@@ -20,10 +21,12 @@ const EMPTY_SPONSOR = { name: "", email: "" };
  */
 export default function ClubHubCreateClubForm({ onCreated, onError }) {
   const { user } = useAuth();
+  const school = useClubHubSchool();
   const [name, setName] = useState("");
   const [meetingDay, setMeetingDay] = useState("general");
   const [sponsors, setSponsors] = useState([{ ...EMPTY_SPONSOR }]);
   const [busy, setBusy] = useState(false);
+  const showMeetingDay = school.features.seminar;
 
   const updateSponsor = (index, field, value) => {
     setSponsors((rows) => rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
@@ -44,8 +47,13 @@ export default function ClubHubCreateClubForm({ onCreated, onError }) {
       onError?.("Each sponsor needs a name and a valid email.");
       return;
     }
-    const dayLabel = MEETING_DAY_LABELS[meetingDay];
-    const confirmed = window.confirm(`Create ${clubName} as a ${dayLabel} club?`);
+    const resolvedDay = showMeetingDay ? meetingDay : "general";
+    const dayLabel = MEETING_DAY_LABELS[resolvedDay];
+    const confirmed = window.confirm(
+      showMeetingDay
+        ? `Create ${clubName} as a ${dayLabel} club?`
+        : `Create ${clubName}?`,
+    );
     if (!confirmed) return;
 
     setBusy(true);
@@ -58,13 +66,18 @@ export default function ClubHubCreateClubForm({ onCreated, onError }) {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: clubName, meetingDay, sponsors: cleaned }),
+        body: JSON.stringify({
+          name: clubName,
+          meetingDay: resolvedDay,
+          sponsors: cleaned,
+          schoolId: school.schoolId,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not create club.");
       await Promise.all([
         loadCustomClubs({ force: true }),
-        loadMeetingDayOverrides({ force: true }),
+        showMeetingDay ? loadMeetingDayOverrides({ force: true }) : Promise.resolve(),
       ]);
       setName("");
       setMeetingDay("general");
@@ -81,9 +94,11 @@ export default function ClubHubCreateClubForm({ onCreated, onError }) {
     <form onSubmit={handleSubmit} className="mt-4 rounded-md border border-neutral-200 p-4">
       <h3 className="font-semibold text-neutral-900">Add a club</h3>
       <p className="mt-1 text-sm text-neutral-700">
-        Enter the club name, when it meets, and at least one sponsor.
+        {showMeetingDay
+          ? "Enter the club name, when it meets, and at least one sponsor."
+          : "Enter the club name and at least one sponsor."}
       </p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className={`mt-3 grid gap-3 ${showMeetingDay ? "sm:grid-cols-2" : ""}`}>
         <label className="block text-sm font-medium text-neutral-900" htmlFor="new-club-name">
           Club name
           <input
@@ -95,21 +110,23 @@ export default function ClubHubCreateClubForm({ onCreated, onError }) {
             className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
           />
         </label>
-        <label className="block text-sm font-medium text-neutral-900" htmlFor="new-club-day">
-          Meeting day
-          <select
-            id="new-club-day"
-            value={meetingDay}
-            onChange={(e) => setMeetingDay(e.target.value)}
-            className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
-          >
-            {Object.entries(MEETING_DAY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+        {showMeetingDay ? (
+          <label className="block text-sm font-medium text-neutral-900" htmlFor="new-club-day">
+            Meeting day
+            <select
+              id="new-club-day"
+              value={meetingDay}
+              onChange={(e) => setMeetingDay(e.target.value)}
+              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+            >
+              {Object.entries(MEETING_DAY_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
       </div>
       <fieldset className="mt-3 space-y-2">
         <legend className="text-sm font-medium text-neutral-900">Sponsors</legend>

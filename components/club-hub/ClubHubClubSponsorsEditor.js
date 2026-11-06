@@ -55,13 +55,14 @@ export default function ClubHubClubSponsorsEditor({
     if (!user?.getIdToken || !slug) return;
     try {
       const token = await user.getIdToken();
+      const { withClubHubSchoolId } = await import("@/lib/club-hub/schoolIdClient");
       await fetch("/api/club-hub/admin/refresh-sponsor-access", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ slug }),
+        body: JSON.stringify(withClubHubSchoolId({ slug })),
       });
     } catch (err) {
       logClientError("ClubHubClubSponsorsEditor.refreshSponsorAccess", err);

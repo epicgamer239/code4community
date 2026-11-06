@@ -49,6 +49,9 @@ The app requires Firebase credentials for authentication features. Without `keys
 
 Firebase CLI aliases in `.firebaserc`: `dev`, `prod` (default).
 
+### Academies of Loudoun (`/acl`)
+Portal at `/acl` with Club Hub at `/acl/club-hub` (no seminar/sheets). Data lives in parallel `aclClubHub*` collections via `lib/club-hub/schoolConfig.js` + `ClubHubSchoolProvider` (`schoolId: "acl"`). Roster: `lib/acl/aclRoster.js` from `public/acl/ACL_Students.csv`. Firestore fragment: `firestore/fragments/11-acl-club-hub.rules`.
+
 ### Writing Center async (Google Form)
 Async requests use an external Google Form; Apps Script posts to `/api/writing-center/google-form-sync`. Setup: `docs/writing-center-google-form.md`, script in `google-apps-script/writing-center-form-sync.gs`.
 
