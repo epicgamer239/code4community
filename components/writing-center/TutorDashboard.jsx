@@ -27,6 +27,8 @@ import { ActivePassesBoard } from "./ActivePassesBoard";
 import { isOpenHallPass, markWritingCenterPassIn, markWritingCenterPassOut } from "@/lib/writing-center/hallPass";
 import { writingCenterTabClass } from "@/lib/writing-center/tabClass";
 import { sortSessionsNewestFirst } from "@/lib/firestoreDates";
+import AcceptingTutoringToggle from "@/components/common/AcceptingTutoringToggle";
+import { TUTOR_ALERT_WRITING_CENTER } from "@/lib/tutorAlerts/services";
 
 export default function TutorDashboard({ preview = false, asUser = null }) {
   const liveSessions = useWritingCenterLiveSessions(!!firestore);
@@ -356,7 +358,12 @@ export default function TutorDashboard({ preview = false, asUser = null }) {
   return (
     <div className={`w-full ${preview ? "" : "px-3 sm:px-4 lg:px-6 py-4"}`}>
       <header className="w-full mb-6 border-b border-gray-200 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Writing Center - Tutor Dashboard</h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-2xl font-bold text-gray-900">Writing Center - Tutor Dashboard</h1>
+          {!preview ? (
+            <AcceptingTutoringToggle service={TUTOR_ALERT_WRITING_CENTER} className="mt-1 shrink-0" />
+          ) : null}
+        </div>
         <nav className="mt-3 flex flex-wrap gap-1" aria-label="Tutor sections">
           <button type="button" onClick={() => setActiveTab("available")} className={tabClass("available")}>
             Available Requests ({activePasses.length + availableSessions.length})

@@ -16,6 +16,8 @@ import {
 } from "@/lib/writing-center/sessionReport";
 import { miniLessonNeedsTeacherReport, formatMiniLessonTutors } from "@/lib/writing-center/miniLesson";
 import { writingCenterTabClass } from "@/lib/writing-center/tabClass";
+import AcceptingTutoringToggle from "@/components/common/AcceptingTutoringToggle";
+import { TUTOR_ALERT_WRITING_CENTER } from "@/lib/tutorAlerts/services";
 
 function formatType(sessionType) {
   switch (sessionType) {
@@ -185,7 +187,15 @@ export default function TeacherDashboard({ asUser = null }) {
   return (
     <div className="w-full px-3 sm:px-4 lg:px-6 py-4">
       <header className="mb-6 border-b border-gray-200 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Writing Center — Teacher</h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-2xl font-bold text-gray-900">Writing Center — Teacher</h1>
+          {!preview ? (
+            <AcceptingTutoringToggle
+              service={TUTOR_ALERT_WRITING_CENTER}
+              className="mt-1 shrink-0"
+            />
+          ) : null}
+        </div>
         <p className="mt-1 text-sm text-gray-600">
           Upload tutor rating PDFs for mini lessons assigned to you, {teacherName}. Student
           session receipts appear on the Receipts tab.

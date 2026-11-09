@@ -268,7 +268,7 @@ export default function StudentDashboard({ preview = false, asUser = null, mode 
 
     try {
       assertClientRateLimit("sessionCreate", user.uid);
-      await addDoc(collection(firestore, "sessions"), {
+      const created = await addDoc(collection(firestore, "sessions"), {
         studentId: user.uid,
         studentName: studentDisplayName,
         studentEmail: user.email || "",
@@ -279,6 +279,15 @@ export default function StudentDashboard({ preview = false, asUser = null, mode 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      void import("@/lib/tutorAlerts/notifyTutorsClient").then(({ requestTutorPushNotify }) =>
+        requestTutorPushNotify({
+          service: "writing-center",
+          title: "New Writing Center request",
+          body: `${studentDisplayName || "A student"} · In-person tutoring`,
+          href: "/writing-center",
+          tag: `wc-${created.id}`,
+        }),
+      );
       invalidateOnDataChange("writing_center_sessions", user.uid);
     } catch (err) {
       setError(err.message || "Failed to create pass");

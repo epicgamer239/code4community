@@ -81,7 +81,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const handleRoleChange = async (event) => {
-      if (user && event.detail.userId === user.uid) {
+      if (user && event.detail?.userId === user.uid) {
         const freshData = await fetchUserData(user, true);
         if (freshData) {
           setUserData(freshData);

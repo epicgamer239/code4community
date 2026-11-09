@@ -11,11 +11,41 @@ import {
   getSpartanDayHighlightKind,
   mergeSpartanScheduleIntoEventsByDate,
 } from "@/lib/club-hub/spartanAdvisoryClubSchedule2026";
+import { fetchMembershipsForUser } from "@/lib/club-hub/clubMemberships";
 import ClubHubCalendarDayDetailDialog from "@/components/club-hub/ClubHubCalendarDayDetailDialog";
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { getClubHubSchool } from "@/lib/club-hub/activeSchool";
 import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
 import { clubHubBrand, hexToRgba } from "@/lib/club-hub/theme";
+import { useAuth } from "@/utils/AuthContext";
+
+const MY_CLUBS_ONLY_STORAGE_KEY = "clubHub.calendar.myClubsOnly";
+
+/** School-wide / schedule items — always kept when filtering to my clubs. */
+function isSchoolWideCalendarEvent(ev) {
+  return Boolean(
+    ev?.isLcpsCalendar ||
+      ev?.isLcpsNoSchool ||
+      ev?.isActivityBus ||
+      ev?.isSpartanSchedule ||
+      !ev?.clubSlug,
+  );
+}
+
+/**
+ * @param {Record<string, import("@/lib/club-hub/clubEvents.js").CalendarEventBlock[]>} eventsByDate
+ * @param {Set<string>} memberSlugs
+ */
+function filterEventsToMyClubs(eventsByDate, memberSlugs) {
+  /** @type {Record<string, import("@/lib/club-hub/clubEvents.js").CalendarEventBlock[]>} */
+  const out = {};
+  for (const [key, list] of Object.entries(eventsByDate)) {
+    out[key] = list.filter(
+      (ev) => isSchoolWideCalendarEvent(ev) || memberSlugs.has(ev.clubSlug),
+    );
+  }
+  return out;
+}
 
 const NO_SCHOOL_DAY_CELL =
   "relative overflow-hidden border-2 border-dashed border-neutral-400 bg-white hover:bg-neutral-50";
@@ -506,12 +536,65 @@ function MonthView({ year, month, selectedDay, onDayClick, eventsByDate, brandPr
 export default function ClubHubWeekCalendar() {
   const school = useClubHubSchool();
   const brand = clubHubBrand(school);
+  const { user } = useAuth();
   const [view, setView] = useState("week");
   const [focusDate, setFocusDate] = useState(todayStart);
   /** @type {[Date | null, import("react").Dispatch<import("react").SetStateAction<Date | null>>]} */
   const [selectedDay, setSelectedDay] = useState(() => todayStart());
   const [eventsByDate, setEventsByDate] = useState({});
   const [detailDay, setDetailDay] = useState(null);
+  const [myClubsOnly, setMyClubsOnly] = useState(false);
+  /** @type {[Set<string>, import("react").Dispatch<import("react").SetStateAction<Set<string>>>]} */
+  const [memberClubSlugs, setMemberClubSlugs] = useState(() => new Set());
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage.getItem(MY_CLUBS_ONLY_STORAGE_KEY) === "1") {
+        setMyClubsOnly(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.uid) {
+      setMemberClubSlugs(new Set());
+      return undefined;
+    }
+    (async () => {
+      try {
+        const memberships = await fetchMembershipsForUser(user.uid);
+        if (cancelled) return;
+        setMemberClubSlugs(new Set(memberships.map((m) => m.clubSlug).filter(Boolean)));
+      } catch {
+        if (!cancelled) setMemberClubSlugs(new Set());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  const displayEventsByDate = useMemo(() => {
+    if (!myClubsOnly) return eventsByDate;
+    return filterEventsToMyClubs(eventsByDate, memberClubSlugs);
+  }, [eventsByDate, myClubsOnly, memberClubSlugs]);
+
+  const onToggleMyClubsOnly = () => {
+    setMyClubsOnly((prev) => {
+      const next = !prev;
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(MY_CLUBS_ONLY_STORAGE_KEY, next ? "1" : "0");
+        }
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
 
   const handleDayClick = (day) => {
     setSelectedDay(day);
@@ -520,7 +603,7 @@ export default function ClubHubWeekCalendar() {
   };
 
   const detailDayKey = detailDay ? dateKey(detailDay) : "";
-  const detailEvents = detailDayKey ? eventsByDate[detailDayKey] || [] : [];
+  const detailEvents = detailDayKey ? displayEventsByDate[detailDayKey] || [] : [];
 
   const weekStart = useMemo(() => startOfWeekSunday(focusDate), [focusDate]);
   const days = useMemo(
@@ -678,40 +761,68 @@ export default function ClubHubWeekCalendar() {
 
           <div className="h-0.5 w-full" style={{ backgroundColor: brand.primary }} aria-hidden />
 
-          <div className="flex flex-col items-center gap-2 px-3 py-3 sm:py-3.5">
-            <div className="flex justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setView("week");
-                  setSelectedDay(selectionForWeekFocus(focusDate));
-                }}
-                className={toggleBtn(view === "week")}
-                style={
-                  view === "week"
-                    ? { backgroundColor: brand.primary, borderColor: brand.primary }
-                    : { color: brand.primary, borderColor: `${brand.primary}66` }
-                }
-                aria-pressed={view === "week"}
-              >
-                Week
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setView("month");
-                  setSelectedDay(selectionForMonthFocus(focusDate));
-                }}
-                className={toggleBtn(view === "month")}
-                style={
-                  view === "month"
-                    ? { backgroundColor: brand.primary, borderColor: brand.primary }
-                    : { color: brand.primary, borderColor: `${brand.primary}66` }
-                }
-                aria-pressed={view === "month"}
-              >
-                Month
-              </button>
+          <div className="flex flex-col gap-2 px-3 py-3 sm:py-3.5">
+            <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+              <div className="hidden sm:block" aria-hidden />
+              <div className="flex justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setView("week");
+                    setSelectedDay(selectionForWeekFocus(focusDate));
+                  }}
+                  className={toggleBtn(view === "week")}
+                  style={
+                    view === "week"
+                      ? { backgroundColor: brand.primary, borderColor: brand.primary }
+                      : { color: brand.primary, borderColor: `${brand.primary}66` }
+                  }
+                  aria-pressed={view === "week"}
+                >
+                  Week
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setView("month");
+                    setSelectedDay(selectionForMonthFocus(focusDate));
+                  }}
+                  className={toggleBtn(view === "month")}
+                  style={
+                    view === "month"
+                      ? { backgroundColor: brand.primary, borderColor: brand.primary }
+                      : { color: brand.primary, borderColor: `${brand.primary}66` }
+                  }
+                  aria-pressed={view === "month"}
+                >
+                  Month
+                </button>
+              </div>
+              <div className="flex justify-center sm:justify-end">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={myClubsOnly}
+                  aria-label="My clubs only"
+                  onClick={onToggleMyClubsOnly}
+                  className={`inline-flex items-center gap-2.5 text-sm font-medium disabled:opacity-60 ${clubHubButtonFocusClass}`}
+                  style={{ color: brand.primary }}
+                >
+                  <span>My clubs only</span>
+                  <span
+                    aria-hidden
+                    className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+                      myClubsOnly ? "bg-emerald-600" : "bg-neutral-300"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${
+                        myClubsOnly ? "left-[1.125rem]" : "left-0.5"
+                      }`}
+                    />
+                  </span>
+                </button>
+              </div>
             </div>
             <CalendarColorLegend />
           </div>
@@ -723,7 +834,7 @@ export default function ClubHubWeekCalendar() {
               year={focusDate.getFullYear()}
               month={focusDate.getMonth()}
               selectedDay={selectedDay}
-              eventsByDate={eventsByDate}
+              eventsByDate={displayEventsByDate}
               onDayClick={handleDayClick}
               brandPrimary={brand.primary}
             />
@@ -744,7 +855,7 @@ export default function ClubHubWeekCalendar() {
                 <div className="grid h-[640px] grid-cols-7 gap-0 border-t border-neutral-200">
                   {days.map((day, colIdx) => {
                     const key = dateKey(day);
-                    const list = eventsByDate[key] || [];
+                    const list = displayEventsByDate[key] || [];
                     const noSchool = hasNoSchoolDay(list);
                     const isSelected = selectedIndex >= 0 && colIdx === selectedIndex;
                     const dateStr = day.toLocaleDateString("en-US", {
@@ -800,7 +911,7 @@ export default function ClubHubWeekCalendar() {
               <div className="flex flex-col gap-0 divide-y divide-neutral-200 border-t border-neutral-200 lg:hidden">
                 {days.map((day) => {
                   const key = dateKey(day);
-                  const list = eventsByDate[key] || [];
+                  const list = displayEventsByDate[key] || [];
                   const noSchool = hasNoSchoolDay(list);
                   const isSelected = selectedDay ? sameDay(day, selectedDay) : false;
                   const dateStr = day.toLocaleDateString("en-US", {

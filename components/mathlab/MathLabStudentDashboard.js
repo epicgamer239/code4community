@@ -96,10 +96,17 @@ export default function MathLabStudentDashboard({
               <input
                 id="scheduled-date"
                 type="date"
-                className="select w-full"
+                className="input w-full cursor-pointer"
                 min={toLocalYmd()}
                 value={scheduledDate}
                 onChange={(e) => onScheduledDateChange(e.target.value)}
+                onClick={(e) => {
+                  try {
+                    e.currentTarget.showPicker?.();
+                  } catch {
+                    /* unsupported / already open */
+                  }
+                }}
               />
             </div>
             <div className="min-w-0 pt-0 md:pt-5">
@@ -112,14 +119,14 @@ export default function MathLabStudentDashboard({
                 value={scheduledTime}
                 onChange={(e) => onScheduledTimeChange(e.target.value)}
               >
-                <optgroup label="Morning (7:00 – 9:15)">
+                <optgroup label="Morning (8:00 – 9:15)">
                   {ALLOWED_SCHEDULED_TIMES.filter((t) => t < "12:00").map((t) => (
                     <option key={t} value={t}>
                       {formatScheduledTimeLabel(t)}
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="Afternoon (4:20 – 6:00)">
+                <optgroup label="Afternoon (4:20 – 5:30)">
                   {ALLOWED_SCHEDULED_TIMES.filter((t) => t >= "12:00").map((t) => (
                     <option key={t} value={t}>
                       {formatScheduledTimeLabel(t)}
@@ -128,7 +135,7 @@ export default function MathLabStudentDashboard({
                 </optgroup>
               </select>
               <p className="text-xs text-muted-foreground mt-1.5">
-                10-minute steps · Morning until 9:15 · Afternoon 4:20–6:00
+                10-minute steps · Morning 8:00–9:15 · Afternoon 4:20–5:30
               </p>
             </div>
           </div>

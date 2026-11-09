@@ -135,7 +135,8 @@
                           (!('photoURL' in request.resource.data) || 
                             (request.resource.data.photoURL is string && 
                             request.resource.data.photoURL.size() <= 500)) &&
-                          clubHubStudentModeFieldOk()) ||
+                          clubHubStudentModeFieldOk() &&
+                          tutorAlertPrefsFieldOk()) ||
                           // Product / site admins (built-in admins are protected)
                           (isSiteAdmin() && protectedAdminTeamFieldsUnchanged()) ||
                           (isMathLabAdmin() &&

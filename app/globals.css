@@ -449,6 +449,25 @@ body {
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  /* Date inputs: calendar icon on the right (where select chevron sat) */
+  input[type="date"].input {
+    color-scheme: light;
+    position: relative;
+    padding-right: var(--spacing-8);
+  }
+
+  input[type="date"].input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    position: absolute;
+    right: var(--spacing-2);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.15rem;
+    height: 1.15rem;
+    margin: 0;
+    padding: 0;
+  }
   
   /* Textarea */
   .textarea {
@@ -469,21 +488,27 @@ body {
   /* Select */
   .select {
     cursor: pointer;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right var(--spacing-2) center;
-    background-repeat: no-repeat;
-    background-size: 16px 12px;
-    padding-right: var(--spacing-8);
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
     display: flex;
     height: 40px;
     width: 100%;
     border: 1px solid var(--border);
     background-color: var(--input);
-    padding: var(--spacing-2) var(--spacing-3);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right var(--spacing-2) center;
+    background-repeat: no-repeat;
+    background-size: 16px 12px;
+    padding: var(--spacing-2) var(--spacing-8) var(--spacing-2) var(--spacing-3);
     font-size: var(--font-size-sm);
     border-radius: var(--radius);
     transition: all 0.15s ease-in-out;
     line-height: 1;
+  }
+
+  .select::-ms-expand {
+    display: none;
   }
   
   /* Professional Badge System */

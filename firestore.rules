@@ -40,6 +40,23 @@
             (request.resource.data.clubHubStudentMode == resource.data.get('clubHubStudentMode', false) ||
               clubHubStudentModeSelfOnly()));
       }
+
+      function acceptingTutoringBoolFieldOk(field) {
+        return !(field in request.resource.data) ||
+          request.resource.data[field] is bool;
+      }
+
+      function tutorWebPushTokensFieldOk() {
+        return !('tutorWebPushTokens' in request.resource.data) ||
+          (request.resource.data.tutorWebPushTokens is map &&
+            request.resource.data.tutorWebPushTokens.size() <= 8);
+      }
+
+      function tutorAlertPrefsFieldOk() {
+        return acceptingTutoringBoolFieldOk('acceptingMathLabTutoring') &&
+          acceptingTutoringBoolFieldOk('acceptingWritingCenterTutoring') &&
+          tutorWebPushTokensFieldOk();
+      }
       
       function isValidRole(role) {
         return role in ['student', 'teacher', 'admin'];
@@ -59,11 +76,14 @@
           'Precalculus (any level)',
           'AP Calc AB',
           'AP Calc BC',
-          'DE Multivariable Calc',
+          'AP Stats',
+          'Computer Math',
+          'AP Computer Science A',
           // Legacy names (existing requests / completed sessions)
           'Precalc',
           'Calc AB',
           'Calc BC',
+          'DE Multivariable Calc',
           'Multivariable Calc',
           'Algebra 1',
           'Algebra 2',
@@ -82,15 +102,13 @@
         return value in ['now', 'scheduled'];
       }
 
-      // 7:00–9:10 /10min + 9:15; 16:20–18:00 /10min
+      // 8:00–9:10 /10min + 9:15; 16:20–17:30 /10min
       function isValidScheduledTime(value) {
         return value in [
-          '07:00', '07:10', '07:20', '07:30', '07:40', '07:50',
           '08:00', '08:10', '08:20', '08:30', '08:40', '08:50',
           '09:00', '09:10', '09:15',
           '16:20', '16:30', '16:40', '16:50',
-          '17:00', '17:10', '17:20', '17:30', '17:40', '17:50',
-          '18:00'
+          '17:00', '17:10', '17:20', '17:30'
         ];
       }
 
@@ -415,7 +433,8 @@
                           (!('photoURL' in request.resource.data) || 
                             (request.resource.data.photoURL is string && 
                             request.resource.data.photoURL.size() <= 500)) &&
-                          clubHubStudentModeFieldOk()) ||
+                          clubHubStudentModeFieldOk() &&
+                          tutorAlertPrefsFieldOk()) ||
                           // Product / site admins (built-in admins are protected)
                           (isSiteAdmin() && protectedAdminTeamFieldsUnchanged()) ||
                           (isMathLabAdmin() &&

@@ -43,6 +43,8 @@ import { WritingCenterCache } from "@/utils/cache";
 import { hydrateLiveList } from "@/utils/liveFirestoreCache";
 import { invalidateOnDataChange } from "@/utils/cacheInvalidation";
 import { resolveDisplayName, resolveWritingCenterViewRole } from "@/lib/profile";
+import AcceptingTutoringToggle from "@/components/common/AcceptingTutoringToggle";
+import { TUTOR_ALERT_WRITING_CENTER } from "@/lib/tutorAlerts/services";
 import { hasWritingCenterTutorAccess } from "@/lib/tutorServices";
 import { WritingCenterAdminTeamPanel } from "./WritingCenterAdminTeamPanel";
 import { ActivePassesBoard } from "./ActivePassesBoard";
@@ -354,10 +356,17 @@ export default function AdminDashboard() {
 
   return (
     <div className="w-full px-3 sm:px-4 lg:px-6 py-4">
-      <header className="w-full flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-8 mb-6 border-b border-gray-200 pb-4">
-        <div className="min-w-0 shrink-0">
+      <header className="mb-6 w-full border-b border-gray-200 pb-4">
+        <div className="flex items-start justify-between gap-4">
           <h1 className="text-2xl font-bold text-gray-900">Writing Center - Admin Dashboard</h1>
-          <nav className="mt-3 flex flex-wrap gap-1" aria-label="Admin sections">
+          <AcceptingTutoringToggle
+            service={TUTOR_ALERT_WRITING_CENTER}
+            className="mt-1 shrink-0"
+          />
+        </div>
+        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+        <div className="min-w-0 shrink-0">
+          <nav className="flex flex-wrap gap-1" aria-label="Admin sections">
             <button type="button" onClick={() => setActiveTab("sessions")} className={tabClass("sessions")}>
               Active passes
             </button>
@@ -477,6 +486,7 @@ export default function AdminDashboard() {
             </button>
           </div>
         )}
+        </div>
       </header>
 
       {activeTab === "team" ? (

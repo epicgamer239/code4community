@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { RequestCardSkeleton } from "@/components/common/SkeletonLoader";
+import AcceptingTutoringToggle from "@/components/common/AcceptingTutoringToggle";
 import MathLabAdminActiveSessions from "@/components/mathlab/MathLabAdminActiveSessions";
 import ProfileImage from "@/components/mathlab/ProfileImage";
 import { formatRequestDateTime } from "@/lib/firestoreDates";
@@ -9,6 +10,7 @@ import {
   canStartScheduledSession,
   formatScheduleLabel,
 } from "@/lib/mathlab/scheduledRequests";
+import { TUTOR_ALERT_MATHLAB } from "@/lib/tutorAlerts/services";
 
 export default function MathLabTutorDashboard({
   livePendingRequests,
@@ -34,35 +36,40 @@ export default function MathLabTutorDashboard({
 
   return (
     <div className="max-w-7xl w-full mx-4">
-      <div className="text-center mb-8">
-        <h2 className="text-4xl font-bold text-foreground mb-4">Tutor Dashboard</h2>
-        <div className="inline-flex space-x-1 bg-muted/30 p-1 rounded-lg">
-          <button
-            type="button"
-            onClick={() => setTutorQueueTab("live")}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              tutorQueueTab === "live"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Live requests
-            {livePendingRequests.length > 0 ? ` (${livePendingRequests.length})` : ""}
-          </button>
-          <button
-            type="button"
-            onClick={() => setTutorQueueTab("scheduled")}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              tutorQueueTab === "scheduled"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Scheduled requests
-            {scheduledPendingRequests.length > 0
-              ? ` (${scheduledPendingRequests.length})`
-              : ""}
-          </button>
+      <div className="mb-8">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <h2 className="text-4xl font-bold text-foreground">Tutor Dashboard</h2>
+          <AcceptingTutoringToggle service={TUTOR_ALERT_MATHLAB} className="mt-2 shrink-0" />
+        </div>
+        <div className="flex justify-center">
+          <div className="inline-flex space-x-1 bg-muted/30 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setTutorQueueTab("live")}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                tutorQueueTab === "live"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Live requests
+              {livePendingRequests.length > 0 ? ` (${livePendingRequests.length})` : ""}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTutorQueueTab("scheduled")}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                tutorQueueTab === "scheduled"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Scheduled requests
+              {scheduledPendingRequests.length > 0
+                ? ` (${scheduledPendingRequests.length})`
+                : ""}
+            </button>
+          </div>
         </div>
       </div>
 

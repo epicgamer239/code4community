@@ -4,6 +4,7 @@ import "./globals.css";
 import ErrorBoundary from "@/components/layout/ErrorBoundary";
 import FirebaseAnalytics from "@/components/common/FirebaseAnalytics";
 import { AuthProvider } from "@/utils/AuthContext";
+import TutorAlertsProvider from "@/components/common/TutorAlertsProvider";
 
 // Security headers are configured in next.config.mjs
 
@@ -55,7 +56,7 @@ export default function RootLayout({ children }) {
       >
         <ErrorBoundary>
           <AuthProvider>
-            {children}
+            <TutorAlertsProvider>{children}</TutorAlertsProvider>
           </AuthProvider>
         </ErrorBoundary>
       </body>
