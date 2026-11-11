@@ -38,10 +38,17 @@ export default function ClubBoardMembersPanel({
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
 
+  const isBoardMemberForClub = Boolean(
+    accessRecord?.boardClubSlugs &&
+      typeof accessRecord.boardClubSlugs === "object" &&
+      accessRecord.boardClubSlugs[clubSlug] === true,
+  );
+
   const canManage =
     Boolean(user?.email) &&
     (canManageClubHubRoles(user.email, userData, accessRecord) ||
-      getSponsorClubSlugsForEmail(user.email, sponsorOverrides).includes(clubSlug));
+      getSponsorClubSlugsForEmail(user.email, sponsorOverrides).includes(clubSlug) ||
+      isBoardMemberForClub);
 
   const load = useCallback(async () => {
     if (!user || !clubSlug || !canManage) {
@@ -142,10 +149,11 @@ export default function ClubBoardMembersPanel({
           Board members
         </h2>
         <p className="mt-1 text-sm text-neutral-700">
-          Add student board members by email. They can edit {clubName} on Club Hub.
+          Sponsors and board members can add student board members by email. They can edit{" "}
+          {clubName} on Club Hub
           {hasBoardGroup
-            ? " They are also placed in the board member roster group for this club."
-            : " This club has no separate board roster group on the directory."}
+            ? " and are placed in the board member roster group."
+            : ". This club has no separate board roster group on the directory."}
         </p>
       </div>
 

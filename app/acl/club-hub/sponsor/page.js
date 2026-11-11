@@ -29,7 +29,7 @@ export default function AclClubHubSponsorPage() {
       active="sponsor"
       loginRedirect={`${school.basePath}/sponsor`}
       title="My clubs"
-      loginMessage="Sign in with a club sponsor account to view rosters and metrics."
+      loginMessage="Sign in with a club sponsor or board member account to manage your clubs."
       allowed={allowed}
       accessLoading={accessLoading}
     >

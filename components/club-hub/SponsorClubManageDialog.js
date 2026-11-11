@@ -8,6 +8,7 @@ import ClubHubJoinPolicyPanel from "@/components/club-hub/ClubHubJoinPolicyPanel
 import { clubHubButtonFocusClass } from "@/lib/club-hub/a11y";
 import { membershipHasBoardGroup } from "@/lib/club-hub/boardMembersClient";
 import { formatJoinedAt } from "@/lib/club-hub/clubMemberships";
+import { useClubHubSchool } from "@/lib/club-hub/ClubHubSchoolProvider";
 
 /**
  * @typedef {"menu" | "roster" | "board" | "membership" | "sponsors"} ClubManageDialogPanel
@@ -62,6 +63,7 @@ export default function SponsorClubManageDialog({
   onMemberLimitSaved,
   adminAccess = null,
 }) {
+  const school = useClubHubSchool();
   const closeButtonRef = useRef(null);
 
   useEffect(() => {
@@ -185,7 +187,7 @@ export default function SponsorClubManageDialog({
                 </>
               ) : null}
               <Link
-                href={`/club-hub/directory/${club.slug}`}
+                href={`${school.basePath}/directory/${club.slug}`}
                 className={`block text-center text-sm font-semibold text-[#5c1417] hover:underline ${clubHubButtonFocusClass}`}
               >
                 Open club page

@@ -7,9 +7,9 @@ import Image from "next/image";
 import { AppPageLayout, CenteredMain } from "@/components/common/AppPageLayout";
 import FullPageLoading from "@/components/common/FullPageLoading";
 import { useAuth } from "@/utils/AuthContext";
-import { lookupBroadRunName } from "@/lib/club-hub/broadRunRoster";
 import { normalizeEmail } from "@/lib/email";
 import { auth, createUserWithEmailAndPassword, updateProfile } from "@/firebase";
+import { lookupLcpsRosterName } from "@/lib/auth/rosterDisplayName";
 import { fetchSignupEmailAllowlist } from "@/lib/auth/signupAllowlist";
 import {
   isSignupEmailAllowed,
@@ -17,7 +17,7 @@ import {
 } from "@/lib/auth/signupEmailPolicy";
 
 async function applyRosterDisplayName(firebaseUser) {
-  const rosterName = lookupBroadRunName(normalizeEmail(firebaseUser.email));
+  const rosterName = lookupLcpsRosterName(firebaseUser.email);
   if (rosterName) {
     await updateProfile(firebaseUser, { displayName: rosterName });
   }
