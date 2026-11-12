@@ -3,7 +3,6 @@ import { applyCustomClubsFromAdminDb } from "@/lib/club-hub/customClubsServer";
 import { getAdminFirestore } from "@/lib/firebase/admin";
 import ClubDetailView from "@/components/club-hub/ClubDetailView";
 import CustomClubDetailGate from "@/components/club-hub/CustomClubDetailGate";
-import { ClubHubSchoolProvider } from "@/lib/club-hub/ClubHubSchoolProvider";
 import { runWithClubHubSchool } from "@/lib/club-hub/activeSchool";
 import { ACL_CLUB_HUB_CONFIG } from "@/lib/club-hub/schoolConfig";
 import {
@@ -54,9 +53,5 @@ export async function generateMetadata({ params }) {
 export default async function AclClubDetailPage({ params }) {
   const { slug } = await params;
   const club = await resolveClub(slug);
-  return (
-    <ClubHubSchoolProvider schoolId="acl">
-      {club ? <ClubDetailView club={club} slug={slug} /> : <CustomClubDetailGate slug={slug} />}
-    </ClubHubSchoolProvider>
-  );
+  return club ? <ClubDetailView club={club} slug={slug} /> : <CustomClubDetailGate slug={slug} />;
 }

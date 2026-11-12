@@ -36,6 +36,10 @@ import { WritingCenterPassCard } from "./WritingCenterPassCard";
 import { endWritingCenterPass } from "@/lib/writing-center/hallPass";
 import { HALL_PASS_AUTO_CLOSE_MS } from "@/lib/writing-center/hallPassTiming";
 import { useExpireStaleHallPasses } from "@/lib/writing-center/useExpireStaleHallPasses";
+import {
+  canSubmitLiveTutoringRequest,
+  liveTutoringRequestBlockReason,
+} from "@/lib/tutoringLiveWindow";
 
 export default function StudentDashboard({ preview = false, asUser = null, mode = "home" }) {
   const [liveSessions, setLiveSessions] = useState([]);
@@ -256,6 +260,14 @@ export default function StudentDashboard({ preview = false, asUser = null, mode 
     if (isSubmitting || !user || preview) return;
     if (sessionType === "ASYNC") {
       openAsyncForm();
+      return;
+    }
+    if (!canSubmitLiveTutoringRequest()) {
+      setError(
+        liveTutoringRequestBlockReason(new Date(), {
+          serviceLabel: "In-person requests",
+        }) || "In-person requests are closed right now.",
+      );
       return;
     }
     if (passIsOpen) {

@@ -1,10 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   ALLOWED_SCHEDULED_TIMES,
   REQUEST_TYPE_NOW,
   REQUEST_TYPE_SCHEDULED,
+  canSubmitLiveMathLabRequest,
   formatScheduledTimeLabel,
+  liveMathLabRequestBlockReason,
+  nextWeekdayYmd,
+  scheduledMathLabDateBlockReason,
   toLocalYmd,
 } from "@/lib/mathlab/scheduledRequests";
 import { MATHLAB_COURSES } from "@/lib/mathlab/courses";
@@ -21,6 +26,35 @@ export default function MathLabStudentDashboard({
   isMatching,
   onMatchMe,
 }) {
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const now = new Date(nowTick);
+  const liveAllowed = canSubmitLiveMathLabRequest(now);
+  const liveBlockReason = liveMathLabRequestBlockReason(now);
+  const dateBlockReason = scheduledMathLabDateBlockReason(scheduledDate, now);
+  const minDate = nextWeekdayYmd(toLocalYmd(now));
+
+  useEffect(() => {
+    if (dateBlockReason) {
+      onScheduledDateChange(nextWeekdayYmd(scheduledDate || minDate));
+    }
+  }, [dateBlockReason, scheduledDate, minDate, onScheduledDateChange]);
+
+  const handleDateChange = (value) => {
+    const reason = scheduledMathLabDateBlockReason(value, now);
+    onScheduledDateChange(reason ? nextWeekdayYmd(value || minDate) : value);
+  };
+
+  const handleModeChange = (mode) => {
+    if (mode === REQUEST_TYPE_NOW && !liveAllowed) return;
+    onRequestModeChange(mode);
+  };
+
   return (
     <div className="max-w-3xl w-full mx-4">
       <div className="text-center mb-8">
@@ -62,8 +96,10 @@ export default function MathLabStudentDashboard({
               <button
                 type="button"
                 aria-pressed={requestMode === REQUEST_TYPE_NOW}
-                onClick={() => onRequestModeChange(REQUEST_TYPE_NOW)}
-                className={`px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                disabled={!liveAllowed}
+                title={liveBlockReason || undefined}
+                onClick={() => handleModeChange(REQUEST_TYPE_NOW)}
+                className={`px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   requestMode === REQUEST_TYPE_NOW
                     ? "bg-foreground text-background border-foreground"
                     : "bg-background text-foreground border-border hover:bg-muted"
@@ -74,7 +110,7 @@ export default function MathLabStudentDashboard({
               <button
                 type="button"
                 aria-pressed={requestMode === REQUEST_TYPE_SCHEDULED}
-                onClick={() => onRequestModeChange(REQUEST_TYPE_SCHEDULED)}
+                onClick={() => handleModeChange(REQUEST_TYPE_SCHEDULED)}
                 className={`px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                   requestMode === REQUEST_TYPE_SCHEDULED
                     ? "bg-foreground text-background border-foreground"
@@ -84,6 +120,13 @@ export default function MathLabStudentDashboard({
                 Schedule
               </button>
             </div>
+            {liveBlockReason ? (
+              <p className="mt-2 text-xs text-muted-foreground">{liveBlockReason}</p>
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Live requests: weekdays 9:30 AM–4:18 PM
+              </p>
+            )}
           </fieldset>
         </div>
 
@@ -97,9 +140,10 @@ export default function MathLabStudentDashboard({
                 id="scheduled-date"
                 type="date"
                 className="input w-full cursor-pointer"
-                min={toLocalYmd()}
+                min={minDate}
                 value={scheduledDate}
-                onChange={(e) => onScheduledDateChange(e.target.value)}
+                disabled={isMatching}
+                onChange={(e) => handleDateChange(e.target.value)}
                 onClick={(e) => {
                   try {
                     e.currentTarget.showPicker?.();
@@ -108,6 +152,12 @@ export default function MathLabStudentDashboard({
                   }
                 }}
               />
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Weekdays only (Mon–Fri) — weekends jump to the next weekday
+              </p>
+              {dateBlockReason ? (
+                <p className="text-xs text-red-600 mt-1">{dateBlockReason}</p>
+              ) : null}
             </div>
             <div className="min-w-0 pt-0 md:pt-5">
               <label htmlFor="scheduled-time" className="block text-sm font-semibold mb-2 text-foreground">
@@ -145,7 +195,12 @@ export default function MathLabStudentDashboard({
           <button
             type="button"
             onClick={onMatchMe}
-            disabled={!selectedCourse || isMatching}
+            disabled={
+              !selectedCourse ||
+              isMatching ||
+              (requestMode === REQUEST_TYPE_NOW && !liveAllowed) ||
+              (requestMode === REQUEST_TYPE_SCHEDULED && Boolean(dateBlockReason))
+            }
             className="btn-primary w-full sm:w-auto sm:min-w-[220px] text-base py-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isMatching ? (

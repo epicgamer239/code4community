@@ -136,19 +136,21 @@ export default function GradeCalculator() {
     setShowWeightPlanModal(true);
   }, []);
 
+  // Letter grades follow gradebook rounding (e.g. 97.5 → 98 → A+); percents stay exact
   const getLetterGrade = (percent) => {
-    if (percent >= 98) return "A+";
-    if (percent >= 93) return "A";
-    if (percent >= 90) return "A-";
-    if (percent >= 87) return "B+";
-    if (percent >= 83) return "B";
-    if (percent >= 80) return "B-";
-    if (percent >= 77) return "C+";
-    if (percent >= 73) return "C";
-    if (percent >= 70) return "C-";
-    if (percent >= 67) return "D+";
-    if (percent >= 63) return "D";
-    if (percent >= 60) return "D-";
+    const rounded = Math.round(percent);
+    if (rounded >= 98) return "A+";
+    if (rounded >= 93) return "A";
+    if (rounded >= 90) return "A-";
+    if (rounded >= 87) return "B+";
+    if (rounded >= 83) return "B";
+    if (rounded >= 80) return "B-";
+    if (rounded >= 77) return "C+";
+    if (rounded >= 73) return "C";
+    if (rounded >= 70) return "C-";
+    if (rounded >= 67) return "D+";
+    if (rounded >= 63) return "D";
+    if (rounded >= 60) return "D-";
     return "F";
   };
 

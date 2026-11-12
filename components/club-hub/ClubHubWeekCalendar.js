@@ -251,9 +251,9 @@ function scheduleStyles(kind) {
  * @param {string} dateKey
  * @param {import("@/lib/club-hub/clubEvents.js").CalendarEventBlock[]} list
  * @param {boolean} [selected]
+ * @param {import("@/lib/club-hub/schoolConfig").ClubHubSchoolConfig} [school]
  */
-function daySurfaceClass(dateKey, list, selected = false) {
-  const school = getClubHubSchool();
+function daySurfaceClass(dateKey, list, selected = false, school = getClubHubSchool()) {
   const highlight = school.features.seminar ? getSpartanDayHighlightKind(dateKey) : null;
   const styles = highlight ? scheduleStyles(highlight) : null;
   const hasNoSchool = hasNoSchoolDay(list);
@@ -267,11 +267,11 @@ function daySurfaceClass(dateKey, list, selected = false) {
 
 /**
  * @param {string} dateKey
- * @param {{ noSchool?: boolean, week?: boolean, selected?: boolean }} [opts]
+ * @param {{ noSchool?: boolean, week?: boolean, selected?: boolean, school?: import("@/lib/club-hub/schoolConfig").ClubHubSchoolConfig }} [opts]
  */
 function dayNumberClass(dateKey, opts = {}) {
   if (opts.selected) return "bg-[var(--club-hub-primary)] text-white";
-  const school = getClubHubSchool();
+  const school = opts.school || getClubHubSchool();
   const highlight = school.features.seminar ? getSpartanDayHighlightKind(dateKey) : null;
   const styles = highlight ? scheduleStyles(highlight) : null;
   if (styles?.dayBadge) return styles.dayBadge;
@@ -440,7 +440,7 @@ function EventBlock({ ev, isSelectedCol }) {
   );
 }
 
-function MonthView({ year, month, selectedDay, onDayClick, eventsByDate, brandPrimary }) {
+function MonthView({ year, month, selectedDay, onDayClick, eventsByDate, brandPrimary, school }) {
   const firstOfMonth = new Date(year, month, 1);
   const startPad = firstOfMonth.getDay();
   const totalDays = daysInMonth(year, month);
@@ -498,12 +498,12 @@ function MonthView({ year, month, selectedDay, onDayClick, eventsByDate, brandPr
               onClick={() => onDayClick(day)}
               aria-label={`${dayLabel}${list.length ? `, ${list.length} event${list.length === 1 ? "" : "s"}` : ""}. Open day details.`}
               aria-pressed={selected}
-              className={`flex min-h-0 flex-col border-b border-r border-neutral-200 p-1 text-left transition-colors last:border-r-0 sm:p-1.5 ${clubHubButtonFocusClass} ${daySurfaceClass(key, list, selected)}`}
+              className={`flex min-h-0 flex-col border-b border-r border-neutral-200 p-1 text-left transition-colors last:border-r-0 sm:p-1.5 ${clubHubButtonFocusClass} ${daySurfaceClass(key, list, selected, school)}`}
               style={selected ? { ["--tw-ring-color"]: brandPrimary } : undefined}
             >
               {noSchool ? <NoSchoolCellOverlay /> : null}
               <span
-                className={`relative z-[2] mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold sm:text-xs ${dayNumberClass(key, { noSchool, selected })}`}
+                className={`relative z-[2] mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold sm:text-xs ${dayNumberClass(key, { noSchool, selected, school })}`}
               >
                 {day.getDate()}
               </span>
@@ -565,7 +565,7 @@ export default function ClubHubWeekCalendar() {
     }
     (async () => {
       try {
-        const memberships = await fetchMembershipsForUser(user.uid);
+        const memberships = await fetchMembershipsForUser(user.uid, school);
         if (cancelled) return;
         setMemberClubSlugs(new Set(memberships.map((m) => m.clubSlug).filter(Boolean)));
       } catch {
@@ -575,7 +575,7 @@ export default function ClubHubWeekCalendar() {
     return () => {
       cancelled = true;
     };
-  }, [user?.uid]);
+  }, [user?.uid, school]);
 
   const displayEventsByDate = useMemo(() => {
     if (!myClubsOnly) return eventsByDate;
@@ -635,7 +635,11 @@ export default function ClubHubWeekCalendar() {
     let cancelled = false;
     (async () => {
       try {
-        const events = await fetchClubEventsInRange(visibleRange.start, visibleRange.end);
+        const events = await fetchClubEventsInRange(
+          visibleRange.start,
+          visibleRange.end,
+          school,
+        );
         if (!cancelled) {
           const grouped = groupEventsByDate(events);
           const withSchool = school.features.seminar
@@ -665,6 +669,7 @@ export default function ClubHubWeekCalendar() {
   }, [
     visibleRange.start,
     visibleRange.end,
+    school,
     school.features.seminar,
     school.features.activityBus,
   ]);
@@ -837,6 +842,7 @@ export default function ClubHubWeekCalendar() {
               eventsByDate={displayEventsByDate}
               onDayClick={handleDayClick}
               brandPrimary={brand.primary}
+              school={school}
             />
           ) : (
             <>
@@ -877,7 +883,7 @@ export default function ClubHubWeekCalendar() {
                         onClick={() => handleDayClick(day)}
                         aria-label={`${dayLabel}${list.length ? `, ${list.length} event${list.length === 1 ? "" : "s"}` : ""}. Open day details.`}
                         aria-pressed={isSelected}
-                        className={`flex min-h-0 min-w-0 flex-col border-r border-neutral-200 text-left last:border-r-0 ${clubHubButtonFocusClass} ${daySurfaceClass(key, list, isSelected)}`}
+                        className={`flex min-h-0 min-w-0 flex-col border-r border-neutral-200 text-left last:border-r-0 ${clubHubButtonFocusClass} ${daySurfaceClass(key, list, isSelected, school)}`}
                         style={isSelected ? { ["--tw-ring-color"]: brand.primary } : undefined}
                       >
                         {noSchool ? <NoSchoolCellOverlay /> : null}
@@ -885,8 +891,8 @@ export default function ClubHubWeekCalendar() {
                           <div
                             className={`inline-block text-sm font-bold leading-none sm:text-[15px] ${
                               noSchool
-                                ? `px-1 ${dayNumberClass(key, { noSchool, week: true, selected: isSelected })}`
-                                : `rounded-md px-2 py-1 ${dayNumberClass(key, { noSchool, week: true, selected: isSelected })}`
+                                ? `px-1 ${dayNumberClass(key, { noSchool, week: true, selected: isSelected, school })}`
+                                : `rounded-md px-2 py-1 ${dayNumberClass(key, { noSchool, week: true, selected: isSelected, school })}`
                             }`}
                           >
                             {dateStr}
@@ -928,15 +934,15 @@ export default function ClubHubWeekCalendar() {
                         aria-expanded={isSelected}
                         aria-controls={`${key}-events`}
                         aria-label={`${dateStr}. Open day details.`}
-                        className={`relative flex w-full items-center justify-between overflow-hidden px-3 py-2.5 text-left ${clubHubButtonFocusClass} ${daySurfaceClass(key, list, isSelected)}`}
+                        className={`relative flex w-full items-center justify-between overflow-hidden px-3 py-2.5 text-left ${clubHubButtonFocusClass} ${daySurfaceClass(key, list, isSelected, school)}`}
                         style={isSelected ? { ["--tw-ring-color"]: brand.primary } : undefined}
                       >
                         {noSchool ? <NoSchoolCellOverlay /> : null}
                         <span
                           className={`relative z-[2] text-sm font-semibold ${
                             noSchool
-                              ? `px-1 ${dayNumberClass(key, { noSchool, week: true, selected: isSelected })}`
-                              : `rounded-md px-2 py-0.5 ${dayNumberClass(key, { noSchool, week: true, selected: isSelected })}`
+                              ? `px-1 ${dayNumberClass(key, { noSchool, week: true, selected: isSelected, school })}`
+                              : `rounded-md px-2 py-0.5 ${dayNumberClass(key, { noSchool, week: true, selected: isSelected, school })}`
                           }`}
                         >
                           {dateStr}
@@ -944,7 +950,7 @@ export default function ClubHubWeekCalendar() {
                       </button>
                       <div
                         id={`${key}-events`}
-                        className={`relative space-y-0 overflow-hidden py-1 ${daySurfaceClass(key, list, false)}`}
+                        className={`relative space-y-0 overflow-hidden py-1 ${daySurfaceClass(key, list, false, school)}`}
                       >
                         {noSchool ? <NoSchoolCellOverlay /> : null}
                         <div className="relative z-[2]">
